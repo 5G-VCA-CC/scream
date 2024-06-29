@@ -16,6 +16,9 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/timerfd.h>
+
+#include <iomanip>
+
 struct itimerval timer;
 struct sigaction sa;
 
@@ -163,9 +166,15 @@ uint32_t getTimeInNtp() {
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
 	double time = tp.tv_sec + tp.tv_usec * 1e-6 - t0;
-	uint64_t ntp64 = uint64_t(time * 65536.0);
+	uint64_t ntp64 = uint64_t(time * 65536.0); // 65536 = 2^16
 	uint32_t ntp = 0xFFFFFFFF & ntp64;
 	return ntp;
+}
+
+double getCurrentTimeUSec() {
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    return static_cast<double>(tp.tv_sec) * 1e6 + static_cast<double>(tp.tv_usec);
 }
 
 // Accumulated pace time, used to avoid starting very short pace timers
@@ -195,6 +204,8 @@ void parseRtp(unsigned char* buf, uint16_t* seqNr, uint32_t* timeStamp, unsigned
 }
 
 void writeRtp(unsigned char* buf, uint16_t seqNr, uint32_t timeStamp, unsigned char pt) {
+    // std::cout << "From writeRtp. Writing packet with seqNr " << seqNr
+    //          << " with timestamp " << timeStamp << std::endl;
 	seqNr = htons(seqNr);
 	timeStamp = htonl(timeStamp);
 	uint32_t tmp = htonl(SSRC);
@@ -358,7 +369,11 @@ void* createRtpThread(void* arg) {
 		}
 		uint32_t time_ntp = getTimeInNtp();
 
+        double first_pkt_time = getCurrentTimeUSec();
+
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
+
+
 		float rateTx = screamTx->getTargetBitrate(SSRC) * rateScale;
 		float randVal = float(rand()) / RAND_MAX - 0.5;
 		int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
@@ -444,6 +459,11 @@ void* createRtpThread(void* arg) {
 				time_ntp = getTimeInNtp();
 				screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
 				pthread_mutex_unlock(&lock_scream);
+
+                if (isMark) {
+                    std::cout << std::fixed << std::setprecision(0) << "New frame sent: timestamp " << ts << ", time in usec " << first_pkt_time << std::endl;
+                    // ts was generated when the first RTP packet of the frame was formed.
+                }
 			}
 			seqNr++;
 		}

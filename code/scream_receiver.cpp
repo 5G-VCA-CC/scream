@@ -12,6 +12,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+
+#include <iomanip>
+
 using namespace std;
 
 #define BUFSIZE 2048
@@ -75,6 +78,12 @@ uint32_t getTimeInNtp() {
 	uint64_t ntp64 = uint64_t(time * 65536);
 	uint32_t ntp = 0xFFFFFFFF & (ntp64); // NTP in Q16
 	return ntp;
+}
+
+double getCurrentTimeUSec() {
+    struct timeval tp;
+    gettimeofday(&tp, NULL);
+    return static_cast<double>(tp.tv_sec) * 1e6 + static_cast<double>(tp.tv_usec);
 }
 
 /*
@@ -407,6 +416,9 @@ int main(int argc, char* argv[])
 		}
 #endif
 		uint32_t time_ntp = getTimeInNtp();
+
+        double last_pkt_recv_time = getCurrentTimeUSec();
+
 		if (recvlen > 1) {
 			if (buf[1] == 0x7F) {
 				// Packet contains statistics
@@ -429,6 +441,7 @@ int main(int argc, char* argv[])
 				}
 				last_received_time_ntp = time_ntp;
 				receivedRtp++;
+
 				/*
 				* Parse RTP header
 				*/
@@ -436,6 +449,12 @@ int main(int argc, char* argv[])
 				uint32_t ts;
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
+
+                if (isMark)
+                    // This is the last RTP packet of the current frame
+                    std::cout << std::fixed << std::setprecision(0) << "Received frame. timestamps " << ts << " time in usec " << last_pkt_recv_time << std::endl;
+
+
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {
 					fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);

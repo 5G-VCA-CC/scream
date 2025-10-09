@@ -193,6 +193,8 @@ void ScreamV2Tx::Stream::newMediaFrame(uint32_t time_ntp, int bytesRtp, bool isM
 
 		frameSize = std::max(rtpQueue->bytesInQueue(), frameSizeAcc);
 
+		std::cout << "Frame size: " << frameSize << std::endl;
+
 		/*
 		* Calculate a histogram over how much the frame sizes exceeds the average. This helps to avoid that
 		* the RTP queue builds up when the video encoder generates frames with very varying sizes.

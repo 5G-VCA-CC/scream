@@ -352,7 +352,7 @@ void* createRtpThread(void* arg) {
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
 		float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
 
-		cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
+		cout << "SCReAM target bitrate: " << rateTx / 1000.0 << " kbps" << endl;
 
 		mtu = screamTx->getRecommendedMss(time_ntp);
 

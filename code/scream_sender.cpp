@@ -4,6 +4,11 @@
 #include "sys/socket.h"
 #include "sys/types.h"
 #include "netinet/in.h"
+#include <vector>
+#include <fstream>
+#include <vpx/vpx_encoder.h>
+#include <vpx/vp8cx.h>
+#include <cstring>
 #include <string.h> /* needed for memset */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -134,6 +139,166 @@ bool itemlist = false;
 bool detailed = false;
 float randRate = 0.0f;
 bool ipv6 = false;
+// Video mode (raw y4m frames) ------------------------------------------------
+bool useVideo = false;
+const char* videoPath = nullptr;
+// Simple minimal Y4M reader for YUV420p (reads header and raw frames)
+struct Y4MReader {
+	std::ifstream in;
+	int width = 0, height = 0;
+	int fps_num = 0, fps_den = 1;
+	size_t frame_size = 0;
+	bool loop = true;
+
+	bool open_file(const char* path) {
+		in.open(path, std::ios::binary);
+		if (!in.is_open()) return false;
+		std::string header;
+		std::getline(in, header);
+		// parse W and H and F
+		size_t pos = 0;
+		while ((pos = header.find('W', pos)) != std::string::npos) {
+			if (pos==0 || header[pos-1]==' ') {
+				width = std::stoi(header.substr(pos+1));
+				break;
+			}
+			pos++;
+		}
+		pos = 0;
+		while ((pos = header.find('H', pos)) != std::string::npos) {
+			if (pos==0 || header[pos-1]==' ') {
+				height = std::stoi(header.substr(pos+1));
+				break;
+			}
+			pos++;
+		}
+		pos = 0;
+		while ((pos = header.find('F', pos)) != std::string::npos) {
+			if (pos==0 || header[pos-1]==' ') {
+				std::string f = header.substr(pos+1);
+				size_t c = f.find(':');
+				if (c!=std::string::npos) {
+					fps_num = std::stoi(f.substr(0,c));
+					fps_den = std::stoi(f.substr(c+1));
+				}
+				break;
+			}
+			pos++;
+		}
+		if (width<=0 || height<=0) return false;
+		frame_size = width * height * 3 / 2; // YUV420p
+		return true;
+	}
+
+	bool read_frame(std::vector<uint8_t> &out) {
+		if (!in.is_open()) return false;
+		std::string line;
+		// read FRAME header (may include frame params)
+		if (!std::getline(in, line)) {
+			if (loop) {
+				// rewind and re-read header
+				in.clear();
+				in.seekg(0);
+				std::string header;
+				if (!std::getline(in, header)) return false;
+				if (!std::getline(in, line)) return false;
+			} else return false;
+		}
+		if (line.rfind("FRAME", 0) != 0) {
+			// try to skip until FRAME
+			bool found = false;
+			while (std::getline(in, line)) {
+				if (line.rfind("FRAME",0)==0) { found = true; break; }
+			}
+			if (!found) return false;
+		}
+		out.resize(frame_size);
+		in.read(reinterpret_cast<char*>(out.data()), frame_size);
+		if ((size_t)in.gcount() != frame_size) {
+			if (loop) {
+				// try again from beginning
+				in.clear();
+				in.seekg(0);
+				std::string header;
+				if (!std::getline(in, header)) return false;
+				if (!std::getline(in, line)) return false;
+				out.resize(frame_size);
+				in.read(reinterpret_cast<char*>(out.data()), frame_size);
+				if ((size_t)in.gcount() != frame_size) return false;
+			} else return false;
+		}
+		return true;
+	}
+};
+Y4MReader y4m;
+
+// Minimal VP9 encoder state
+static vpx_codec_ctx_t vp9_enc_ctx;
+static vpx_codec_enc_cfg_t vp9_enc_cfg;
+static bool vp9_encoder_initialized = false;
+static uint32_t vp9_frame_id = 0;
+static int vp9_width = 0;
+static int vp9_height = 0;
+static int vp9_framerate = 25;
+static unsigned int vp9_bitrate_kbps = 0;
+
+static void init_vp9_encoder(int width, int height, int framerate, unsigned int bitrate_kbps)
+{
+	if (vp9_encoder_initialized) return;
+	vp9_width = width;
+	vp9_height = height;
+	vp9_framerate = framerate;
+	vp9_bitrate_kbps = bitrate_kbps;
+	vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &vp9_enc_cfg, 0);
+	vp9_enc_cfg.g_w = width;
+	vp9_enc_cfg.g_h = height;
+	vp9_enc_cfg.g_timebase.num = 1;
+	vp9_enc_cfg.g_timebase.den = framerate > 0 ? framerate : 25;
+	vp9_enc_cfg.g_pass = VPX_RC_ONE_PASS;
+	vp9_enc_cfg.g_lag_in_frames = 0;
+	vp9_enc_cfg.rc_end_usage = VPX_CBR;
+	vp9_enc_cfg.rc_target_bitrate = bitrate_kbps;
+	vpx_codec_enc_init(&vp9_enc_ctx, &vpx_codec_vp9_cx_algo, &vp9_enc_cfg, 0);
+	vpx_codec_control(&vp9_enc_ctx, VP8E_SET_CPUUSED, 4);
+	vp9_encoder_initialized = true;
+}
+
+static void update_vp9_bitrate(unsigned int bitrate_kbps)
+{
+	if (!vp9_encoder_initialized) return;
+	if (bitrate_kbps == vp9_bitrate_kbps) return;
+	// Reinitialize encoder with new bitrate (simple approach)
+	vpx_codec_destroy(&vp9_enc_ctx);
+	vp9_encoder_initialized = false;
+	// small hysteresis to avoid thrashing
+	vp9_bitrate_kbps = bitrate_kbps;
+	init_vp9_encoder(vp9_width, vp9_height, vp9_framerate, vp9_bitrate_kbps);
+}
+
+static std::vector<uint8_t> encode_vp9_frame(const std::vector<uint8_t> &frame_buf, int width, int height)
+{
+	// allocate vpx_image and copy YUV
+	vpx_image_t *img = vpx_img_alloc(NULL, VPX_IMG_FMT_I420, width, height, 1);
+	size_t y_size = width * height;
+	size_t uv_size = y_size / 4;
+	memcpy(img->planes[VPX_PLANE_Y], frame_buf.data(), y_size);
+	memcpy(img->planes[VPX_PLANE_U], frame_buf.data() + y_size, uv_size);
+	memcpy(img->planes[VPX_PLANE_V], frame_buf.data() + y_size + uv_size, uv_size);
+
+	vpx_codec_encode(&vp9_enc_ctx, img, vp9_frame_id++, 1, 0, VPX_DL_REALTIME);
+
+	// retrieve encoded data
+	vpx_codec_iter_t iter = NULL;
+	const vpx_codec_cx_pkt_t *pkt;
+	std::vector<uint8_t> encoded;
+	while ((pkt = vpx_codec_get_cx_data(&vp9_enc_ctx, &iter))) {
+		if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
+			encoded.insert(encoded.end(), (uint8_t*)pkt->data.frame.buf, (uint8_t*)pkt->data.frame.buf + pkt->data.frame.sz);
+		}
+	}
+	vpx_img_free(img);
+	return encoded;
+}
 
 double t0 = 0;
 /*
@@ -263,7 +428,11 @@ void* transmitRtpThread(void* arg) {
 		float rtpQueueDelay = 0.0f;
 		rtpQueueDelay = rtpQueue->getDelay((time_ntp) / 65536.0f);
 		rtpQueue->pop(&buf, size, ssrc_unused, seqNr, isMark, ts);
-		sendPacket(buf, size);
+			sendPacket(buf, size);
+			// Debug: report popped marker packets
+			if (isMark) {
+				fprintf(stderr, "[TX-SEND] seq=%u size=%d isMark=1 ts=%u\n", seqNr, size, ts);
+			}
 		nTx++;
 		pthread_mutex_unlock(&lock_rtp_queue);
 
@@ -350,24 +519,62 @@ void* createRtpThread(void* arg) {
 		uint32_t time_ntp = getTimeInNtp();
 
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
-		float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
+			float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
 
-		cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
+			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
-		mtu = screamTx->getRecommendedMss(time_ntp);
+			// If encoder initialized, update its bitrate to follow SCReAM target
+			if (useVideo && vp9_encoder_initialized) {
+				unsigned int target_kbps = (unsigned int)(rateTx / 1000.0f + 0.5f);
+				update_vp9_bitrate(target_kbps);
+			}
 
-		screamTx->setCwndMinLow((mtu+12)*2);
+			mtu = screamTx->getRecommendedMss(time_ntp);
 
-		float randVal = float(rand()) / RAND_MAX - 0.5;
-		int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
+			screamTx->setCwndMinLow((mtu+12)*2);
 
-		if (isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
-			/*
-			* Fake a key frame
-			*/
-			bytes = (int)(bytes * keyFrameSize);
-			lastKeyFrameT_ntp = time_ntp;
-		}
+			float randVal = float(rand()) / RAND_MAX - 0.5;
+			int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
+
+			if (isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
+				/*
+				* Fake a key frame
+				*/
+				bytes = (int)(bytes * keyFrameSize);
+				lastKeyFrameT_ntp = time_ntp;
+			}
+
+			// If video mode enabled, read a frame and (optionally) encode to VP9
+			std::vector<uint8_t> frame_buf;
+			std::vector<uint8_t> encoded_frame;
+			size_t encoded_offset = 0;
+			bool has_encoded = false;
+			if (useVideo) {
+				if (!y4m.in.is_open()) {
+					if (!y4m.open_file(videoPath)) {
+						cerr << "Failed to open video file: " << videoPath << "\n";
+						useVideo = false; // fallback
+					}
+				}
+				if (useVideo) {
+					if (!y4m.read_frame(frame_buf)) {
+						cerr << "Failed to read video frame\n";
+						useVideo = false;
+					} else {
+						// initialize encoder on first use
+						if (!vp9_encoder_initialized) init_vp9_encoder(y4m.width, y4m.height, 25, 500);
+						// encode to VP9
+						encoded_frame = encode_vp9_frame(frame_buf, y4m.width, y4m.height);
+						if (!encoded_frame.empty()) {
+							has_encoded = true;
+							bytes = (int)encoded_frame.size();
+						} else {
+							// fallback to raw frame send
+							bytes = (int)frame_buf.size();
+						}
+					}
+				}
+			}
 
 		if (!pushTraffic && burstTime < 0) {
 			float time_s = time_ntp / 65536.0f;
@@ -387,41 +594,66 @@ void* createRtpThread(void* arg) {
 				bytes = 0;
 		}
 
-		while (bytes > 0) {
-			int pl_size = min(bytes, mtu);
-			int recvlen = pl_size + 12;
+			while (bytes > 0) {
+				int pl_size = min(bytes, mtu);
+				bytes = std::max(0, bytes - pl_size);
+				int recvlen = pl_size + 12; // will adjust based on actual copy_len below
+				unsigned char pt = PT;
+				bool isMark;
+				if (bytes == 0) {
+					// Last RTP packet, set marker bit
+					pt |= 0x80;
+					isMark = true;
+				}
+				else {
+					isMark = false;
+				}
+				uint8_t* buf_rtp = (uint8_t*)malloc(BUFSIZE);
+				writeRtp(buf_rtp, seqNr, ts, pt);
 
-			bytes = std::max(0, bytes - pl_size);
-			unsigned char pt = PT;
-			bool isMark;
-			if (bytes == 0) {
-				// Last RTP packet, set marker bit
-				pt |= 0x80;
-				isMark = true;
-			}
-			else {
-				isMark = false;
-			}
-			uint8_t* buf_rtp = (uint8_t*)malloc(BUFSIZE);
-			writeRtp(buf_rtp, seqNr, ts, pt);
+				// copy payload: either zeros (default) or frame data when useVideo
+					size_t copy_len = pl_size;
+					if (useVideo && has_encoded) {
+						// copy from encoded_frame
+						if (encoded_offset + copy_len > encoded_frame.size()) copy_len = encoded_frame.size() - encoded_offset;
+						memcpy(buf_rtp + 12, encoded_frame.data() + encoded_offset, copy_len);
+						encoded_offset += copy_len;
+						if (isMark) encoded_offset = 0; // reset for next frame
+					} else if (useVideo && !frame_buf.empty()) {
+						// raw frame fallback
+						static size_t video_offset = 0;
+						if (video_offset + copy_len > frame_buf.size()) copy_len = frame_buf.size() - video_offset;
+						memcpy(buf_rtp + 12, frame_buf.data() + video_offset, copy_len);
+						video_offset += copy_len;
+						if (isMark) video_offset = 0; // reset for next frame
+					} else {
+						// zero payload
+						memset(buf_rtp + 12, 0, copy_len);
+					}
+					// Adjust packet length to reflect actual payload (no padded zeros)
+					recvlen = (int)(12 + copy_len);
 
-			if (pushTraffic) {
-				sendPacket(buf_rtp, recvlen);
-				packet_free(buf_rtp, SSRC);
-				buf_rtp = NULL;
-			}
-			else {
-				pthread_mutex_lock(&lock_rtp_queue);
-				rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
-				pthread_mutex_unlock(&lock_rtp_queue);
+				if (pushTraffic) {
+					sendPacket(buf_rtp, recvlen);
+					packet_free(buf_rtp, SSRC);
+					buf_rtp = NULL;
+				}
+				else {
+					pthread_mutex_lock(&lock_rtp_queue);
+					rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
+					pthread_mutex_unlock(&lock_rtp_queue);
+					// Debug: log when queuing marker packets (end of frame)
+					if (isMark) {
+						fprintf(stderr, "[TX-QUEUE] seq=%u recvlen=%d encoded=%d\n", seqNr, recvlen, has_encoded ? 1 : 0);
+					}
 
-				pthread_mutex_lock(&lock_scream);
-				time_ntp = getTimeInNtp();
-				screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
-				pthread_mutex_unlock(&lock_scream);
+					pthread_mutex_lock(&lock_scream);
+					time_ntp = getTimeInNtp();
+					screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+					pthread_mutex_unlock(&lock_scream);
+				}
+				seqNr++;
 			}
-			seqNr++;
-		}
 		waitPeriod(&info);
 
 	}
@@ -899,6 +1131,12 @@ int main(int argc, char* argv[]) {
 		}
 		if (strstr(argv[ix], "-if")) {
 			ifname = argv[ix + 1];
+			ix += 2;
+			continue;
+		}
+		if (strstr(argv[ix], "-video")) {
+			useVideo = true;
+			videoPath = argv[ix + 1];
 			ix += 2;
 			continue;
 		}

@@ -12,6 +12,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <vector>
+#include <fstream>
+#include "sdl.hh"
+#include <vpx/vpx_decoder.h>
+#include <vpx/vp8dx.h>
+#include <cstring>
 using namespace std;
 
 #define BUFSIZE 2048
@@ -62,6 +68,61 @@ pthread_mutex_t lock_scream;
 double t0 = 0;
 
 bool ipv6 = false;
+// Video output mode
+bool useVideo = false;
+std::ofstream video_out;
+int video_w = 640, video_h = 480;
+size_t video_frame_size = 0;
+std::vector<uint8_t> recv_frame_buf;
+// SDL display (optional)
+std::unique_ptr<VideoDisplay> video_display;
+// Assembly state for RTP fragments -> frames
+static bool assembling_frame = false;
+static uint16_t expected_seq_for_assembly = 0;
+
+// Minimal VP9 decoder state
+static vpx_codec_ctx_t vp9_dec_ctx;
+static bool vp9_decoder_initialized = false;
+
+static void init_vp9_decoder()
+{
+	if (vp9_decoder_initialized) return;
+	vpx_codec_dec_cfg_t cfg = {0};
+	vpx_codec_err_t res = vpx_codec_dec_init(&vp9_dec_ctx, &vpx_codec_vp9_dx_algo, &cfg, 0);
+	if (res == VPX_CODEC_OK) vp9_decoder_initialized = true;
+}
+
+static bool try_decode_vp9_and_display(const std::vector<uint8_t> &buf)
+{
+	if (!vp9_decoder_initialized) init_vp9_decoder();
+	if (!vp9_decoder_initialized) return false;
+	vpx_codec_err_t res = vpx_codec_decode(&vp9_dec_ctx, buf.data(), (unsigned int)buf.size(), NULL, 0);
+	if (res != VPX_CODEC_OK) {
+		const char* err = vpx_codec_error(&vp9_dec_ctx);
+		const char* detail = vpx_codec_error_detail(&vp9_dec_ctx);
+		fprintf(stderr, "[VPX-DECODE-ERR] decode failed: %s | detail: %s\n", err ? err : "<null>", detail ? detail : "<none>");
+		return false;
+	}
+	vpx_codec_iter_t iter = NULL;
+	bool any = false;
+	while (true) {
+		vpx_image_t *img = vpx_codec_get_frame(&vp9_dec_ctx, &iter);
+		if (!img) break;
+		any = true;
+		const uint8_t* yptr = img->planes[VPX_PLANE_Y];
+		const uint8_t* uptr = img->planes[VPX_PLANE_U];
+		const uint8_t* vptr = img->planes[VPX_PLANE_V];
+		int ystride = img->stride[VPX_PLANE_Y];
+		int ustride = img->stride[VPX_PLANE_U];
+		int vstride = img->stride[VPX_PLANE_V];
+		try {
+			if (video_display && !video_display->signal_quit()) {
+				video_display->show_frame_planes(yptr, ystride, uptr, ustride, vptr, vstride, img->d_w, img->d_h);
+			}
+		} catch (...) {}
+	}
+	return any;
+}
 
 /*
 * Time in 32 bit NTP format
@@ -184,6 +245,31 @@ int main(int argc, char* argv[])
 		if (argc > (ix + 1) && strstr(argv[ix], "-if")) {
 			ifname = argv[ix + 1];
 			ix += 2;
+		}
+
+		if (argc > (ix + 1) && strstr(argv[ix], "-video")) {
+			useVideo = true;
+			// next arg may be widthxheight or filename; support widthxheight or filename
+			if (strchr(argv[ix+1], 'x')) {
+				sscanf(argv[ix+1], "%dx%d", &video_w, &video_h);
+				video_frame_size = video_w * video_h * 3 / 2;
+				video_out.open("received.y4m", std::ios::binary);
+				if (video_out.is_open()) {
+					video_out << "YUV4MPEG2 W" << video_w << " H" << video_h << " F25:1 Ip A0:0 C420\n";
+				}
+				// create SDL display if possible
+				try {
+					video_display.reset(new VideoDisplay(video_w, video_h));
+				} catch (...) {
+					// ignore display creation errors; file output still works
+				}
+				ix += 2;
+				continue;
+			} else {
+				video_out.open(argv[ix+1], std::ios::binary);
+				ix += 2;
+				continue;
+			}
 		}
 	}
 
@@ -456,6 +542,68 @@ int main(int argc, char* argv[])
 #endif
 				screamRx->receive(getTimeInNtp(), 0, SSRC, recvlen, seqNr, received_ecn, isMark,ts);
 				pthread_mutex_unlock(&lock_scream);
+
+				// If video mode, collect RTP payload (skip 12-byte RTP header)
+				if (useVideo) {
+					int payload_len = recvlen - 12;
+					if (payload_len > 0) {
+						if (!assembling_frame) {
+							// start new assembly
+							recv_frame_buf.clear();
+							assembling_frame = true;
+							expected_seq_for_assembly = seqNr + 1;
+							size_t old = recv_frame_buf.size();
+							recv_frame_buf.resize(old + payload_len);
+							memcpy(recv_frame_buf.data() + old, buf + 12, payload_len);
+						} else {
+							// check sequence continuity
+							if (seqNr == expected_seq_for_assembly) {
+								size_t old = recv_frame_buf.size();
+								recv_frame_buf.resize(old + payload_len);
+								memcpy(recv_frame_buf.data() + old, buf + 12, payload_len);
+								expected_seq_for_assembly = expected_seq_for_assembly + 1;
+							} else {
+								// gap or OOO: restart assembly from current packet
+								fprintf(stderr, "[RX-ASM] gap/ooo: got seq=%u expected=%u -- restarting assembly\n", seqNr, expected_seq_for_assembly);
+								recv_frame_buf.clear();
+								assembling_frame = true;
+								expected_seq_for_assembly = seqNr + 1;
+								size_t old = recv_frame_buf.size();
+								recv_frame_buf.resize(old + payload_len);
+								memcpy(recv_frame_buf.data() + old, buf + 12, payload_len);
+							}
+						}
+					}
+					if (isMark) {
+						// end of frame: stop assembling and attempt decode/display
+						assembling_frame = false;
+						bool decoded = false;
+						if (!recv_frame_buf.empty()) {
+							decoded = try_decode_vp9_and_display(recv_frame_buf);
+							fprintf(stderr, "[RX] Received frame marker seq=%u payload=%zu decoded=%d\n", seqNr, recv_frame_buf.size(), decoded ? 1 : 0);
+						}
+
+						if (!decoded) {
+							// fallback: write raw Y4M and display raw YUV if possible
+							if (video_out.is_open()) {
+								video_out << "FRAME\n";
+								video_out.write(reinterpret_cast<char*>(recv_frame_buf.data()), recv_frame_buf.size());
+								video_out.flush();
+							}
+							if (video_display && !video_display->signal_quit()) {
+								size_t y_size = (size_t)video_w * video_h;
+								size_t uv_size = y_size / 4;
+								if (recv_frame_buf.size() >= y_size + uv_size * 2) {
+									const uint8_t* yptr = recv_frame_buf.data();
+									const uint8_t* uptr = recv_frame_buf.data() + y_size;
+									const uint8_t* vptr = recv_frame_buf.data() + y_size + uv_size;
+									try { video_display->show_frame_planes(yptr, video_w, uptr, video_w/2, vptr, video_w/2, video_w, video_h); } catch (...) {}
+								}
+							}
+						}
+						recv_frame_buf.clear();
+					}
+				}
 
 				if (screamRx->checkIfFlushAck() || isMark) {
 					pthread_mutex_lock(&lock_scream);

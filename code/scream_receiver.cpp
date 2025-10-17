@@ -18,6 +18,7 @@
 #include <vpx/vpx_decoder.h>
 #include <vpx/vp8dx.h>
 #include <cstring>
+#include "Decoder.h"
 using namespace std;
 
 #define BUFSIZE 2048
@@ -80,48 +81,42 @@ std::unique_ptr<VideoDisplay> video_display;
 static bool assembling_frame = false;
 static uint16_t expected_seq_for_assembly = 0;
 
-// Minimal VP9 decoder state
-static vpx_codec_ctx_t vp9_dec_ctx;
-static bool vp9_decoder_initialized = false;
-
-static void init_vp9_decoder()
-{
-	if (vp9_decoder_initialized) return;
-	vpx_codec_dec_cfg_t cfg = {0};
-	vpx_codec_err_t res = vpx_codec_dec_init(&vp9_dec_ctx, &vpx_codec_vp9_dx_algo, &cfg, 0);
-	if (res == VPX_CODEC_OK) vp9_decoder_initialized = true;
-}
+// Decoder wrapper
+static Decoder* g_decoder = nullptr;
 
 static bool try_decode_vp9_and_display(const std::vector<uint8_t> &buf)
 {
-	if (!vp9_decoder_initialized) init_vp9_decoder();
-	if (!vp9_decoder_initialized) return false;
-	vpx_codec_err_t res = vpx_codec_decode(&vp9_dec_ctx, buf.data(), (unsigned int)buf.size(), NULL, 0);
-	if (res != VPX_CODEC_OK) {
-		const char* err = vpx_codec_error(&vp9_dec_ctx);
-		const char* detail = vpx_codec_error_detail(&vp9_dec_ctx);
-		fprintf(stderr, "[VPX-DECODE-ERR] decode failed: %s | detail: %s\n", err ? err : "<null>", detail ? detail : "<none>");
+	if (!g_decoder) {
+		try {
+			g_decoder = new Decoder(4);
+		} catch (...) {
+			fprintf(stderr, "[VPX-DECODE-ERR] failed to init decoder\n");
+			return false;
+		}
+	}
+	try {
+		std::vector<uint8_t> frame;
+		int frame_w = 0, frame_h = 0;
+		if (!g_decoder->decodeFrame(buf, frame, frame_w, frame_h)) return false;
+		if (frame.empty()) return false;
+		// frame is YUV420p (Y, U, V)
+		if (video_display && !video_display->signal_quit()) {
+			int w = frame_w > 0 ? frame_w : video_w;
+			int h = frame_h > 0 ? frame_h : video_h;
+			size_t y_size = (size_t)w * h;
+			size_t uv_size = y_size / 4;
+			const uint8_t* yptr = frame.data();
+			const uint8_t* uptr = frame.data() + y_size;
+			const uint8_t* vptr = frame.data() + y_size + uv_size;
+			try {
+				video_display->show_frame_planes(yptr, w, uptr, w/2, vptr, w/2, w, h);
+			} catch (...) {}
+		}
+		return true;
+	} catch (const std::exception &e) {
+		fprintf(stderr, "[VPX-DECODE-ERR] decode failed: %s\n", e.what());
 		return false;
 	}
-	vpx_codec_iter_t iter = NULL;
-	bool any = false;
-	while (true) {
-		vpx_image_t *img = vpx_codec_get_frame(&vp9_dec_ctx, &iter);
-		if (!img) break;
-		any = true;
-		const uint8_t* yptr = img->planes[VPX_PLANE_Y];
-		const uint8_t* uptr = img->planes[VPX_PLANE_U];
-		const uint8_t* vptr = img->planes[VPX_PLANE_V];
-		int ystride = img->stride[VPX_PLANE_Y];
-		int ustride = img->stride[VPX_PLANE_U];
-		int vstride = img->stride[VPX_PLANE_V];
-		try {
-			if (video_display && !video_display->signal_quit()) {
-				video_display->show_frame_planes(yptr, ystride, uptr, ustride, vptr, vstride, img->d_w, img->d_h);
-			}
-		} catch (...) {}
-	}
-	return any;
 }
 
 /*

@@ -9,6 +9,7 @@
 #include <vpx/vpx_encoder.h>
 #include <vpx/vp8cx.h>
 #include <cstring>
+#include "Encoder.h"
 #include <string.h> /* needed for memset */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -232,73 +233,11 @@ struct Y4MReader {
 };
 Y4MReader y4m;
 
-// Minimal VP9 encoder state
-static vpx_codec_ctx_t vp9_enc_ctx;
-static vpx_codec_enc_cfg_t vp9_enc_cfg;
-static bool vp9_encoder_initialized = false;
-static uint32_t vp9_frame_id = 0;
-static int vp9_width = 0;
-static int vp9_height = 0;
-static int vp9_framerate = 25;
-static unsigned int vp9_bitrate_kbps = 0;
+// Encoder wrapper (moved to separate file)
+static Encoder* g_encoder = nullptr;
+int g_enc_width = 0;
+int g_enc_height = 0;
 
-static void init_vp9_encoder(int width, int height, int framerate, unsigned int bitrate_kbps)
-{
-	if (vp9_encoder_initialized) return;
-	vp9_width = width;
-	vp9_height = height;
-	vp9_framerate = framerate;
-	vp9_bitrate_kbps = bitrate_kbps;
-	vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &vp9_enc_cfg, 0);
-	vp9_enc_cfg.g_w = width;
-	vp9_enc_cfg.g_h = height;
-	vp9_enc_cfg.g_timebase.num = 1;
-	vp9_enc_cfg.g_timebase.den = framerate > 0 ? framerate : 25;
-	vp9_enc_cfg.g_pass = VPX_RC_ONE_PASS;
-	vp9_enc_cfg.g_lag_in_frames = 0;
-	vp9_enc_cfg.rc_end_usage = VPX_CBR;
-	vp9_enc_cfg.rc_target_bitrate = bitrate_kbps;
-	vpx_codec_enc_init(&vp9_enc_ctx, &vpx_codec_vp9_cx_algo, &vp9_enc_cfg, 0);
-	vpx_codec_control(&vp9_enc_ctx, VP8E_SET_CPUUSED, 4);
-	vp9_encoder_initialized = true;
-}
-
-static void update_vp9_bitrate(unsigned int bitrate_kbps)
-{
-	if (!vp9_encoder_initialized) return;
-	if (bitrate_kbps == vp9_bitrate_kbps) return;
-	// Reinitialize encoder with new bitrate (simple approach)
-	vpx_codec_destroy(&vp9_enc_ctx);
-	vp9_encoder_initialized = false;
-	// small hysteresis to avoid thrashing
-	vp9_bitrate_kbps = bitrate_kbps;
-	init_vp9_encoder(vp9_width, vp9_height, vp9_framerate, vp9_bitrate_kbps);
-}
-
-static std::vector<uint8_t> encode_vp9_frame(const std::vector<uint8_t> &frame_buf, int width, int height)
-{
-	// allocate vpx_image and copy YUV
-	vpx_image_t *img = vpx_img_alloc(NULL, VPX_IMG_FMT_I420, width, height, 1);
-	size_t y_size = width * height;
-	size_t uv_size = y_size / 4;
-	memcpy(img->planes[VPX_PLANE_Y], frame_buf.data(), y_size);
-	memcpy(img->planes[VPX_PLANE_U], frame_buf.data() + y_size, uv_size);
-	memcpy(img->planes[VPX_PLANE_V], frame_buf.data() + y_size + uv_size, uv_size);
-
-	vpx_codec_encode(&vp9_enc_ctx, img, vp9_frame_id++, 1, 0, VPX_DL_REALTIME);
-
-	// retrieve encoded data
-	vpx_codec_iter_t iter = NULL;
-	const vpx_codec_cx_pkt_t *pkt;
-	std::vector<uint8_t> encoded;
-	while ((pkt = vpx_codec_get_cx_data(&vp9_enc_ctx, &iter))) {
-		if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
-			encoded.insert(encoded.end(), (uint8_t*)pkt->data.frame.buf, (uint8_t*)pkt->data.frame.buf + pkt->data.frame.sz);
-		}
-	}
-	vpx_img_free(img);
-	return encoded;
-}
 
 double t0 = 0;
 /*
@@ -524,9 +463,9 @@ void* createRtpThread(void* arg) {
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
 			// If encoder initialized, update its bitrate to follow SCReAM target
-			if (useVideo && vp9_encoder_initialized) {
+			if (useVideo && g_encoder) {
 				unsigned int target_kbps = (unsigned int)(rateTx / 1000.0f + 0.5f);
-				update_vp9_bitrate(target_kbps);
+				g_encoder->setBitrate(target_kbps);
 			}
 
 			mtu = screamTx->getRecommendedMss(time_ntp);
@@ -561,16 +500,30 @@ void* createRtpThread(void* arg) {
 						cerr << "Failed to read video frame\n";
 						useVideo = false;
 					} else {
-						// initialize encoder on first use
-						if (!vp9_encoder_initialized) init_vp9_encoder(y4m.width, y4m.height, 25, 500);
-						// encode to VP9
-						encoded_frame = encode_vp9_frame(frame_buf, y4m.width, y4m.height);
-						if (!encoded_frame.empty()) {
-							has_encoded = true;
-							bytes = (int)encoded_frame.size();
-						} else {
-							// fallback to raw frame send
-							bytes = (int)frame_buf.size();
+						// initialize per-file encoder on first use
+						if (!g_encoder) {
+							g_enc_width = y4m.width;
+							g_enc_height = y4m.height;
+							try {
+								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500);
+							} catch (...) {
+								cerr << "Failed to initialize Encoder\n";
+								useVideo = false;
+							}
+						}
+						if (g_encoder) {
+							try {
+								encoded_frame = g_encoder->encodeFrame(frame_buf);
+								if (!encoded_frame.empty()) {
+									has_encoded = true;
+									bytes = (int)encoded_frame.size();
+								} else {
+									bytes = (int)frame_buf.size();
+								}
+							} catch (const std::exception &e) {
+								cerr << "Encoder error: " << e.what() << "\n";
+								useVideo = false;
+							}
 						}
 					}
 				}

@@ -12,12 +12,14 @@ ScreamV2Tx.cpp
 ScreamV2TxStream.cpp
 RtpQueue.cpp
 scream_sender.cpp
+Encoder.cpp
 )
 
 SET(SRC_RECEIVER
 ScreamRx.cpp
 scream_receiver.cpp
 	sdl.cc
+Decoder.cpp
 )
 
 set(CMAKE_BUILD_TYPE Debug)

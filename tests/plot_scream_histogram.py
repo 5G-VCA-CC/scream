@@ -16,8 +16,8 @@ import glob
 
 
 def parse_scream_log(logfile):
-    """Parse SCReAM CWND debug logs and extract parameters."""
-    pattern = re.compile(
+    """Parse SCReAM CWND debug logs and frame sizes."""
+    cwnd_pattern = re.compile(
         r'\[SCREAM-CWND\] cwnd=(?P<cwnd>\d+)\s+'
         r'sRtt=(?P<srtt>[\d.eE+-]+)\s+'
         r'rateLeft=(?P<rateleft>[\d.eE+-]+)\s+'
@@ -25,23 +25,32 @@ def parse_scream_log(logfile):
         r'targetBitrateH=(?P<target>[\d.eE+-]+)'
     )
     
+    frame_size_pattern = re.compile(r'Frame size:\s+(?P<size>\d+)')
+    
     data = {
         'cwnd': [],
         'srtt': [],
         'rateLeft': [],
         'rateShare': [],
-        'targetBitrateH': []
+        'targetBitrateH': [],
+        'frameSize': []
     }
     
     with open(logfile, 'r') as f:
         for line in f:
-            match = pattern.search(line)
+            # Check for CWND data
+            match = cwnd_pattern.search(line)
             if match:
                 data['cwnd'].append(int(match.group('cwnd')))
                 data['srtt'].append(float(match.group('srtt')))
                 data['rateLeft'].append(float(match.group('rateleft')))
                 data['rateShare'].append(float(match.group('rateshare')))
                 data['targetBitrateH'].append(float(match.group('target')))
+            
+            # Check for frame size
+            frame_match = frame_size_pattern.search(line)
+            if frame_match:
+                data['frameSize'].append(int(frame_match.group('size')))
     
     return data
 
@@ -65,7 +74,8 @@ def parse_all_logs(directory):
         'srtt': [],
         'rateLeft': [],
         'rateShare': [],
-        'targetBitrateH': []
+        'targetBitrateH': [],
+        'frameSize': []
     }
     
     for logfile in sorted(log_files):
@@ -78,7 +88,7 @@ def parse_all_logs(directory):
 
 
 def plot_histograms(data):
-    """Create three histogram plots."""
+    """Create four histogram plots."""
     
     if not data or not data['cwnd']:
         print("No data to plot.")
@@ -128,6 +138,21 @@ def plot_histograms(data):
     ax3.legend(fontsize=10, loc='best')
     fig3.tight_layout()
     
+    # Histogram 4: Frame sizes
+    if data['frameSize']:
+        fig4, ax4 = plt.subplots(figsize=(12, 6))
+        frame_size_kb = [f / 1024 for f in data['frameSize']]  # Convert to KB
+        ax4.hist(frame_size_kb, bins=50, color='orange', alpha=0.7, edgecolor='black')
+        ax4.set_xlabel('Frame Size (KB)', fontsize=12)
+        ax4.set_ylabel('Frequency', fontsize=12)
+        ax4.set_title('Encoded Frame Size Distribution', fontsize=14, fontweight='bold')
+        ax4.grid(True, alpha=0.3, axis='y')
+        mean_frame_kb = sum(frame_size_kb)/len(frame_size_kb)
+        ax4.axvline(mean_frame_kb, color='red', linestyle='--', 
+                    linewidth=2, label=f"Mean: {mean_frame_kb:.2f} KB")
+        ax4.legend(fontsize=10)
+        fig4.tight_layout()
+    
     # Show all plots
     plt.show()
     
@@ -158,6 +183,14 @@ def plot_histograms(data):
     mean_target = sum(targetBitrateH_mbps)/len(targetBitrateH_mbps)
     print(f"  min={min(targetBitrateH_mbps):.2f}, max={max(targetBitrateH_mbps):.2f}, "
           f"mean={mean_target:.2f}")
+    
+    if data['frameSize']:
+        print(f"\nFrame sizes: {len(data['frameSize'])} frames")
+        print(f"  min={min(data['frameSize'])} bytes, max={max(data['frameSize'])} bytes, "
+              f"mean={sum(data['frameSize'])/len(data['frameSize']):.1f} bytes")
+        frame_size_kb = [f / 1024 for f in data['frameSize']]
+        print(f"  min={min(frame_size_kb):.2f} KB, max={max(frame_size_kb):.2f} KB, "
+              f"mean={sum(frame_size_kb)/len(frame_size_kb):.2f} KB")
 
 
 def main():

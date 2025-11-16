@@ -16,8 +16,8 @@ from pathlib import Path
 
 
 def parse_scream_log(logfile):
-    """Parse SCReAM CWND debug logs and extract parameters."""
-    pattern = re.compile(
+    """Parse SCReAM CWND debug logs and frame sizes."""
+    cwnd_pattern = re.compile(
         r'\[SCREAM-CWND\] cwnd=(?P<cwnd>\d+)\s+'
         r'sRtt=(?P<srtt>[\d.eE+-]+)\s+'
         r'rateLeft=(?P<rateleft>[\d.eE+-]+)\s+'
@@ -25,29 +25,38 @@ def parse_scream_log(logfile):
         r'targetBitrateH=(?P<target>[\d.eE+-]+)'
     )
     
+    frame_size_pattern = re.compile(r'Frame size:\s+(?P<size>\d+)')
+    
     data = {
         'cwnd': [],
         'srtt': [],
         'rateLeft': [],
         'rateShare': [],
-        'targetBitrateH': []
+        'targetBitrateH': [],
+        'frameSize': []
     }
     
     with open(logfile, 'r') as f:
         for line in f:
-            match = pattern.search(line)
+            # Check for CWND data
+            match = cwnd_pattern.search(line)
             if match:
                 data['cwnd'].append(int(match.group('cwnd')))
                 data['srtt'].append(float(match.group('srtt')))
                 data['rateLeft'].append(float(match.group('rateleft')))
                 data['rateShare'].append(float(match.group('rateshare')))
                 data['targetBitrateH'].append(float(match.group('target')))
+            
+            # Check for frame size
+            frame_match = frame_size_pattern.search(line)
+            if frame_match:
+                data['frameSize'].append(int(frame_match.group('size')))
     
     return data
 
 
 def plot_scream_data(data, output_prefix='scream_cwnd'):
-    """Create three plots: CWND, sRTT, and rate parameters."""
+    """Create four plots: CWND, sRTT, rate parameters, and frame sizes."""
     
     if not data['cwnd']:
         print("No [SCREAM-CWND] log entries found in file.")
@@ -92,6 +101,20 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     ax3.legend(fontsize=10, loc='best')
     fig3.tight_layout()
     
+    # Plot 4: Frame sizes over time
+    if data['frameSize']:
+        fig4, ax4 = plt.subplots(figsize=(12, 5))
+        frame_samples = list(range(len(data['frameSize'])))
+        frame_size_kb = [f / 1024 for f in data['frameSize']]  # Convert to KB
+        ax4.plot(frame_samples, frame_size_kb, 'orange', linewidth=1, marker='o', 
+                markersize=3, alpha=0.7, label='Frame Size')
+        ax4.set_xlabel('Frame Number', fontsize=12)
+        ax4.set_ylabel('Frame Size (KB)', fontsize=12)
+        ax4.set_title('Encoded Frame Sizes', fontsize=14, fontweight='bold')
+        ax4.grid(True, alpha=0.3)
+        ax4.legend(fontsize=10)
+        fig4.tight_layout()
+    
     # Show all plots
     plt.show()
     
@@ -101,6 +124,13 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     print(f"CWND: min={min(data['cwnd'])}, max={max(data['cwnd'])}, avg={sum(data['cwnd'])/len(data['cwnd']):.1f}")
     print(f"sRTT (ms): min={min(srtt_ms):.2f}, max={max(srtt_ms):.2f}, avg={sum(srtt_ms)/len(srtt_ms):.2f}")
     print(f"targetBitrateH (Mbps): min={min(targetBitrateH_mbps):.2f}, max={max(targetBitrateH_mbps):.2f}, avg={sum(targetBitrateH_mbps)/len(targetBitrateH_mbps):.2f}")
+    
+    if data['frameSize']:
+        print(f"\nFrame sizes: {len(data['frameSize'])} frames")
+        print(f"  min={min(data['frameSize'])} bytes, max={max(data['frameSize'])} bytes, "
+              f"avg={sum(data['frameSize'])/len(data['frameSize']):.1f} bytes")
+        print(f"  min={min(data['frameSize'])/1024:.2f} KB, max={max(data['frameSize'])/1024:.2f} KB, "
+              f"avg={sum(data['frameSize'])/len(data['frameSize'])/1024:.2f} KB")
 
 
 def main():

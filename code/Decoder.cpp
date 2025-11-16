@@ -13,12 +13,9 @@ struct Decoder::Impl {
 
 Decoder::Decoder(int max_threads) : impl_(new Impl()) {
     impl_->max_threads = max_threads;
-    impl_->cfg.threads = max_threads;
-    impl_->cfg.w = 0;
-    impl_->cfg.h = 0;
-    if (vpx_codec_dec_init(&impl_->ctx, &vpx_codec_vp9_dx_algo, &impl_->cfg, 0) != VPX_CODEC_OK) {
-        throw std::runtime_error("vpx_codec_dec_init failed");
-    }
+    std::memset(&impl_->cfg, 0, sizeof(impl_->cfg));
+    std::memset(&impl_->ctx, 0, sizeof(impl_->ctx));
+    initContext();
 }
 
 Decoder::~Decoder() {
@@ -60,4 +57,37 @@ bool Decoder::decodeFrame(const std::vector<uint8_t> &vp9_frame, std::vector<uin
         return true;
     }
     return false;
+}
+
+void Decoder::reset() {
+    if (!impl_) {
+        return;
+    }
+    vpx_codec_destroy(&impl_->ctx);
+    std::memset(&impl_->ctx, 0, sizeof(impl_->ctx));
+    initContext();
+}
+
+bool Decoder::isKeyFrame(const std::vector<uint8_t> &vp9_frame) const {
+    if (vp9_frame.empty()) {
+        return false;
+    }
+    vpx_codec_stream_info_t info{};
+    info.sz = sizeof(info);
+    if (vpx_codec_peek_stream_info(&vpx_codec_vp9_dx_algo,
+                                   vp9_frame.data(),
+                                   static_cast<unsigned int>(vp9_frame.size()),
+                                   &info) != VPX_CODEC_OK) {
+        return false;
+    }
+    return info.is_kf != 0;
+}
+
+void Decoder::initContext() {
+    impl_->cfg.threads = impl_->max_threads;
+    impl_->cfg.w = 0;
+    impl_->cfg.h = 0;
+    if (vpx_codec_dec_init(&impl_->ctx, &vpx_codec_vp9_dx_algo, &impl_->cfg, 0) != VPX_CODEC_OK) {
+        throw std::runtime_error("vpx_codec_dec_init failed");
+    }
 }

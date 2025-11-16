@@ -80,24 +80,35 @@ std::unique_ptr<VideoDisplay> video_display;
 // Assembly state for RTP fragments -> frames
 static bool assembling_frame = false;
 static uint16_t expected_seq_for_assembly = 0;
+static bool discard_until_marker = false;
+static bool waiting_for_keyframe = false;
 
 // Decoder wrapper
 static Decoder* g_decoder = nullptr;
 
-static bool try_decode_vp9_and_display(const std::vector<uint8_t> &buf)
+static Decoder* ensure_decoder()
 {
 	if (!g_decoder) {
 		try {
 			g_decoder = new Decoder(4);
 		} catch (...) {
 			fprintf(stderr, "[VPX-DECODE-ERR] failed to init decoder\n");
-			return false;
+			g_decoder = nullptr;
 		}
+	}
+	return g_decoder;
+}
+
+static bool try_decode_vp9_and_display(const std::vector<uint8_t> &buf)
+{
+	Decoder* decoder = ensure_decoder();
+	if (!decoder) {
+		return false;
 	}
 	try {
 		std::vector<uint8_t> frame;
 		int frame_w = 0, frame_h = 0;
-		if (!g_decoder->decodeFrame(buf, frame, frame_w, frame_h)) return false;
+		if (!decoder->decodeFrame(buf, frame, frame_w, frame_h)) return false;
 		if (frame.empty()) return false;
 		// frame is YUV420p (Y, U, V)
 		if (video_display && !video_display->signal_quit()) {
@@ -520,6 +531,20 @@ int main(int argc, char* argv[])
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {
 					fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);
+					discard_until_marker = true;
+					waiting_for_keyframe = true;
+					recv_frame_buf.clear();
+					assembling_frame = false;
+					Decoder* decoder = g_decoder;
+					if (decoder) {
+						try {
+							decoder->reset();
+						} catch (const std::exception &e) {
+							fprintf(stderr, "[VPX-DECODE-ERR] reset failed after loss: %s\n", e.what());
+							delete g_decoder;
+							g_decoder = nullptr;
+						}
+					}
 				}
 				lastSn = seqNr;
 				/*
@@ -542,7 +567,10 @@ int main(int argc, char* argv[])
 				if (useVideo) {
 					int payload_len = recvlen - 12;
 					if (payload_len > 0) {
-						if (!assembling_frame) {
+						if (discard_until_marker) {
+							// drop everything until we see the end of this corrupted frame
+							expected_seq_for_assembly = seqNr + 1;
+						} else if (!assembling_frame) {
 							// start new assembly
 							recv_frame_buf.clear();
 							assembling_frame = true;
@@ -562,20 +590,50 @@ int main(int argc, char* argv[])
 								fprintf(stderr, "[RX-ASM] gap/ooo: got seq=%u expected=%u -- restarting assembly\n", seqNr, expected_seq_for_assembly);
 								recv_frame_buf.clear();
 								assembling_frame = true;
+								discard_until_marker = true;
+								waiting_for_keyframe = true;
 								expected_seq_for_assembly = seqNr + 1;
-								size_t old = recv_frame_buf.size();
-								recv_frame_buf.resize(old + payload_len);
-								memcpy(recv_frame_buf.data() + old, buf + 12, payload_len);
 							}
 						}
 					}
 					if (isMark) {
-						// end of frame: stop assembling and attempt decode/display
+						// end of frame
 						assembling_frame = false;
+						if (discard_until_marker) {
+							discard_until_marker = false;
+							recv_frame_buf.clear();
+							continue;
+						}
+
 						bool decoded = false;
 						if (!recv_frame_buf.empty()) {
+							Decoder* decoder = ensure_decoder();
+							bool is_key_frame = decoder ? decoder->isKeyFrame(recv_frame_buf) : false;
+							if (waiting_for_keyframe && !is_key_frame) {
+								fprintf(stderr, "[RX] Dropping non-key frame while resync seq=%u payload=%zu\n", seqNr, recv_frame_buf.size());
+								recv_frame_buf.clear();
+								continue;
+							}
+
 							decoded = try_decode_vp9_and_display(recv_frame_buf);
-							fprintf(stderr, "[RX] Received frame marker seq=%u payload=%zu decoded=%d\n", seqNr, recv_frame_buf.size(), decoded ? 1 : 0);
+							fprintf(stderr, "[RX] Received frame marker seq=%u payload=%zu decoded=%d key=%d\n",
+							        seqNr, recv_frame_buf.size(), decoded ? 1 : 0, is_key_frame ? 1 : 0);
+
+							if (decoded) {
+								waiting_for_keyframe = false;
+							} else {
+								waiting_for_keyframe = true;
+								Decoder* cur = g_decoder;
+								if (cur) {
+									try {
+										cur->reset();
+									} catch (const std::exception &e) {
+										fprintf(stderr, "[VPX-DECODE-ERR] reset failed after decode error: %s\n", e.what());
+										delete g_decoder;
+										g_decoder = nullptr;
+									}
+								}
+							}
 						}
 
 						if (!decoded) {

@@ -353,7 +353,7 @@ void ScreamV2Tx::newMediaFrame(uint32_t time_ntp, uint32_t ssrc, int bytesRtp, b
 		* which is necessary to make SCReAM work with audio only
 		*/
 		int sizeOfNextRtp = stream->rtpQueue->sizeOfNextRtp();
-		std::cout << "Packet size: " << sizeOfNextRtp << std::endl;
+		//std::cout << "Packet size: " << sizeOfNextRtp << std::endl;
 		mss = std::max(mss, sizeOfNextRtp);
 		cwndMin = std::max(cwndMinLow, 2 * getMss());
 		cwnd = std::max(cwnd, cwndMin);

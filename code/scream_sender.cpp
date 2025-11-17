@@ -547,6 +547,35 @@ void* createRtpThread(void* arg) {
 				bytes = 0;
 		}
 
+		if (useVideo && has_encoded && g_encoder) {
+            pthread_mutex_lock(&lock_rtp_queue);
+            pthread_mutex_lock(&lock_scream);
+            try {
+                g_encoder->packetize_encoded_frame(
+                    encoded_frame,   // encoded VP9 frame
+                    ts,              // RTP timestamp
+                    time_ntp,        // Q16 NTP time
+                    SSRC,
+                    mtu,             // payload MTU (no RTP header)
+                    seqNr,           // seqNr advanced internally
+                    rtpQueue,
+                    screamTx
+                );
+            } catch (const std::exception &e) {
+                pthread_mutex_unlock(&lock_scream);
+                pthread_mutex_unlock(&lock_rtp_queue);
+                std::cerr << "packetize error: " << e.what() << "\n";
+                useVideo = false;
+                waitPeriod(&info);
+                continue;
+            }
+            pthread_mutex_unlock(&lock_scream);
+            pthread_mutex_unlock(&lock_rtp_queue);
+
+            waitPeriod(&info);
+            continue;
+		}
+
 			while (bytes > 0) {
 				int pl_size = min(bytes, mtu);
 				bytes = std::max(0, bytes - pl_size);

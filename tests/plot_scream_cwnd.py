@@ -41,11 +41,16 @@ def parse_scream_log(logfile):
             # Check for CWND data
             match = cwnd_pattern.search(line)
             if match:
-                data['cwnd'].append(int(match.group('cwnd')))
-                data['srtt'].append(float(match.group('srtt')))
-                data['rateLeft'].append(float(match.group('rateleft')))
-                data['rateShare'].append(float(match.group('rateshare')))
-                data['targetBitrateH'].append(float(match.group('target')))
+                try:
+                    data['cwnd'].append(int(match.group('cwnd')))
+                    data['srtt'].append(float(match.group('srtt')))
+                    data['rateLeft'].append(float(match.group('rateleft')))
+                    data['rateShare'].append(float(match.group('rateshare')))
+                    data['targetBitrateH'].append(float(match.group('target')))
+                except ValueError as e:
+                    # Skip corrupted lines where output got interleaved
+                    print(f"Warning: Skipping corrupted line: {e}")
+                    continue
             
             # Check for frame size
             frame_match = frame_size_pattern.search(line)

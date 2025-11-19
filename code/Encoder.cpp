@@ -4,6 +4,7 @@
 #include <memory>
 #include <cstring>
 #include <stdexcept>
+#include <limits>
 
 struct Encoder::Impl {
     vpx_codec_ctx_t ctx{};
@@ -32,6 +33,9 @@ Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps
     impl_->cfg.g_pass = VPX_RC_ONE_PASS;
     impl_->cfg.g_lag_in_frames = 0;
     impl_->cfg.g_error_resilient = VPX_ERROR_RESILIENT_DEFAULT;
+    impl_->cfg.g_threads = 4; // Match ringmaster: encoder threads equal to column tiles
+    impl_->cfg.rc_resize_allowed = 0; // Match ringmaster: disable spatial sampling
+    impl_->cfg.rc_dropframe_thresh = 0; // Match ringmaster: disable frame dropping
 
     // Tighten rate-control buffers so we react quickly to bandwidth drops
     impl_->cfg.rc_buf_initial_sz = 500;
@@ -39,10 +43,15 @@ Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps
     impl_->cfg.rc_buf_sz = 1000;
 
     // Allow the encoder to raise QP aggressively while staying within CBR
-    impl_->cfg.rc_min_quantizer = 4;
-    impl_->cfg.rc_max_quantizer = 63;
+    impl_->cfg.rc_min_quantizer = 2; // Match ringmaster: QP range 2-52
+    impl_->cfg.rc_max_quantizer = 52;
     impl_->cfg.rc_undershoot_pct = 50;
     impl_->cfg.rc_overshoot_pct = 50;
+
+    // Prevent libvpx encoder from automatically placing key frames (match ringmaster)
+    impl_->cfg.kf_mode = VPX_KF_DISABLED;
+    impl_->cfg.kf_max_dist = std::numeric_limits<unsigned int>::max();
+    impl_->cfg.kf_min_dist = 0;
 
     impl_->cfg.rc_end_usage = VPX_CBR;
     impl_->cfg.rc_target_bitrate = bitrate_kbps;

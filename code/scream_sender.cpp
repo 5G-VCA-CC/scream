@@ -475,9 +475,10 @@ void* createRtpThread(void* arg) {
 			float randVal = float(rand()) / RAND_MAX - 0.5;
 			int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
 
-			if (isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
+			// Only apply artificial key frame size multiplier for synthetic traffic (not video)
+			if (!useVideo && isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
 				/*
-				* Fake a key frame
+				* Fake a key frame (synthetic traffic only)
 				*/
 				bytes = (int)(bytes * keyFrameSize);
 				lastKeyFrameT_ntp = time_ntp;
@@ -506,6 +507,14 @@ void* createRtpThread(void* arg) {
 							g_enc_height = y4m.height;
 							try {
 								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500);
+								
+								// Configure periodic keyframes if -key option was provided
+								if (isKeyFrame) {
+									uint64_t interval_us = (uint64_t)(keyFrameInterval * 1000000);
+									g_encoder->setPeriodicKeyframes(true, interval_us);
+									cerr << "Encoder configured with periodic keyframes: interval=" 
+									     << keyFrameInterval << "s (no artificial size multiplier)" << endl;
+								}
 							} catch (...) {
 								cerr << "Failed to initialize Encoder\n";
 								useVideo = false;
@@ -854,7 +863,9 @@ int main(int argc, char* argv[]) {
 		cerr << "     -fixedrate value         Set a fixed 'coder' bitrate " << endl;
 		cerr << "     -pushtraffic             just pushtraffic at a fixed bitrate, no feedback needed" << endl;
 		cerr << "                                must be used with -fixedrate option" << endl;
-		cerr << "     -key val1 val2           Set a given key frame interval [s] and size multiplier " << endl;
+		cerr << "     -key val1 val2           Set periodic key frame interval [s] and size multiplier" << endl;
+		cerr << "                               With -video: natural VP9 keyframes (val2 ignored)" << endl;
+		cerr << "                               Without -video: synthetic traffic (val2 applied)" << endl;
 		cerr << "                               example -key 2.0 5.0 " << endl;
 		cerr << "     -rand value              Framesizes vary randomly around the nominal " << endl;
 		cerr << "                               example -rand 10 framesize vary +/- 10% " << endl;

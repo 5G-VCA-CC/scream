@@ -15,6 +15,9 @@ public:
     // Update target bitrate (kbps)
     void setBitrate(unsigned int bitrate_kbps);
 
+    // Enable periodic key frames (interval in microseconds)
+    void setPeriodicKeyframes(bool enable, uint64_t interval_us = 2000000);
+
 private:
     struct Impl;
     Impl* impl_;

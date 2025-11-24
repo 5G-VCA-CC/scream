@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <cstddef>
 
 class RtpQueue;
 class ScreamV2Tx;
@@ -12,11 +13,19 @@ public:
     Encoder(int width, int height, int framerate, unsigned int bitrate_kbps);
     ~Encoder();
 
+    std::vector<uint8_t> compress_frame(const std::vector<uint8_t> &yuv_frame,
+                                    uint32_t ts,
+                                    uint32_t time_ntp,
+                                    uint32_t ssrc,
+                                    int mtu,
+                                    uint16_t &seq_nr,
+                                    RtpQueue* rtp_queue,
+                                    ScreamV2Tx* screamTx);
     // Encode a single YUV420p frame (Y plane then U then V). Returns encoded bytes (VP9 bitstream)
-    std::vector<uint8_t> encodeFrame(const std::vector<uint8_t> &yuv_frame);
+    std::vector<uint8_t> encode_frame(const std::vector<uint8_t> &yuv_frame);
 
     // Update target bitrate (kbps)
-    void setBitrate(unsigned int bitrate_kbps);
+    void set_target_bitrate(unsigned int bitrate_kbps);
 
     size_t packetize_encoded_frame(const std::vector<uint8_t>& encoded_frame, 
                                     uint32_t ts,

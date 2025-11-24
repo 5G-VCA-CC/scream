@@ -462,12 +462,6 @@ void* createRtpThread(void* arg) {
 
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
-			// If encoder initialized, update its bitrate to follow SCReAM target
-			if (useVideo && g_encoder) {
-				unsigned int target_kbps = (unsigned int)(rateTx / 1000.0f + 0.5f);
-				g_encoder->setBitrate(target_kbps);
-			}
-
 			mtu = screamTx->getRecommendedMss(time_ntp);
 
 			screamTx->setCwndMinLow((mtu+12)*2);
@@ -513,7 +507,7 @@ void* createRtpThread(void* arg) {
 						}
 						if (g_encoder) {
 							try {
-								encoded_frame = g_encoder->encodeFrame(frame_buf);
+								encoded_frame = g_encoder->compress_frame(frame_buf, ts, time_ntp, SSRC, mtu, seqNr, rtpQueue, screamTx);
 								if (!encoded_frame.empty()) {
 									has_encoded = true;
 									bytes = (int)encoded_frame.size();
@@ -545,35 +539,6 @@ void* createRtpThread(void* arg) {
 			}
 			if (!isBurst)
 				bytes = 0;
-		}
-
-		if (useVideo && has_encoded && g_encoder) {
-            pthread_mutex_lock(&lock_rtp_queue);
-            pthread_mutex_lock(&lock_scream);
-            try {
-                g_encoder->packetize_encoded_frame(
-                    encoded_frame,   // encoded VP9 frame
-                    ts,              // RTP timestamp
-                    time_ntp,        // Q16 NTP time
-                    SSRC,
-                    mtu,             // payload MTU (no RTP header)
-                    seqNr,           // seqNr advanced internally
-                    rtpQueue,
-                    screamTx
-                );
-            } catch (const std::exception &e) {
-                pthread_mutex_unlock(&lock_scream);
-                pthread_mutex_unlock(&lock_rtp_queue);
-                std::cerr << "packetize error: " << e.what() << "\n";
-                useVideo = false;
-                waitPeriod(&info);
-                continue;
-            }
-            pthread_mutex_unlock(&lock_scream);
-            pthread_mutex_unlock(&lock_rtp_queue);
-
-            waitPeriod(&info);
-            continue;
 		}
 
 			while (bytes > 0) {

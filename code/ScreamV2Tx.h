@@ -209,7 +209,7 @@ extern "C" {
                 * Function returns -1 if a loss is detected, this signal can be used to
                 *  request a new key frame from a video encoder
                 */
-                float getTargetBitrate(uint32_t ssrc);
+                float getTargetBitrate(uint32_t time_ntp, uint32_t ssrc);
 
                 /*
                 * Set target priority for a given stream, priority value should be in range ]0.0..1.0]

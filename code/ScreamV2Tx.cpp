@@ -1841,6 +1841,8 @@ void ScreamV2Tx::updateCwnd(uint32_t time_ntp) {
 	if (nStreams > 0) {
 		std::cerr << "[SCREAM-CWND] cwnd=" << cwnd 
 		          << " sRtt=" << sRtt 
+		          << " queueDelay=" << queueDelay
+		          << " bytesInFlight=" << bytesInFlight
 		          << " rateLeft=" << (8 * cwnd / std::max(0.001f, std::min(0.2f, sRtt + 0.001f)))
 		          << " stream[0].rateShare=" << streams[0]->rateShare 
 		          << " targetBitrateH=" << streams[0]->targetBitrateH 

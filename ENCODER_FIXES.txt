@@ -1,0 +1,37 @@
+// Proposed fixes for scream/code/Encoder.cpp to match Ringmaster encoder configuration
+// Apply these changes to ensure fair SCReAM comparison
+
+// In Encoder::Encoder() constructor, after line 35 (g_lag_in_frames):
+
+// FIX 1: Add threading configuration
+impl_->cfg.g_threads = 4; // Match ringmaster's encoder threads
+
+// FIX 2: Add WebRTC-style parameters
+impl_->cfg.rc_resize_allowed = 0; // Match ringmaster
+impl_->cfg.rc_dropframe_thresh = 0; // Match ringmaster
+
+// ... existing rc_buf settings stay the same ...
+
+// FIX 3: Match quantizer range (around line 43-44)
+impl_->cfg.rc_min_quantizer = 2;  // Change from 4 to 2 (match ringmaster)
+impl_->cfg.rc_max_quantizer = 52; // Change from 63 to 52 (match ringmaster)
+
+// ... existing rc_undershoot/overshoot stay the same ...
+
+// FIX 4: Add keyframe control (CRITICAL - add after rc_overshoot_pct)
+impl_->cfg.kf_mode = VPX_KF_DISABLED; // Disable automatic keyframes
+impl_->cfg.kf_max_dist = std::numeric_limits<unsigned int>::max(); // No automatic keyframes
+impl_->cfg.kf_min_dist = 0;
+
+// ... existing rc_end_usage and rc_target_bitrate stay the same ...
+// ... vpx_codec_enc_init stays the same ...
+
+// FIX 5: Dynamic CPU usage (optional - around line 56)
+// Option A: Keep it simple and match ringmaster's typical case
+vpx_codec_control(&impl_->ctx, VP8E_SET_CPUUSED, 4);
+
+// Option B: Make it dynamic like ringmaster (more sophisticated)
+// const unsigned int cpu_used = std::min(get_nprocs(), 16);
+// vpx_codec_control(&impl_->ctx, VP8E_SET_CPUUSED, cpu_used);
+
+// ... all other codec_control calls stay the same ...

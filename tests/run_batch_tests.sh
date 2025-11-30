@@ -4,6 +4,9 @@
 #
 # Usage: ./run_batch_tests.sh <num_iterations> [output_dir]
 #
+# Sender is called with: scream_bw_test_tx -video <file> -fps 30 -time <duration> -key 2.0 5.0 -mtu 1388 <ip> <port>
+# Receiver is called with: scream_bw_test_rx -video <resolution> <ip> <port>
+#
 
 set -e  # Exit on error
 

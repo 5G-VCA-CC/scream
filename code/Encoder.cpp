@@ -5,6 +5,8 @@
 #include <cstring>
 #include <stdexcept>
 #include <limits>
+#include <sys/time.h>
+#include <iostream>
 
 struct Encoder::Impl {
     vpx_codec_ctx_t ctx{};
@@ -14,7 +16,19 @@ struct Encoder::Impl {
     int framerate;
     unsigned int bitrate_kbps;
     uint64_t frame_id = 0;
+    
+    // Periodic key frame control
+    bool use_periodic_keyframes = false;
+    uint64_t keyframe_interval_us = 2000000; // default 2 seconds
+    uint64_t last_keyframe_ts_us = 0;
 };
+
+// Helper to get current timestamp in microseconds
+static uint64_t get_timestamp_us() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
 
 Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps)
     : impl_(new Impl()) {
@@ -60,7 +74,7 @@ Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps
         throw std::runtime_error("vpx_codec_enc_init failed");
 
     // reasonable defaults for realtime
-    vpx_codec_control(&impl_->ctx, VP8E_SET_CPUUSED, 4);
+    vpx_codec_control(&impl_->ctx, VP8E_SET_CPUUSED, 12);
     vpx_codec_control(&impl_->ctx, VP9E_SET_TILE_COLUMNS, 2);
     vpx_codec_control(&impl_->ctx, VP9E_SET_ROW_MT, 1);
 
@@ -87,6 +101,12 @@ void Encoder::setBitrate(unsigned int bitrate_kbps) {
     vpx_codec_enc_config_set(&impl_->ctx, &impl_->cfg);
 }
 
+void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
+    if (!impl_) return;
+    impl_->use_periodic_keyframes = enable;
+    impl_->keyframe_interval_us = interval_us;
+}
+
 std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame) {
     if (!impl_) return {};
     const int w = impl_->width;
@@ -100,7 +120,20 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
     memcpy(img->planes[VPX_PLANE_U], yuv_frame.data() + y_size, uv_size);
     memcpy(img->planes[VPX_PLANE_V], yuv_frame.data() + y_size + uv_size, uv_size);
 
-    if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, 0, VPX_DL_REALTIME) != VPX_CODEC_OK) {
+    // Check if we need to force a key frame
+    vpx_enc_frame_flags_t flags = 0;
+    if (impl_->use_periodic_keyframes) {
+        uint64_t curr_ts = get_timestamp_us();
+        if (impl_->last_keyframe_ts_us == 0 || 
+            curr_ts - impl_->last_keyframe_ts_us >= impl_->keyframe_interval_us) {
+            flags = VPX_EFLAG_FORCE_KF;
+            impl_->last_keyframe_ts_us = curr_ts;
+            std::cerr << "* Periodic key frame forced at frame " << impl_->frame_id 
+                     << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
+        }
+    }
+
+    if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
         vpx_img_free(img);
         throw std::runtime_error("vpx_codec_encode failed");
     }

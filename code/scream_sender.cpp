@@ -55,8 +55,8 @@ bool isKeyFrame = false;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
-int initRate = 1000;
-int minRate = 1000;
+int initRate = 500;
+int minRate = 500;
 int maxRate = 200000;
 bool enableClockDriftCompensation = false;
 float burstTime = -1.0;
@@ -506,7 +506,9 @@ void* createRtpThread(void* arg) {
 							g_enc_width = y4m.width;
 							g_enc_height = y4m.height;
 							try {
+								// Initialize encoder with 500 kbps starting bitrate
 								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500);
+								cerr << "Encoder initialized with target bitrate: 500 kbps" << endl;
 								
 								// Configure periodic keyframes if -key option was provided
 								if (isKeyFrame) {

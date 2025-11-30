@@ -530,6 +530,8 @@ int main(int argc, char* argv[])
 				bool isMark = (buf[1] & 0x80) != 0;
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {
+					uint16_t expected_seq = lastSn + 1;
+					fprintf(stderr, "WARNING: Sequence gap detected! Expected %u but got %u\n", expected_seq, seqNr);
 					fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);
 					discard_until_marker = true;
 					waiting_for_keyframe = true;

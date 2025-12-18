@@ -1,6 +1,6 @@
 #ifndef VIDEO_ENC
 #define VIDEO_ENC
-
+static const int kRtpOverHead = 12;
 class RtpQueue;
 #define MAX_FRAMES 10000
 class VideoEnc {

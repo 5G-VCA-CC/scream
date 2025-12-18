@@ -3,6 +3,30 @@
 This project includes an implementation of SCReAM, a mobile optimised congestion control algorithm for realtime interactive media.
 
 ## News
+- 2025-11-10 :
+  - virtual L4S backoff made faster
+  - Build date for BW test tool sender changed  
+- 2025-11-04 - 06 :
+  - l4sAlpha calculation use fast attack slow decay filter
+  - Reference window headroom made adaptive based on queue delay variation
+  - CWND increase restriction based on queue delay variation 
+  - Build date for BW test tool sender changed
+- 2025-10-16 :
+  - Delay and L4S based CC further modified for increased stability  
+  - Build date for BW test tool changed
+- 2025-10-15 :
+  - Delay based CC modified slightly
+  - L4S based CC action after long non-congested period is modified
+  - Build date for BW test tool changed
+- 2025-10-14 :
+  - Bug in congestion avoidance logic fixed
+  - Delay based and L4S CC stablity improved for large RTTs
+- 2025-09-27 - 28 :
+  - Delay based congestion control (default enabled) can be selectable with function enableDelayBasedCongestionControl. With this change, delay based congestion congtrol (if enabled) runs fully in parallel with L4S. 
+  - Option -nodelaycc added BW test tool to disable delay based congestion control.  
+	- Build date for BW test tool changed
+- 2025-08-08 :
+  - Reordering time (packet reodering margin) is made configurable 
 - 2025-05-09 : 
   - Added new user guide for the SCReAM BW test tool with examples
   - SCReAM BW test, added end of session summary 

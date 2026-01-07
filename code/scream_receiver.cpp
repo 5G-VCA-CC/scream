@@ -19,6 +19,8 @@
 #include <vpx/vp8dx.h>
 #include <cstring>
 #include "Decoder.h"
+#include <deque>
+#include <cmath>
 using namespace std;
 
 #define BUFSIZE 2048
@@ -82,6 +84,14 @@ static bool assembling_frame = false;
 static uint16_t expected_seq_for_assembly = 0;
 static bool discard_until_marker = false;
 static bool waiting_for_keyframe = false;
+static unsigned long freezeCount = 0;
+static double totalFreezesDuration = 0.0;           // seconds
+static double totalInterFrameDelay = 0.0;           // seconds
+static double totalSquaredInterFrameDelay = 0.0;    // seconds^2
+static unsigned long framesRendered = 0;
+static std::deque<double> lastFrameDurationsMs;    // keep last 30 frame durations in ms
+static uint32_t lastFrameRenderTime_ntp = 0;
+static constexpr double NTP_TO_SEC = 1.0 / 65536.0;
 
 // Decoder wrapper
 static Decoder* g_decoder = nullptr;
@@ -213,6 +223,42 @@ void* rtcpPeriodicThread(void* arg) {
 		}
 		usleep(500);
 	}
+}
+
+static void onFrameRendered(uint32_t render_time_ntp)
+{
+    if (lastFrameRenderTime_ntp != 0) {
+        // compute duration between consecutively rendered frames in ms
+        uint32_t diff_ntp = render_time_ntp - lastFrameRenderTime_ntp;
+        double duration_s = diff_ntp * NTP_TO_SEC;
+        double duration_ms = duration_s * 1000.0;
+
+        // update rolling history (last 30)
+        lastFrameDurationsMs.push_back(duration_ms);
+        if (lastFrameDurationsMs.size() > 30)
+            lastFrameDurationsMs.pop_front();
+
+        // linear average of durations of last 30 (or fewer) frames
+        double sum_ms = 0.0;
+        for (double v : lastFrameDurationsMs) sum_ms += v;
+        double avg_frame_duration_ms = sum_ms / double(lastFrameDurationsMs.size());
+
+        // freeze threshold: Max(3 * avg_frame_duration_ms, avg_frame_duration_ms + 150)
+        double thr = std::max(3.0 * avg_frame_duration_ms, avg_frame_duration_ms + 150.0);
+
+        if (duration_ms >= thr) {
+            freezeCount++;
+            totalFreezesDuration += duration_s;
+        }
+
+        // update inter-frame sums for variance computation
+        totalInterFrameDelay += duration_s;
+        totalSquaredInterFrameDelay += duration_s * duration_s;
+        framesRendered++;
+    }
+
+    // store last render time for next interval
+    lastFrameRenderTime_ntp = render_time_ntp;
 }
 
 int main(int argc, char* argv[])
@@ -623,6 +669,7 @@ int main(int argc, char* argv[])
 
 							if (decoded) {
 								waiting_for_keyframe = false;
+								onFrameRendered(getTimeInNtp()); // update inter-frame/freezes stats
 							} else {
 								waiting_for_keyframe = true;
 								Decoder* cur = g_decoder;

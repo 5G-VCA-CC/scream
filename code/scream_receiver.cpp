@@ -241,7 +241,7 @@ static void update_inter_frame_stats(uint32_t render_time_ntp)
 
         // average of durations of last 30 (or fewer) frames
         double sum_ms = 0.0;
-        for (double v : last_frame_duration_ms){
+        for(double v : last_frame_duration_ms){
 			sum_ms += v;
 		}
         double avg_frame_duration_ms = sum_ms / double(last_frame_duration_ms.size());
@@ -249,7 +249,7 @@ static void update_inter_frame_stats(uint32_t render_time_ntp)
         // freeze threshold: Max(3 * avg_frame_duration_ms, avg_frame_duration_ms + 150)
         double threshold = std::max(3.0 * avg_frame_duration_ms, avg_frame_duration_ms + 150.0);
 
-        if (duration_ms >= threshold) {
+        if(duration_ms >= threshold) {
             freeze_count++;
             total_freezes_duration += duration_s;
         }

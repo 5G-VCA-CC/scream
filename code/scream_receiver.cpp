@@ -92,6 +92,7 @@ static unsigned long frames_rendered = 0;
 static std::deque<double> last_frame_duration_ms;    // keep last 30 frame durations in ms
 static uint32_t last_frame_render_time_ntp = 0;
 static constexpr double NTP_TO_SEC = 1.0 / 65536.0;
+static bool first_packet_received = false; // frame diff
 // Periodic statistics
 static uint64_t total_datagrams_received = 0;
 static uint64_t total_bytes_received = 0;
@@ -627,26 +628,37 @@ int main(int argc, char* argv[])
 				uint32_t ts;
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
-				uint16_t diff = seqNr - lastSn;
-				if (diff > 1) {
-					uint16_t expected_seq = lastSn + 1;
-					fprintf(stderr, "WARNING: Sequence gap detected! Expected %u but got %u\n", expected_seq, seqNr);
-					fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);
-					discard_until_marker = true;
-					waiting_for_keyframe = true;
-					recv_frame_buf.clear();
-					assembling_frame = false;
-					Decoder* decoder = g_decoder;
-					if (decoder) {
-						try {
-							decoder->reset();
-						} catch (const std::exception &e) {
-							fprintf(stderr, "[VPX-DECODE-ERR] reset failed after loss: %s\n", e.what());
-							delete g_decoder;
-							g_decoder = nullptr;
+				if(first_packet_received){
+					uint16_t diff = seqNr - lastSn;
+					uint16_t expected_seq = lastSn + 1; // go to next seq number
+					if(diff > 0){
+						uint16_t expected_seq = lastSn + 1;
+						fprintf(stderr, "WARNING: Sequence gap detected! Expected %u but got %u\n", expected_seq, seqNr);
+						fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);
+						discard_until_marker = true;
+						waiting_for_keyframe = true;
+						recv_frame_buf.clear();
+						assembling_frame = false;
+						Decoder* decoder = g_decoder;
+						if(decoder){
+							try{decoder->reset();}
+							catch(const std::exception &e){
+								fprintf(stderr, "[VPX-DECODE-ERR] reset failed after loss: %s\n", e.what());
+								delete g_decoder;
+								g_decoder = nullptr;
+							}
 						}
 					}
+					else if(diff < 0){
+						// packet arrived out of order or duplicate
+						fprintf(stderr, "INFO: Out-of-order or duplicate packet: got %u, expected %u\n", seqNr, expected_seq);
+					}
 				}
+				else{
+					first_packet_received = true;
+					fprintf(stderr, "First packet received with seqNr=%u\n", seqNr);
+				}
+				
 				lastSn = seqNr;
 				/*
 				* Generate RTCP feedback

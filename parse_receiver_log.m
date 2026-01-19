@@ -1,79 +1,124 @@
-function a = import_receiver_log(filename)
-% Reads the specific SCReAM receiver text log and converts to matrix
-% Returns matrix 'a' with columns:
-% 1: Time (Accumulated seconds)
-% 2: Receive Rate (Mbps)
-% 3: Frames Completed
-% 4: Freeze Count
-% 5: Freeze Duration (s)
-% 6: Total Inter-Frame Delay (s)
-% 7: Inter-Frame Delay Variance (s^2)
+function data = parse_receiver_log(input_file, output_file)
+    % Parse receiver statistics from log file
+    % Usage:
+    %   data = parse_receiver_log('receiver_log.txt', 'parsed_stats.txt');
+    %
+    % Input log format:
+    %   === RECEIVER STATS (last 1.00031s) ===
+    %   Datagrams received: 1233
+    %   Bytes received: 1476533
+    %   Receive rate: 11.8087 Mbps
+    %   Frames completed: 29
+    %   Total frames rendered: 239
+    %   Freeze count: 0, total freeze duration: 0 s
+    %   Total Inter-Frame Delay: 7.96977 s
+    %   Inter-Frame Delay Variance: 2.74551e-05 s^2
+    %   =================================================
+    %
+    % Output columns:
+    %   1: Time (cumulative seconds)
+    %   2: Datagrams received
+    %   3: Bytes received
+    %   4: Receive rate (Mbps)
+    %   5: Frames completed
+    %   6: Total frames rendered
+    %   7: Freeze count
+    %   8: Total freeze duration (s)
+    %   9: Total Inter-Frame Delay (s)
+    %   10: Inter-Frame Delay Variance (s^2)
 
-    fid = fopen(filename, 'r');
+    fid = fopen(input_file, 'r');
     if fid == -1
-        error('Cannot open file');
+        error('Cannot open input file: %s', input_file);
     end
 
+    % Initialize storage
     data = [];
-    current_time = 0;
+    cumulative_time = 0;
     
-    % Temporary storage for the current block
-    rate = 0; frames = 0; f_cnt = 0; f_dur = 0; delay = 0; var = 0;
-    time_increment = 1.0; % Default if parsing fails
+    % Temporary storage for current record
+    current_record = zeros(1, 10);
+    interval_time = 1.0;  % default interval
 
     while ~feof(fid)
         line = fgetl(fid);
-        
-        % 1. Detect Header to get time increment
-        if contains(line, 'RECEIVER STATS')
-            % Extract "1.00031" from "last 1.00031s"
-            t_str = regexp(line, 'last ([\d\.]+)s', 'tokens');
-            if ~isempty(t_str)
-                time_increment = str2double(t_str{1}{1});
-            end
-            current_time = current_time + time_increment;
+        if ~ischar(line)
+            break;
         end
 
-        % 2. Extract Receive Rate
-        if contains(line, 'Receive rate:')
-            tokens = regexp(line, 'Receive rate: ([\d\.]+) Mbps', 'tokens');
-            if ~isempty(tokens), rate = str2double(tokens{1}{1}); end
-        end
-
-        % 3. Extract Frames Completed
-        if contains(line, 'Frames completed:')
-            tokens = regexp(line, 'Frames completed: (\d+)', 'tokens');
-            if ~isempty(tokens), frames = str2double(tokens{1}{1}); end
-        end
-
-        % 4. Extract Freeze Count and Duration
-        if contains(line, 'Freeze count:')
-            % Pattern: Freeze count: 0, total freeze duration: 0 s
-            tokens = regexp(line, 'Freeze count: (\d+), total freeze duration: ([\d\.]+) s', 'tokens');
+        % Parse each line type
+        if ~isempty(strfind(line, '=== RECEIVER STATS'))
+            % Extract interval time from header
+            tokens = regexp(line, 'last ([0-9.]+)s', 'tokens');
             if ~isempty(tokens)
-                f_cnt = str2double(tokens{1}{1});
-                f_dur = str2double(tokens{1}{2});
+                interval_time = str2double(tokens{1}{1});
             end
-        end
-
-        % 5. Extract Total Inter-Frame Delay
-        if contains(line, 'Total Inter-Frame Delay:')
-            tokens = regexp(line, 'Total Inter-Frame Delay: ([\d\.]+) s', 'tokens');
-            if ~isempty(tokens), delay = str2double(tokens{1}{1}); end
-        end
-
-        % 6. Extract Variance and Save Row
-        if contains(line, 'Inter-Frame Delay Variance:')
-            tokens = regexp(line, 'Inter-Frame Delay Variance: ([\d\.eE\-\+]+) s\^2', 'tokens');
+            current_record = zeros(1, 10);
+            
+        elseif ~isempty(strfind(line, 'Datagrams received:'))
+            tokens = regexp(line, 'Datagrams received: ([0-9]+)', 'tokens');
             if ~isempty(tokens)
-                var = str2double(tokens{1}{1});
-                
-                % End of block, append to matrix
-                new_row = [current_time, rate, frames, f_cnt, f_dur, delay, var];
-                data = [data; new_row];
+                current_record(2) = str2double(tokens{1}{1});
             end
+            
+        elseif ~isempty(strfind(line, 'Bytes received:'))
+            tokens = regexp(line, 'Bytes received: ([0-9]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(3) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, 'Receive rate:'))
+            tokens = regexp(line, 'Receive rate: ([0-9.e+-]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(4) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, 'Frames completed:'))
+            tokens = regexp(line, 'Frames completed: ([0-9]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(5) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, 'Total frames rendered:'))
+            tokens = regexp(line, 'Total frames rendered: ([0-9]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(6) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, 'Freeze count:'))
+            tokens = regexp(line, 'Freeze count: ([0-9]+), total freeze duration: ([0-9.e+-]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(7) = str2double(tokens{1}{1});
+                current_record(8) = str2double(tokens{1}{2});
+            end
+            
+        elseif ~isempty(strfind(line, 'Total Inter-Frame Delay:'))
+            tokens = regexp(line, 'Total Inter-Frame Delay: ([0-9.e+-]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(9) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, 'Inter-Frame Delay Variance:'))
+            tokens = regexp(line, 'Inter-Frame Delay Variance: ([0-9.e+-]+)', 'tokens');
+            if ~isempty(tokens)
+                current_record(10) = str2double(tokens{1}{1});
+            end
+            
+        elseif ~isempty(strfind(line, '=====')) && length(line) > 10
+            % End of record - save it
+            cumulative_time = cumulative_time + interval_time;
+            current_record(1) = cumulative_time;
+            data = [data; current_record];
         end
     end
+
     fclose(fid);
-    a = data;
+
+    % Save to output file if specified
+    if nargin >= 2 && ~isempty(output_file)
+        save(output_file, 'data', '-ascii', '-double');
+        fprintf('Parsed %d records, saved to %s\n', size(data, 1), output_file);
+    end
+
+    fprintf('Parsed %d statistical records\n', size(data, 1));
 end

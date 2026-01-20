@@ -3,7 +3,7 @@ function plot_receiver_stats_separate(a, Tlim, maxRate, maxDelay, U)
     %
     % Usage:
     %   a = load('parsed_stats.txt');
-    %   plot_receiver_stats_separate(a, [0 100], 50, 0.1, 10);
+    %   plot_receiver_stats_separate(a, [0 30], 50, 0.1, 10);
 
     % Time vector (normalize to start at 0)
     T = a(:,1);

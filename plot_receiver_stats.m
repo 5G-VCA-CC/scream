@@ -1,28 +1,8 @@
-function plot_receiver_stats(a, Tlim, maxRate, maxDelay, U)
-    % Plot receiver statistics from parsed data
-    %
+function plot_receiver_stats_dual(a, Tlim, maxRate, maxDelay, U)
+    % Plot receiver statistics with dual y-axes
     % Usage:
     %   a = load('parsed_stats.txt');
-    %   plot_receiver_stats(a, [0 100], 50, 0.1, 10);
-    %
-    % Parameters:
-    %   a       - Data matrix from parse_receiver_stats
-    %   Tlim    - Time range [min max] in seconds, e.g., [0 100]
-    %   maxRate - Max receive rate for y-axis [Mbps]
-    %   maxDelay - Max delay for y-axis [s]
-    %   U       - Window size for moving average filter
-    %
-    % Data columns:
-    %   1: Time (s)
-    %   2: Datagrams received
-    %   3: Bytes received
-    %   4: Receive rate (Mbps)
-    %   5: Frames completed
-    %   6: Total frames rendered
-    %   7: Freeze count
-    %   8: Total freeze duration (s)
-    %   9: Total Inter-Frame Delay (s)
-    %   10: Inter-Frame Delay Variance (s^2)
+    %   plot_receiver_stats_dual(a, [0 100], 50, 0.1, 10);
 
     % Time vector (normalize to start at 0)
     T = a(:,1);
@@ -33,31 +13,33 @@ function plot_receiver_stats(a, Tlim, maxRate, maxDelay, U)
 
     % Create figure with 4 subplots
     figure('Position', [100, 100, 800, 900]);
-    K = 4;  % Number of subplots
-    L = 1;  % Current subplot index
+    K = 4;
+    L = 1;
 
     %% Subplot 1: Receive Rate and Frames Completed
     subplot(K, 1, L); L = L + 1;
+    [ax, h1, h2] = plotyy(T, filter(B, 1, a(:,4)), T, a(:,5));
     
-    yyaxis left;
-    plot(T, filter(B, 1, a(:,4)), 'b-', 'LineWidth', 1.5);
-    ylabel('Receive Rate [Mbps]');
-    ylim([0 maxRate]);
+    set(h1, 'Color', 'b', 'LineWidth', 1.5);
+    set(h2, 'Color', 'r', 'LineWidth', 1.5);
+    set(ax(1), 'YColor', 'b');
+    set(ax(2), 'YColor', 'r');
     
-    yyaxis right;
-    plot(T, a(:,5), 'r-', 'LineWidth', 1.5);
-    ylabel('Frames Completed');
+    ylabel(ax(1), 'Receive Rate [Mbps]');
+    ylabel(ax(2), 'Frames Completed');
+    set(ax(1), 'YLim', [0 maxRate]);
+    set(ax(1), 'XLim', Tlim);
+    set(ax(2), 'XLim', Tlim);
     
     set(gca, 'FontSize', 12);
     grid on;
     title('Receive Rate and Frames Completed per Interval');
-    legend('Receive Rate', 'Frames Completed', 'Location', 'best');
-    set(gca, 'XTickLabel', []);
-    xlim(Tlim);
+    legend([h1; h2], 'Receive Rate', 'Frames Completed', 'Location', 'best');
+    set(ax(1), 'XTickLabel', []);
+    set(ax(2), 'XTickLabel', []);
 
     %% Subplot 2: Total Frames Rendered (cumulative)
     subplot(K, 1, L); L = L + 1;
-    
     plot(T, a(:,6), 'g-', 'LineWidth', 1.5);
     set(gca, 'FontSize', 12);
     grid on;
@@ -68,39 +50,44 @@ function plot_receiver_stats(a, Tlim, maxRate, maxDelay, U)
 
     %% Subplot 3: Freeze Count and Freeze Duration
     subplot(K, 1, L); L = L + 1;
+    [ax, h1, h2] = plotyy(T, a(:,7), T, a(:,8));
     
-    yyaxis left;
-    plot(T, a(:,7), 'b-', 'LineWidth', 1.5);
-    ylabel('Freeze Count');
+    set(h1, 'Color', 'b', 'LineWidth', 1.5);
+    set(h2, 'Color', 'r', 'LineWidth', 1.5);
+    set(ax(1), 'YColor', 'b');
+    set(ax(2), 'YColor', 'r');
     
-    yyaxis right;
-    plot(T, a(:,8), 'r-', 'LineWidth', 1.5);
-    ylabel('Freeze Duration [s]');
+    ylabel(ax(1), 'Freeze Count');
+    ylabel(ax(2), 'Freeze Duration [s]');
+    set(ax(1), 'XLim', Tlim);
+    set(ax(2), 'XLim', Tlim);
     
     set(gca, 'FontSize', 12);
     grid on;
     title('Freeze Count and Total Freeze Duration');
-    legend('Freeze Count', 'Freeze Duration', 'Location', 'best');
-    set(gca, 'XTickLabel', []);
-    xlim(Tlim);
+    legend([h1; h2], 'Freeze Count', 'Freeze Duration', 'Location', 'best');
+    set(ax(1), 'XTickLabel', []);
+    set(ax(2), 'XTickLabel', []);
 
     %% Subplot 4: Inter-Frame Delay and Variance
     subplot(K, 1, L); L = L + 1;
+    [ax, h1, h2] = plotyy(T, a(:,9), T, a(:,10) * 1e6);
     
-    yyaxis left;
-    plot(T, a(:,9), 'b-', 'LineWidth', 1.5);
-    ylabel('Inter-Frame Delay [s]');
-    ylim([0 maxDelay * 100]);  % Scale appropriately
+    set(h1, 'Color', 'b', 'LineWidth', 1.5);
+    set(h2, 'Color', 'r', 'LineWidth', 1.5);
+    set(ax(1), 'YColor', 'b');
+    set(ax(2), 'YColor', 'r');
     
-    yyaxis right;
-    plot(T, a(:,10) * 1e6, 'r-', 'LineWidth', 1.5);  % Convert to microseconds^2
-    ylabel('Delay Variance [μs^2]');
+    ylabel(ax(1), 'Inter-Frame Delay [s]');
+    ylabel(ax(2), 'Delay Variance [us^2]');
+    set(ax(1), 'YLim', [0 maxDelay * 100]);
+    set(ax(1), 'XLim', Tlim);
+    set(ax(2), 'XLim', Tlim);
     
     set(gca, 'FontSize', 12);
     grid on;
     title('Total Inter-Frame Delay and Delay Variance');
-    legend('Inter-Frame Delay', 'Delay Variance', 'Location', 'best');
-    xlim(Tlim);
+    legend([h1; h2], 'Inter-Frame Delay', 'Delay Variance', 'Location', 'best');
     xlabel('Time [s]');
 
 end

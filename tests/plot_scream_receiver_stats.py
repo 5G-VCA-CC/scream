@@ -80,24 +80,12 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_receive_rate.png', dpi=150)
     plt.close()
     
-    # Plot 3: Frames Completed, Total Frames Rendered
-    fig3, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2, marker='s', markersize=4)
-    ax.plot(time, stats['frames_rendered'], 'r--', label='Total Frames Rendered', linewidth=2, marker='^', markersize=4)
-    ax.set_xlabel('Time (s)', fontsize=12)
-    ax.set_ylabel('Frame Count', fontsize=12)
-    ax.set_title('Frames Completed vs Rendered Over Time', fontsize=14)
-    ax.legend(loc='upper left')
-    plt.tight_layout()
-    plt.savefig(f'{output_prefix}_frames.png', dpi=150)
-    plt.close()
-    
-    # Plot 4: Freeze Count, Total Freeze Duration
+    # Plot 3: Freeze Count, Total Freeze Duration
     fig4, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
     
     line1, = ax1.plot(time, stats['freeze_count'], 'b-', label='Freeze Count', linewidth=2, marker='o', markersize=4)
-    line2, = ax2.plot(time, stats['freeze_duration'], 'r-', label='Total Freeze Duration (s)', linewidth=2, marker='s', markersize=4)
+    line2, = ax2.plot(time, stats['freeze_duration'], 'r-', label='Total Freeze Duration (s)', linewidth=2, marker='.', markersize=4)
     
     ax1.set_xlabel('Time (s)', fontsize=12)
     ax1.set_ylabel('Freeze Count', color='b', fontsize=12)
@@ -113,16 +101,16 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_freezes.png', dpi=150)
     plt.close()
     
-    # Plot 5: Inter-Frame Delay and Variance
+    # Plot 4: Inter-Frame Delay and Variance
     fig5, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
     
-    line1, = ax1.plot(time, stats['inter_frame_delay'], 'b-', label='Total Inter-Frame Delay (s)', linewidth=2, marker='o', markersize=4)
-    line2, = ax2.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Inter-Frame Delay Variance (s²)', linewidth=2, marker='s', markersize=4)
+    line1, = ax1.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2, marker='o', markersize=4)
+    line2, = ax2.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Inter-Frame Delay Variance (s²)', linewidth=2, marker='.', markersize=4)
     
     ax1.set_xlabel('Time (s)', fontsize=12)
-    ax1.set_ylabel('Inter-Frame Delay (s)', color='b', fontsize=12)
-    ax2.set_ylabel('Inter-Frame Delay Variance (s²)', color='r', fontsize=12)
+    ax1.set_ylabel('Frames', color='b', fontsize=12)
+    ax2.set_ylabel('Inter-Frame Delay Variance (s^2)', color='r', fontsize=12)
     ax1.tick_params(axis='y', labelcolor='b')
     ax2.tick_params(axis='y', labelcolor='r')
     
@@ -162,15 +150,7 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax2.set_ylabel('Mbps')
     ax2.set_title('Receive Rate')
     
-    # Plot 3: Frames (middle-left)
-    ax3 = axes[1, 0]
-    ax3.plot(time, stats['frames_completed'], 'b-', label='Completed', linewidth=2)
-    ax3.plot(time, stats['frames_rendered'], 'r--', label='Rendered', linewidth=2)
-    ax3.set_ylabel('Count')
-    ax3.set_title('Frames Completed vs Rendered')
-    ax3.legend()
-    
-    # Plot 4: Freezes (middle-right)
+    # Plot 3: Freezes (middle-right)
     ax4 = axes[1, 1]
     ax4_twin = ax4.twinx()
     ax4.plot(time, stats['freeze_count'], 'b-', label='Count', linewidth=2)
@@ -179,14 +159,14 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax4_twin.set_ylabel('Duration (s)', color='r')
     ax4.set_title('Freeze Statistics')
     
-    # Plot 5: Inter-frame delay (bottom-left)
+    # Plot 4: Inter-frame delay (bottom-left)
     ax5 = axes[2, 0]
     ax5_twin = ax5.twinx()
-    ax5.plot(time, stats['inter_frame_delay'], 'b-', label='Delay', linewidth=2)
+    ax5.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2)
     ax5_twin.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Variance', linewidth=2)
     ax5.set_xlabel('Time (s)')
-    ax5.set_ylabel('Delay (s)', color='b')
-    ax5_twin.set_ylabel('Variance (s²)', color='r')
+    ax5.set_ylabel('Frames', color='b')
+    ax5_twin.set_ylabel('Variance (s^2)', color='r')
     ax5.set_title('Inter-Frame Delay Statistics')
     
     # Hide unused subplot (bottom-right)

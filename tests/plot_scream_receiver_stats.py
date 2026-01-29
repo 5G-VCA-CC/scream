@@ -122,7 +122,66 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_interframe_delay.png', dpi=150)
     plt.close()
     
-    print(f"Plots saved with prefix '{output_prefix}_*.png'")
+    print(f"Time-series plots saved with prefix '{output_prefix}_*.png'")
+
+
+def plot_histograms(stats, output_prefix='stats'):
+    """Create histogram plots for key metrics."""
+    
+    plt.style.use('seaborn-v0_8-darkgrid' if 'seaborn-v0_8-darkgrid' in plt.style.available else 'ggplot')
+    
+    def plot_single_hist(data, title, xlabel, color, filename):
+        if not data:
+            return
+            
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Calculate mean for the vertical line
+        mean_val = sum(data) / len(data)
+        
+        # Create histogram
+        n, bins, patches = ax.hist(data, bins=30, color=color, alpha=0.7, edgecolor='black', linewidth=0.5)
+        
+        # Add mean line
+        ax.axvline(mean_val, color='k', linestyle='dashed', linewidth=1.5, label=f'Mean: {mean_val:.2f}')
+        
+        ax.set_title(title, fontsize=14)
+        ax.set_xlabel(xlabel, fontsize=12)
+        ax.set_ylabel('Frequency', fontsize=12)
+        ax.legend()
+        
+        plt.tight_layout()
+        plt.savefig(filename, dpi=150)
+        plt.close()
+
+    # 1. Receive Rate Histogram
+    plot_single_hist(
+        stats['receive_rate_mbps'],
+        'Distribution of Receive Rate',
+        'Receive Rate (Mbps)',
+        'green',
+        f'{output_prefix}_hist_receive_rate.png'
+    )
+
+    # 2. Freeze Duration Histogram
+    plot_single_hist(
+        stats['freeze_duration'],
+        'Distribution of Freeze Duration per Interval',
+        'Freeze Duration (s)',
+        'red',
+        f'{output_prefix}_hist_freeze_duration.png'
+    )
+
+    # 3. Inter-Frame Variance Histogram
+    plot_single_hist(
+        stats['inter_frame_delay_variance'],
+        'Distribution of Inter-Frame Delay Variance',
+        'Variance (s^2)',
+        'purple',
+        f'{output_prefix}_hist_variance.png'
+    )
+    
+    print(f"Histogram plots saved with prefix '{output_prefix}_hist_*.png'")
 
 
 def plot_all_in_one(stats, output_filename='stats_combined.png'):
@@ -191,8 +250,11 @@ def main():
     
     print(f"Found {len(stats['time'])} data points")
     
-    # Generate individual plots
+    # Generate time series plots
     plot_stats(stats, args.output)
+    
+    # Generate histogram plots
+    plot_histograms(stats, args.output)
     
     # Generate combined plot if requested
     if args.combined:

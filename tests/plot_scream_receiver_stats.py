@@ -151,7 +151,7 @@ def plot_histograms(stats, output_prefix='stats'):
         ax.legend()
         
         plt.tight_layout()
-        plt.ylim(0, 15)
+        plt.xlim(0, 15)
         plt.savefig(filename, dpi=150)
         plt.close()
 

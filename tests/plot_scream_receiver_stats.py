@@ -106,11 +106,11 @@ def plot_stats(stats, output_prefix='stats'):
     ax2 = ax1.twinx()
     
     line1, = ax1.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2, marker='o', markersize=4)
-    line2, = ax2.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Inter-Frame Delay Variance (s²)', linewidth=2, marker='.', markersize=4)
+    line2, = ax2.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Inter-Frame Delay Variance (s)', linewidth=2, marker='.', markersize=4)
     
     ax1.set_xlabel('Time (s)', fontsize=12)
     ax1.set_ylabel('Frames', color='b', fontsize=12)
-    ax2.set_ylabel('Inter-Frame Delay Variance (s^2)', color='r', fontsize=12)
+    ax2.set_ylabel('Inter-Frame Delay Variance (s)', color='r', fontsize=12)
     ax1.tick_params(axis='y', labelcolor='b')
     ax2.tick_params(axis='y', labelcolor='r')
     
@@ -151,6 +151,7 @@ def plot_histograms(stats, output_prefix='stats'):
         ax.legend()
         
         plt.tight_layout()
+        plt.ylim(0, 15)
         plt.savefig(filename, dpi=150)
         plt.close()
 
@@ -176,7 +177,7 @@ def plot_histograms(stats, output_prefix='stats'):
     plot_single_hist(
         stats['inter_frame_delay_variance'],
         'Distribution of Inter-Frame Delay Variance',
-        'Variance (s^2)',
+        'Variance (s)',
         'purple',
         f'{output_prefix}_hist_variance.png'
     )
@@ -225,7 +226,7 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax5_twin.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Variance', linewidth=2)
     ax5.set_xlabel('Time (s)')
     ax5.set_ylabel('Frames', color='b')
-    ax5_twin.set_ylabel('Variance (s^2)', color='r')
+    ax5_twin.set_ylabel('Variance (s)', color='r')
     ax5.set_title('Inter-Frame Delay Statistics')
     
     # Hide unused subplot (bottom-right)

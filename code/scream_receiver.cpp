@@ -301,7 +301,7 @@ void print_periodic_stats(uint32_t current_time_ntp){
         cout << "Total frames rendered: " << frames_rendered << endl;
         cout << "Freeze count: " << freeze_count << ", total freeze duration: " << total_freezes_duration << " s" << endl;
         cout << "Total Inter-Frame Delay: " << total_inter_frame_delay << " s" << endl;
-        cout << "Inter-Frame Delay Variance: " << inter_frame_delay_variance << " s^2" << endl;
+        cout << "Inter-Frame Delay Variance: " << inter_frame_delay_variance << " s" << endl;
         cout << "=================================================" << endl;
         
         // reset per-interval counters

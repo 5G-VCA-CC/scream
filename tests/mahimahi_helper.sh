@@ -16,8 +16,9 @@ TEST_DURATION="$6"
 LOG_PREFIX="$7"
 SCREAM_RX="$8"
 SCREAM_TX="$9"
-SETUP_SCRIPT="${10}"
-PARENT_PID="${11}"  # Parent script's PID for signal files
+L4S_ENABLED="${10}"
+SETUP_SCRIPT="${11}"
+PARENT_PID="${12}"  # Parent script's PID for signal files
 
 echo "=== Inside Mahimahi Shell ==="
 echo "Setting up routing..."
@@ -40,7 +41,7 @@ timeout 10 bash -c "while [ ! -f '$SIGNAL_RX_READY' ]; do sleep 0.1; done" || {
 }
 
 echo "Receiver is ready, starting sender..."
-$SCREAM_TX -video "$VIDEO_FILE" -fps 30 -time "$TEST_DURATION" -key 2.0 5.0 -mtu 1388 "$TX_IP" "$PORT" \
+$SCREAM_TX -ect "$L4S_ENABLED" -video "$VIDEO_FILE" -fps 30 -time "$TEST_DURATION" -key 2.0 5.0 -mtu 1388 "$TX_IP" "$PORT" \
     > "${LOG_PREFIX}_tx.log" 2>&1
 
 echo "Sender completed."

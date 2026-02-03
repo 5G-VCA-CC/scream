@@ -1,0 +1,1057 @@
+socket set to IP_RECVTOS
+socket SO_RCVBUF set to 20971520
+Listen on port 8080 to receive RTP from sender 
+.
+.
+.
+[RX] Received frame marker seq=7 payload=10665 decoded=1 key=1
+[RX] Received frame marker seq=9 payload=1836 decoded=1 key=0
+[RX] Received frame marker seq=13 payload=4568 decoded=1 key=0
+[RX] Received frame marker seq=17 payload=4512 decoded=1 key=0
+[RX] Received frame marker seq=21 payload=4366 decoded=1 key=0
+[RX] Received frame marker seq=25 payload=5482 decoded=1 key=0
+[RX] Received frame marker seq=30 payload=5954 decoded=1 key=0
+[RX] Received frame marker seq=35 payload=6771 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 37 but got 38
+Packet(s) lost or reordered :    38 was received, previous rcvd is    36 
+[RX] Dropping non-key frame while resync seq=46 payload=7713
+[RX] Dropping non-key frame while resync seq=53 payload=8421
+[RX] Dropping non-key frame while resync seq=59 payload=8078
+[RX] Dropping non-key frame while resync seq=66 payload=8876
+[RX] Dropping non-key frame while resync seq=73 payload=9056
+[RX] Dropping non-key frame while resync seq=81 payload=9906
+[RX] Dropping non-key frame while resync seq=90 payload=11537
+[RX] Dropping non-key frame while resync seq=100 payload=12806
+[RX] Dropping non-key frame while resync seq=110 payload=13855
+WARNING: Sequence gap detected! Expected 115 but got 116
+Packet(s) lost or reordered :   116 was received, previous rcvd is   114 
+[RX] Dropping non-key frame while resync seq=135 payload=17640
+[RX] Dropping non-key frame while resync seq=149 payload=18815
+[RX] Dropping non-key frame while resync seq=164 payload=20267
+[RX] Dropping non-key frame while resync seq=180 payload=21005
+[RX] Dropping non-key frame while resync seq=197 payload=23387
+[RX] Dropping non-key frame while resync seq=215 payload=23810
+WARNING: Sequence gap detected! Expected 225 but got 226
+Packet(s) lost or reordered :   226 was received, previous rcvd is   224 
+[RX] Dropping non-key frame while resync seq=256 payload=28471
+WARNING: Sequence gap detected! Expected 260 but got 261
+Packet(s) lost or reordered :   261 was received, previous rcvd is   259 
+WARNING: Sequence gap detected! Expected 286 but got 287
+Packet(s) lost or reordered :   287 was received, previous rcvd is   285 
+WARNING: Sequence gap detected! Expected 299 but got 300
+Packet(s) lost or reordered :   300 was received, previous rcvd is   298 
+[RX] Dropping non-key frame while resync seq=327 payload=34471
+[RX] Dropping non-key frame while resync seq=354 payload=36998
+[RX] Dropping non-key frame while resync seq=383 payload=38934
+[RX] Dropping non-key frame while resync seq=415 payload=43163
+[RX] Dropping non-key frame while resync seq=445 payload=41592
+[RX] Dropping non-key frame while resync seq=471 payload=35622
+WARNING: Sequence gap detected! Expected 472 but got 473
+Packet(s) lost or reordered :   473 was received, previous rcvd is   471 
+[RX] Dropping non-key frame while resync seq=525 payload=36788
+[RX] Dropping non-key frame while resync seq=548 payload=31538
+[RX] Dropping non-key frame while resync seq=572 payload=32019
+[RX] Dropping non-key frame while resync seq=573 payload=953
+[RX] Dropping non-key frame while resync seq=580 payload=9370
+[RX] Dropping non-key frame while resync seq=586 payload=8144
+[RX] Dropping non-key frame while resync seq=594 payload=10289
+[RX] Dropping non-key frame while resync seq=602 payload=10983
+[RX] Dropping non-key frame while resync seq=610 payload=10812
+[RX] Dropping non-key frame while resync seq=619 payload=11532
+[RX] Dropping non-key frame while resync seq=629 payload=12940
+[RX] Dropping non-key frame while resync seq=641 payload=15955
+[RX] Dropping non-key frame while resync seq=642 payload=736
+[RX] Dropping non-key frame while resync seq=652 payload=13879
+[RX] Dropping non-key frame while resync seq=662 payload=12531
+[RX] Dropping non-key frame while resync seq=672 payload=13629
+[RX] Dropping non-key frame while resync seq=684 payload=15753
+[RX] Dropping non-key frame while resync seq=696 payload=16073
+[RX] Dropping non-key frame while resync seq=709 payload=16957
+[RX] Dropping non-key frame while resync seq=724 payload=19989
+[RX] Dropping non-key frame while resync seq=740 payload=21236
+WARNING: Sequence gap detected! Expected 742 but got 743
+Packet(s) lost or reordered :   743 was received, previous rcvd is   741 
+WARNING: Sequence gap detected! Expected 752 but got 753
+Packet(s) lost or reordered :   753 was received, previous rcvd is   751 
+[RX] Dropping non-key frame while resync seq=758 payload=965
+[RX] Dropping non-key frame while resync seq=769 payload=15266
+[RX] Dropping non-key frame while resync seq=780 payload=14671
+[RX] Received frame marker seq=791 payload=14915 decoded=1 key=1
+[RX] Received frame marker seq=809 payload=24868 decoded=1 key=0
+[RX] Received frame marker seq=822 payload=16839 decoded=1 key=0
+[RX] Received frame marker seq=823 payload=1003 decoded=1 key=0
+[RX] Received frame marker seq=834 payload=14220 decoded=1 key=0
+[RX] Received frame marker seq=844 payload=13738 decoded=1 key=0
+[RX] Received frame marker seq=855 payload=14946 decoded=1 key=0
+[RX] Received frame marker seq=867 payload=16370 decoded=1 key=0
+[RX] Received frame marker seq=880 payload=17750 decoded=1 key=0
+[RX] Received frame marker seq=893 payload=17021 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 906 but got 907
+Packet(s) lost or reordered :   907 was received, previous rcvd is   905 
+[RX] Dropping non-key frame while resync seq=922 payload=20417
+[RX] Dropping non-key frame while resync seq=938 payload=22075
+[RX] Dropping non-key frame while resync seq=956 payload=24532
+[RX] Dropping non-key frame while resync seq=975 payload=24994
+[RX] Dropping non-key frame while resync seq=997 payload=29218
+[RX] Dropping non-key frame while resync seq=1020 payload=31512
+[RX] Dropping non-key frame while resync seq=1044 payload=33200
+[RX] Dropping non-key frame while resync seq=1071 payload=36123
+[RX] Dropping non-key frame while resync seq=1097 payload=35036
+[RX] Dropping non-key frame while resync seq=1123 payload=35040
+WARNING: Sequence gap detected! Expected 1130 but got 1131
+Packet(s) lost or reordered :  1131 was received, previous rcvd is  1129 
+[RX] Dropping non-key frame while resync seq=1176 payload=36075
+WARNING: Sequence gap detected! Expected 1191 but got 1192
+Packet(s) lost or reordered :  1192 was received, previous rcvd is  1190 
+[RX] Dropping non-key frame while resync seq=1227 payload=35124
+[RX] Dropping non-key frame while resync seq=1253 payload=35489
+[RX] Dropping non-key frame while resync seq=1277 payload=32865
+[RX] Dropping non-key frame while resync seq=1278 payload=837
+[RX] Dropping non-key frame while resync seq=1292 payload=18234
+WARNING: Sequence gap detected! Expected 1301 but got 1302
+Packet(s) lost or reordered :  1302 was received, previous rcvd is  1300 
+[RX] Dropping non-key frame while resync seq=1319 payload=19113
+[RX] Dropping non-key frame while resync seq=1335 payload=21391
+[RX] Dropping non-key frame while resync seq=1353 payload=24667
+[RX] Dropping non-key frame while resync seq=1372 payload=26292
+[RX] Dropping non-key frame while resync seq=1394 payload=29820
+[RX] Dropping non-key frame while resync seq=1415 payload=28935
+[RX] Dropping non-key frame while resync seq=1437 payload=30020
+WARNING: Sequence gap detected! Expected 1450 but got 1451
+Packet(s) lost or reordered :  1451 was received, previous rcvd is  1449 
+[RX] Dropping non-key frame while resync seq=1460 payload=1129
+[RX] Dropping non-key frame while resync seq=1473 payload=17269
+[RX] Dropping non-key frame while resync seq=1485 payload=15800
+[RX] Dropping non-key frame while resync seq=1498 payload=16843
+[RX] Dropping non-key frame while resync seq=1513 payload=20147
+[RX] Dropping non-key frame while resync seq=1529 payload=20865
+[RX] Dropping non-key frame while resync seq=1546 payload=23346
+WARNING: Sequence gap detected! Expected 1562 but got 1563
+Packet(s) lost or reordered :  1563 was received, previous rcvd is  1561 
+[RX] Dropping non-key frame while resync seq=1585 payload=26581
+[RX] Dropping non-key frame while resync seq=1607 payload=30471
+[RX] Dropping non-key frame while resync seq=1631 payload=33105
+[RX] Dropping non-key frame while resync seq=1657 payload=34954
+[RX] Dropping non-key frame while resync seq=1686 payload=39052
+[RX] Dropping non-key frame while resync seq=1715 payload=39329
+[RX] Dropping non-key frame while resync seq=1741 payload=35666
+WARNING: Sequence gap detected! Expected 1744 but got 1745
+Packet(s) lost or reordered :  1745 was received, previous rcvd is  1743 
+WARNING: Sequence gap detected! Expected 1766 but got 1767
+Packet(s) lost or reordered :  1767 was received, previous rcvd is  1765 
+[RX] Dropping non-key frame while resync seq=1825 payload=42317
+[RX] Dropping non-key frame while resync seq=1856 payload=41738
+[RX] Dropping non-key frame while resync seq=1857 payload=1088
+[RX] Dropping non-key frame while resync seq=1867 payload=12728
+[RX] Dropping non-key frame while resync seq=1879 payload=15373
+WARNING: Sequence gap detected! Expected 1882 but got 1883
+Packet(s) lost or reordered :  1883 was received, previous rcvd is  1881 
+[RX] Received frame marker seq=1905 payload=22472 decoded=1 key=1
+[RX] Received frame marker seq=1911 payload=8169 decoded=1 key=0
+[RX] Received frame marker seq=1919 payload=9901 decoded=1 key=0
+[RX] Received frame marker seq=1928 payload=11686 decoded=1 key=0
+[RX] Received frame marker seq=1938 payload=12767 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 1948 but got 1949
+Packet(s) lost or reordered :  1949 was received, previous rcvd is  1947 
+[RX] Dropping non-key frame while resync seq=1963 payload=16717
+[RX] Dropping non-key frame while resync seq=1977 payload=19195
+[RX] Dropping non-key frame while resync seq=1978 payload=747
+[RX] Dropping non-key frame while resync seq=1988 payload=13164
+[RX] Dropping non-key frame while resync seq=1998 payload=12526
+[RX] Dropping non-key frame while resync seq=2010 payload=15298
+[RX] Dropping non-key frame while resync seq=2023 payload=16691
+[RX] Dropping non-key frame while resync seq=2037 payload=18285
+[RX] Dropping non-key frame while resync seq=2052 payload=20698
+[RX] Dropping non-key frame while resync seq=2069 payload=22564
+WARNING: Sequence gap detected! Expected 2081 but got 2082
+Packet(s) lost or reordered :  2082 was received, previous rcvd is  2080 
+[RX] Dropping non-key frame while resync seq=2106 payload=26315
+[RX] Dropping non-key frame while resync seq=2107 payload=1005
+[RX] Dropping non-key frame while resync seq=2120 payload=17339
+[RX] Dropping non-key frame while resync seq=2133 payload=17684
+[RX] Dropping non-key frame while resync seq=2147 payload=18820
+[RX] Dropping non-key frame while resync seq=2162 payload=20603
+[RX] Dropping non-key frame while resync seq=2178 payload=20987
+[RX] Dropping non-key frame while resync seq=2196 payload=24471
+[RX] Dropping non-key frame while resync seq=2216 payload=27168
+[RX] Dropping non-key frame while resync seq=2238 payload=29818
+WARNING: Sequence gap detected! Expected 2244 but got 2245
+Packet(s) lost or reordered :  2245 was received, previous rcvd is  2243 
+[RX] Dropping non-key frame while resync seq=2290 payload=36582
+[RX] Dropping non-key frame while resync seq=2319 payload=39994
+[RX] Dropping non-key frame while resync seq=2348 payload=40119
+WARNING: Sequence gap detected! Expected 2357 but got 2358
+Packet(s) lost or reordered :  2358 was received, previous rcvd is  2356 
+WARNING: Sequence gap detected! Expected 2396 but got 2397
+Packet(s) lost or reordered :  2397 was received, previous rcvd is  2395 
+WARNING: Sequence gap detected! Expected 2421 but got 2422
+Packet(s) lost or reordered :  2422 was received, previous rcvd is  2420 
+[RX] Dropping non-key frame while resync seq=2433 payload=1189
+[RX] Dropping non-key frame while resync seq=2443 payload=13009
+[RX] Dropping non-key frame while resync seq=2452 payload=12273
+[RX] Dropping non-key frame while resync seq=2460 payload=9820
+[RX] Dropping non-key frame while resync seq=2467 payload=9184
+[RX] Dropping non-key frame while resync seq=2468 payload=1302
+[RX] Dropping non-key frame while resync seq=2478 payload=13188
+WARNING: Sequence gap detected! Expected 2482 but got 2483
+Packet(s) lost or reordered :  2483 was received, previous rcvd is  2481 
+[RX] Dropping non-key frame while resync seq=2494 payload=11217
+[RX] Dropping non-key frame while resync seq=2502 payload=10568
+[RX] Dropping non-key frame while resync seq=2511 payload=12428
+[RX] Dropping non-key frame while resync seq=2521 payload=13570
+[RX] Dropping non-key frame while resync seq=2532 payload=14131
+[RX] Dropping non-key frame while resync seq=2545 payload=16897
+[RX] Dropping non-key frame while resync seq=2559 payload=19168
+[RX] Dropping non-key frame while resync seq=2575 payload=21834
+[RX] Dropping non-key frame while resync seq=2593 payload=24960
+[RX] Dropping non-key frame while resync seq=2612 payload=25324
+[RX] Dropping non-key frame while resync seq=2613 payload=1140
+[RX] Dropping non-key frame while resync seq=2627 payload=18157
+[RX] Dropping non-key frame while resync seq=2640 payload=17926
+[RX] Dropping non-key frame while resync seq=2654 payload=18995
+[RX] Dropping non-key frame while resync seq=2670 payload=21522
+[RX] Dropping non-key frame while resync seq=2689 payload=25274
+[RX] Dropping non-key frame while resync seq=2708 payload=25957
+[RX] Dropping non-key frame while resync seq=2728 payload=27466
+WARNING: Sequence gap detected! Expected 2734 but got 2735
+Packet(s) lost or reordered :  2735 was received, previous rcvd is  2733 
+[RX] Dropping non-key frame while resync seq=2773 payload=36165
+[RX] Dropping non-key frame while resync seq=2797 payload=32048
+[RX] Dropping non-key frame while resync seq=2826 payload=39941
+[RX] Dropping non-key frame while resync seq=2858 payload=44118
+[RX] Dropping non-key frame while resync seq=2882 payload=32074
+[RX] Dropping non-key frame while resync seq=2910 payload=37971
+[RX] Dropping non-key frame while resync seq=2939 payload=40139
+[RX] Dropping non-key frame while resync seq=2940 payload=1358
+[RX] Dropping non-key frame while resync seq=2950 payload=13518
+[RX] Dropping non-key frame while resync seq=2961 payload=14075
+WARNING: Sequence gap detected! Expected 2967 but got 2968
+Packet(s) lost or reordered :  2968 was received, previous rcvd is  2966 
+[RX] Dropping non-key frame while resync seq=2978 payload=12224
+[RX] Dropping non-key frame while resync seq=2989 payload=14208
+[RX] Dropping non-key frame while resync seq=3000 payload=14470
+[RX] Dropping non-key frame while resync seq=3011 payload=15119
+[RX] Dropping non-key frame while resync seq=3013 payload=1430
+[RX] Dropping non-key frame while resync seq=3025 payload=16010
+[RX] Dropping non-key frame while resync seq=3036 payload=14925
+WARNING: Sequence gap detected! Expected 3046 but got 3047
+Packet(s) lost or reordered :  3047 was received, previous rcvd is  3045 
+[RX] Dropping non-key frame while resync seq=3061 payload=17334
+[RX] Dropping non-key frame while resync seq=3074 payload=17459
+[RX] Dropping non-key frame while resync seq=3087 payload=17041
+[RX] Dropping non-key frame while resync seq=3102 payload=19967
+[RX] Dropping non-key frame while resync seq=3119 payload=22841
+[RX] Dropping non-key frame while resync seq=3136 payload=22537
+[RX] Dropping non-key frame while resync seq=3154 payload=23777
+[RX] Dropping non-key frame while resync seq=3173 payload=26170
+[RX] Dropping non-key frame while resync seq=3193 payload=27623
+[RX] Dropping non-key frame while resync seq=3217 payload=33037
+[RX] Dropping non-key frame while resync seq=3242 payload=33619
+[RX] Dropping non-key frame while resync seq=3269 payload=36785
+[RX] Dropping non-key frame while resync seq=3298 payload=39133
+[RX] Dropping non-key frame while resync seq=3299 payload=1310
+[RX] Dropping non-key frame while resync seq=3316 payload=22864
+[RX] Dropping non-key frame while resync seq=3333 payload=22954
+[RX] Dropping non-key frame while resync seq=3352 payload=25547
+WARNING: Sequence gap detected! Expected 3371 but got 3372
+Packet(s) lost or reordered :  3372 was received, previous rcvd is  3370 
+[RX] Dropping non-key frame while resync seq=3396 payload=31348
+[RX] Dropping non-key frame while resync seq=3421 payload=34128
+[RX] Dropping non-key frame while resync seq=3448 payload=36894
+WARNING: Sequence gap detected! Expected 3471 but got 3472
+Packet(s) lost or reordered :  3472 was received, previous rcvd is  3470 
+[RX] Dropping non-key frame while resync seq=3506 payload=38181
+[RX] Dropping non-key frame while resync seq=3507 payload=1115
+[RX] Dropping non-key frame while resync seq=3526 payload=25005
+[RX] Dropping non-key frame while resync seq=3546 payload=27726
+[RX] Dropping non-key frame while resync seq=3568 payload=30222
+[RX] Dropping non-key frame while resync seq=3592 payload=31966
+[RX] Dropping non-key frame while resync seq=3614 payload=29570
+[RX] Dropping non-key frame while resync seq=3637 payload=31705
+[RX] Dropping non-key frame while resync seq=3659 payload=30231
+[RX] Dropping non-key frame while resync seq=3682 payload=31637
+[RX] Dropping non-key frame while resync seq=3707 payload=33678
+[RX] Dropping non-key frame while resync seq=3732 payload=34423
+WARNING: Sequence gap detected! Expected 3755 but got 3756
+Packet(s) lost or reordered :  3756 was received, previous rcvd is  3754 
+WARNING: Sequence gap detected! Expected 3782 but got 3783
+Packet(s) lost or reordered :  3783 was received, previous rcvd is  3781 
+[RX] Dropping non-key frame while resync seq=3809 payload=34821
+[RX] Dropping non-key frame while resync seq=3834 payload=33395
+WARNING: Sequence gap detected! Expected 3836 but got 3837
+Packet(s) lost or reordered :  3837 was received, previous rcvd is  3835 
+[RX] Dropping non-key frame while resync seq=3890 payload=24539
+[RX] Dropping non-key frame while resync seq=3909 payload=25718
+[RX] Received frame marker seq=3913 payload=5052 decoded=1 key=1
+[RX] Received frame marker seq=3940 payload=37190 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 3953 but got 3954
+Packet(s) lost or reordered :  3954 was received, previous rcvd is  3952 
+[RX] Dropping non-key frame while resync seq=3973 payload=23050
+[RX] Dropping non-key frame while resync seq=3988 payload=20474
+[RX] Dropping non-key frame while resync seq=4005 payload=22475
+[RX] Dropping non-key frame while resync seq=4006 payload=1133
+[RX] Dropping non-key frame while resync seq=4022 payload=20868
+WARNING: Sequence gap detected! Expected 4035 but got 4036
+Packet(s) lost or reordered :  4036 was received, previous rcvd is  4034 
+[RX] Dropping non-key frame while resync seq=4052 payload=21325
+[RX] Dropping non-key frame while resync seq=4070 payload=24468
+WARNING: Sequence gap detected! Expected 4079 but got 4080
+Packet(s) lost or reordered :  4080 was received, previous rcvd is  4078 
+[RX] Dropping non-key frame while resync seq=4110 payload=29048
+[RX] Dropping non-key frame while resync seq=4133 payload=31807
+[RX] Dropping non-key frame while resync seq=4159 payload=34805
+[RX] Dropping non-key frame while resync seq=4185 payload=34742
+[RX] Dropping non-key frame while resync seq=4210 payload=34120
+WARNING: Sequence gap detected! Expected 4231 but got 4232
+Packet(s) lost or reordered :  4232 was received, previous rcvd is  4230 
+WARNING: Sequence gap detected! Expected 4237 but got 4238
+Packet(s) lost or reordered :  4238 was received, previous rcvd is  4236 
+WARNING: Sequence gap detected! Expected 4255 but got 4256
+Packet(s) lost or reordered :  4256 was received, previous rcvd is  4254 
+WARNING: Sequence gap detected! Expected 4258 but got 4259
+Packet(s) lost or reordered :  4259 was received, previous rcvd is  4257 
+[RX] Dropping non-key frame while resync seq=4284 payload=32341
+[RX] Dropping non-key frame while resync seq=4309 payload=34195
+[RX] Dropping non-key frame while resync seq=4310 payload=1254
+[RX] Dropping non-key frame while resync seq=4326 payload=22164
+[RX] Dropping non-key frame while resync seq=4342 payload=21451
+[RX] Dropping non-key frame while resync seq=4359 payload=23481
+[RX] Dropping non-key frame while resync seq=4377 payload=24368
+[RX] Dropping non-key frame while resync seq=4378 payload=860
+[RX] Dropping non-key frame while resync seq=4391 payload=17022
+[RX] Dropping non-key frame while resync seq=4404 payload=17412
+[RX] Dropping non-key frame while resync seq=4419 payload=19750
+[RX] Dropping non-key frame while resync seq=4435 payload=21096
+WARNING: Sequence gap detected! Expected 4439 but got 4440
+Packet(s) lost or reordered :  4440 was received, previous rcvd is  4438 
+[RX] Dropping non-key frame while resync seq=4468 payload=22870
+[RX] Dropping non-key frame while resync seq=4485 payload=22906
+[RX] Dropping non-key frame while resync seq=4486 payload=839
+[RX] Dropping non-key frame while resync seq=4498 payload=15784
+[RX] Dropping non-key frame while resync seq=4509 payload=14477
+[RX] Dropping non-key frame while resync seq=4521 payload=16379
+[RX] Dropping non-key frame while resync seq=4534 payload=17811
+[RX] Dropping non-key frame while resync seq=4548 payload=19419
+[RX] Dropping non-key frame while resync seq=4565 payload=22278
+[RX] Dropping non-key frame while resync seq=4566 payload=816
+[RX] Dropping non-key frame while resync seq=4577 payload=14228
+[RX] Dropping non-key frame while resync seq=4589 payload=15492
+[RX] Dropping non-key frame while resync seq=4602 payload=17157
+[RX] Dropping non-key frame while resync seq=4616 payload=18353
+[RX] Dropping non-key frame while resync seq=4617 payload=713
+[RX] Dropping non-key frame while resync seq=4628 payload=14068
+[RX] Dropping non-key frame while resync seq=4638 payload=13546
+WARNING: Sequence gap detected! Expected 4642 but got 4643
+Packet(s) lost or reordered :  4643 was received, previous rcvd is  4641 
+WARNING: Sequence gap detected! Expected 4655 but got 4656
+Packet(s) lost or reordered :  4656 was received, previous rcvd is  4654 
+WARNING: Sequence gap detected! Expected 4659 but got 4660
+Packet(s) lost or reordered :  4660 was received, previous rcvd is  4658 
+[RX] Dropping non-key frame while resync seq=4674 payload=16994
+[RX] Dropping non-key frame while resync seq=4689 payload=20171
+[RX] Dropping non-key frame while resync seq=4705 payload=22074
+[RX] Dropping non-key frame while resync seq=4723 payload=24299
+[RX] Dropping non-key frame while resync seq=4743 payload=27241
+[RX] Dropping non-key frame while resync seq=4765 payload=29644
+[RX] Dropping non-key frame while resync seq=4766 payload=881
+[RX] Dropping non-key frame while resync seq=4779 payload=17440
+[RX] Dropping non-key frame while resync seq=4780 payload=740
+[RX] Dropping non-key frame while resync seq=4788 payload=10928
+[RX] Received frame marker seq=4806 payload=24629 decoded=1 key=1
+[RX] Received frame marker seq=4816 payload=12694 decoded=1 key=0
+[RX] Received frame marker seq=4827 payload=14349 decoded=1 key=0
+[RX] Received frame marker seq=4840 payload=16879 decoded=1 key=0
+[RX] Received frame marker seq=4853 payload=17770 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 4863 but got 4864
+Packet(s) lost or reordered :  4864 was received, previous rcvd is  4862 
+[RX] Dropping non-key frame while resync seq=4881 payload=18661
+[RX] Dropping non-key frame while resync seq=4896 payload=20446
+[RX] Dropping non-key frame while resync seq=4913 payload=22997
+WARNING: Sequence gap detected! Expected 4929 but got 4930
+Packet(s) lost or reordered :  4930 was received, previous rcvd is  4928 
+[RX] Dropping non-key frame while resync seq=4950 payload=25634
+WARNING: Sequence gap detected! Expected 4971 but got 4972
+Packet(s) lost or reordered :  4972 was received, previous rcvd is  4970 
+[RX] Dropping non-key frame while resync seq=5023 payload=35220
+[RX] Dropping non-key frame while resync seq=5050 payload=37460
+[RX] Dropping non-key frame while resync seq=5074 payload=32496
+[RX] Dropping non-key frame while resync seq=5098 payload=32575
+[RX] Dropping non-key frame while resync seq=5122 payload=32801
+[RX] Dropping non-key frame while resync seq=5148 payload=35120
+[RX] Dropping non-key frame while resync seq=5173 payload=34189
+WARNING: Sequence gap detected! Expected 5199 but got 5200
+Packet(s) lost or reordered :  5200 was received, previous rcvd is  5198 
+[RX] Dropping non-key frame while resync seq=5214 payload=18869
+[RX] Dropping non-key frame while resync seq=5228 payload=19249
+[RX] Dropping non-key frame while resync seq=5244 payload=21037
+[RX] Dropping non-key frame while resync seq=5260 payload=22162
+[RX] Dropping non-key frame while resync seq=5278 payload=24390
+[RX] Dropping non-key frame while resync seq=5299 payload=28341
+[RX] Dropping non-key frame while resync seq=5322 payload=31393
+[RX] Dropping non-key frame while resync seq=5345 payload=31234
+[RX] Dropping non-key frame while resync seq=5366 payload=28809
+[RX] Dropping non-key frame while resync seq=5387 payload=28914
+[RX] Dropping non-key frame while resync seq=5409 payload=30472
+[RX] Dropping non-key frame while resync seq=5410 payload=924
+[RX] Dropping non-key frame while resync seq=5425 payload=20260
+[RX] Dropping non-key frame while resync seq=5439 payload=18846
+[RX] Dropping non-key frame while resync seq=5453 payload=19292
+[RX] Dropping non-key frame while resync seq=5469 payload=21907
+[RX] Dropping non-key frame while resync seq=5487 payload=24497
+[RX] Dropping non-key frame while resync seq=5507 payload=27172
+[RX] Dropping non-key frame while resync seq=5508 payload=818
+[RX] Dropping non-key frame while resync seq=5521 payload=17105
+[RX] Dropping non-key frame while resync seq=5534 payload=17390
+[RX] Dropping non-key frame while resync seq=5548 payload=18270
+[RX] Dropping non-key frame while resync seq=5563 payload=20532
+[RX] Dropping non-key frame while resync seq=5581 payload=23600
+[RX] Dropping non-key frame while resync seq=5599 payload=24373
+[RX] Dropping non-key frame while resync seq=5619 payload=27356
+WARNING: Sequence gap detected! Expected 5623 but got 5624
+Packet(s) lost or reordered :  5624 was received, previous rcvd is  5622 
+[RX] Dropping non-key frame while resync seq=5667 payload=34244
+[RX] Dropping non-key frame while resync seq=5696 payload=40216
+[RX] Dropping non-key frame while resync seq=5726 payload=41416
+WARNING: Sequence gap detected! Expected 5735 but got 5736
+Packet(s) lost or reordered :  5736 was received, previous rcvd is  5734 
+[RX] Dropping non-key frame while resync seq=5753 payload=912
+[RX] Dropping non-key frame while resync seq=5770 payload=22683
+[RX] Dropping non-key frame while resync seq=5786 payload=21448
+[RX] Dropping non-key frame while resync seq=5804 payload=23868
+[RX] Dropping non-key frame while resync seq=5823 payload=26350
+[RX] Dropping non-key frame while resync seq=5844 payload=28958
+[RX] Dropping non-key frame while resync seq=5867 payload=31285
+[RX] Dropping non-key frame while resync seq=5892 payload=34523
+[RX] Received frame marker seq=5919 payload=37186 decoded=1 key=1
+[RX] Received frame marker seq=5951 payload=43815 decoded=1 key=0
+[RX] Received frame marker seq=5979 payload=37584 decoded=1 key=0
+[RX] Received frame marker seq=6005 payload=34706 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 6015 but got 6016
+Packet(s) lost or reordered :  6016 was received, previous rcvd is  6014 
+WARNING: Sequence gap detected! Expected 6049 but got 6050
+Packet(s) lost or reordered :  6050 was received, previous rcvd is  6048 
+[RX] Dropping non-key frame while resync seq=6078 payload=34841
+WARNING: Sequence gap detected! Expected 6080 but got 6081
+Packet(s) lost or reordered :  6081 was received, previous rcvd is  6079 
+[RX] Dropping non-key frame while resync seq=6129 payload=36416
+[RX] Dropping non-key frame while resync seq=6155 payload=35996
+[RX] Dropping non-key frame while resync seq=6175 payload=27535
+[RX] Dropping non-key frame while resync seq=6176 payload=1019
+[RX] Dropping non-key frame while resync seq=6185 payload=12053
+[RX] Dropping non-key frame while resync seq=6193 payload=10729
+WARNING: Sequence gap detected! Expected 6202 but got 6203
+Packet(s) lost or reordered :  6203 was received, previous rcvd is  6201 
+WARNING: Sequence gap detected! Expected 6208 but got 6209
+Packet(s) lost or reordered :  6209 was received, previous rcvd is  6207 
+[RX] Dropping non-key frame while resync seq=6221 payload=12758
+[RX] Dropping non-key frame while resync seq=6232 payload=14482
+[RX] Dropping non-key frame while resync seq=6242 payload=13484
+[RX] Dropping non-key frame while resync seq=6254 payload=16501
+[RX] Dropping non-key frame while resync seq=6269 payload=20625
+[RX] Dropping non-key frame while resync seq=6270 payload=1091
+[RX] Dropping non-key frame while resync seq=6282 payload=16161
+[RX] Dropping non-key frame while resync seq=6294 payload=15735
+WARNING: Sequence gap detected! Expected 6301 but got 6302
+Packet(s) lost or reordered :  6302 was received, previous rcvd is  6300 
+[RX] Dropping non-key frame while resync seq=6324 payload=21266
+[RX] Dropping non-key frame while resync seq=6341 payload=22790
+[RX] Dropping non-key frame while resync seq=6359 payload=24337
+[RX] Dropping non-key frame while resync seq=6378 payload=25886
+[RX] Dropping non-key frame while resync seq=6399 payload=28646
+WARNING: Sequence gap detected! Expected 6414 but got 6415
+Packet(s) lost or reordered :  6415 was received, previous rcvd is  6413 
+[RX] Dropping non-key frame while resync seq=6449 payload=35454
+WARNING: Sequence gap detected! Expected 6466 but got 6467
+Packet(s) lost or reordered :  6467 was received, previous rcvd is  6465 
+WARNING: Sequence gap detected! Expected 6492 but got 6493
+Packet(s) lost or reordered :  6493 was received, previous rcvd is  6491 
+[RX] Dropping non-key frame while resync seq=6533 payload=30959
+[RX] Dropping non-key frame while resync seq=6552 payload=26361
+[RX] Dropping non-key frame while resync seq=6553 payload=1308
+[RX] Dropping non-key frame while resync seq=6570 payload=23523
+[RX] Dropping non-key frame while resync seq=6571 payload=1214
+[RX] Dropping non-key frame while resync seq=6582 payload=14876
+[RX] Dropping non-key frame while resync seq=6594 payload=15442
+[RX] Dropping non-key frame while resync seq=6607 payload=16803
+[RX] Dropping non-key frame while resync seq=6621 payload=18551
+[RX] Dropping non-key frame while resync seq=6635 payload=18774
+[RX] Dropping non-key frame while resync seq=6651 payload=21002
+[RX] Dropping non-key frame while resync seq=6668 payload=23468
+[RX] Dropping non-key frame while resync seq=6687 payload=25944
+[RX] Dropping non-key frame while resync seq=6707 payload=26687
+[RX] Dropping non-key frame while resync seq=6727 payload=26967
+[RX] Dropping non-key frame while resync seq=6748 payload=28404
+[RX] Dropping non-key frame while resync seq=6749 payload=1217
+[RX] Dropping non-key frame while resync seq=6764 payload=20303
+[RX] Dropping non-key frame while resync seq=6779 payload=20052
+[RX] Dropping non-key frame while resync seq=6795 payload=21560
+[RX] Dropping non-key frame while resync seq=6814 payload=25123
+[RX] Dropping non-key frame while resync seq=6833 payload=26025
+[RX] Dropping non-key frame while resync seq=6834 payload=1020
+WARNING: Sequence gap detected! Expected 6836 but got 6837
+Packet(s) lost or reordered :  6837 was received, previous rcvd is  6835 
+[RX] Dropping non-key frame while resync seq=6860 payload=17900
+WARNING: Sequence gap detected! Expected 6869 but got 6870
+Packet(s) lost or reordered :  6870 was received, previous rcvd is  6868 
+WARNING: Sequence gap detected! Expected 6891 but got 6892
+Packet(s) lost or reordered :  6892 was received, previous rcvd is  6890 
+WARNING: Sequence gap detected! Expected 6912 but got 6913
+Packet(s) lost or reordered :  6913 was received, previous rcvd is  6911 
+[RX] Dropping non-key frame while resync seq=6924 payload=1352
+[RX] Dropping non-key frame while resync seq=6937 payload=17698
+[RX] Dropping non-key frame while resync seq=6951 payload=19044
+[RX] Dropping non-key frame while resync seq=6966 payload=20775
+[RX] Dropping non-key frame while resync seq=6983 payload=23108
+[RX] Dropping non-key frame while resync seq=7002 payload=26142
+[RX] Dropping non-key frame while resync seq=7003 payload=1205
+[RX] Dropping non-key frame while resync seq=7017 payload=19074
+[RX] Dropping non-key frame while resync seq=7033 payload=21180
+[RX] Dropping non-key frame while resync seq=7035 payload=1404
+[RX] Dropping non-key frame while resync seq=7047 payload=15275
+[RX] Dropping non-key frame while resync seq=7058 payload=15189
+WARNING: Sequence gap detected! Expected 7063 but got 7064
+Packet(s) lost or reordered :  7064 was received, previous rcvd is  7062 
+WARNING: Sequence gap detected! Expected 7071 but got 7072
+Packet(s) lost or reordered :  7072 was received, previous rcvd is  7070 
+[RX] Dropping non-key frame while resync seq=7101 payload=20743
+[RX] Dropping non-key frame while resync seq=7119 payload=23832
+[RX] Dropping non-key frame while resync seq=7138 payload=25569
+[RX] Dropping non-key frame while resync seq=7159 payload=28183
+[RX] Dropping non-key frame while resync seq=7179 payload=27527
+[RX] Dropping non-key frame while resync seq=7201 payload=29977
+[RX] Dropping non-key frame while resync seq=7225 payload=32618
+[RX] Dropping non-key frame while resync seq=7250 payload=34149
+[RX] Dropping non-key frame while resync seq=7276 payload=35281
+[RX] Dropping non-key frame while resync seq=7302 payload=35430
+WARNING: Sequence gap detected! Expected 7315 but got 7316
+Packet(s) lost or reordered :  7316 was received, previous rcvd is  7314 
+[RX] Dropping non-key frame while resync seq=7354 payload=34221
+[RX] Dropping non-key frame while resync seq=7380 payload=35362
+[RX] Dropping non-key frame while resync seq=7406 payload=35897
+WARNING: Sequence gap detected! Expected 7407 but got 7408
+Packet(s) lost or reordered :  7408 was received, previous rcvd is  7406 
+WARNING: Sequence gap detected! Expected 7423 but got 7424
+Packet(s) lost or reordered :  7424 was received, previous rcvd is  7422 
+[RX] Dropping non-key frame while resync seq=7427 payload=1262
+[RX] Dropping non-key frame while resync seq=7440 payload=16690
+[RX] Dropping non-key frame while resync seq=7441 payload=1192
+WARNING: Sequence gap detected! Expected 7449 but got 7450
+Packet(s) lost or reordered :  7450 was received, previous rcvd is  7448 
+[RX] Dropping non-key frame while resync seq=7459 payload=11472
+[RX] Dropping non-key frame while resync seq=7469 payload=13665
+[RX] Dropping non-key frame while resync seq=7480 payload=14766
+[RX] Dropping non-key frame while resync seq=7493 payload=17286
+WARNING: Sequence gap detected! Expected 7507 but got 7508
+Packet(s) lost or reordered :  7508 was received, previous rcvd is  7506 
+[RX] Dropping non-key frame while resync seq=7525 payload=22916
+[RX] Dropping non-key frame while resync seq=7544 payload=25155
+[RX] Dropping non-key frame while resync seq=7565 payload=27888
+[RX] Dropping non-key frame while resync seq=7588 payload=31716
+[RX] Dropping non-key frame while resync seq=7613 payload=34650
+[RX] Dropping non-key frame while resync seq=7614 payload=1293
+[RX] Dropping non-key frame while resync seq=7632 payload=23668
+[RX] Dropping non-key frame while resync seq=7645 payload=17637
+[RX] Dropping non-key frame while resync seq=7661 payload=20973
+[RX] Dropping non-key frame while resync seq=7680 payload=25265
+[RX] Dropping non-key frame while resync seq=7699 payload=25664
+[RX] Dropping non-key frame while resync seq=7720 payload=27908
+[RX] Dropping non-key frame while resync seq=7743 payload=31256
+[RX] Dropping non-key frame while resync seq=7767 payload=32049
+WARNING: Sequence gap detected! Expected 7792 but got 7793
+Packet(s) lost or reordered :  7793 was received, previous rcvd is  7791 
+WARNING: Sequence gap detected! Expected 7818 but got 7819
+Packet(s) lost or reordered :  7819 was received, previous rcvd is  7817 
+[RX] Dropping non-key frame while resync seq=7840 payload=24577
+[RX] Dropping non-key frame while resync seq=7860 payload=27354
+[RX] Dropping non-key frame while resync seq=7862 payload=1428
+[RX] Dropping non-key frame while resync seq=7880 payload=23970
+WARNING: Sequence gap detected! Expected 7917 but got 7918
+Packet(s) lost or reordered :  7918 was received, previous rcvd is  7916 
+[RX] Dropping non-key frame while resync seq=7943 payload=20650
+[RX] Dropping non-key frame while resync seq=7945 payload=1525
+[RX] Dropping non-key frame while resync seq=7957 payload=15589
+[RX] Dropping non-key frame while resync seq=7969 payload=16092
+[RX] Dropping non-key frame while resync seq=7982 payload=17914
+[RX] Dropping non-key frame while resync seq=7996 payload=19019
+[RX] Dropping non-key frame while resync seq=8012 payload=21596
+WARNING: Sequence gap detected! Expected 8028 but got 8029
+Packet(s) lost or reordered :  8029 was received, previous rcvd is  8027 
+[RX] Dropping non-key frame while resync seq=8049 payload=26565
+[RX] Dropping non-key frame while resync seq=8051 payload=1498
+[RX] Dropping non-key frame while resync seq=8066 payload=20319
+[RX] Dropping non-key frame while resync seq=8081 payload=19600
+[RX] Dropping non-key frame while resync seq=8097 payload=21535
+[RX] Dropping non-key frame while resync seq=8114 payload=22754
+[RX] Dropping non-key frame while resync seq=8132 payload=24845
+[RX] Dropping non-key frame while resync seq=8151 payload=25195
+[RX] Dropping non-key frame while resync seq=8172 payload=27915
+[RX] Dropping non-key frame while resync seq=8194 payload=30304
+WARNING: Sequence gap detected! Expected 8198 but got 8199
+Packet(s) lost or reordered :  8199 was received, previous rcvd is  8197 
+WARNING: Sequence gap detected! Expected 8200 but got 8201
+Packet(s) lost or reordered :  8201 was received, previous rcvd is  8199 
+[RX] Dropping non-key frame while resync seq=8245 payload=34961
+WARNING: Sequence gap detected! Expected 8270 but got 8271
+Packet(s) lost or reordered :  8271 was received, previous rcvd is  8269 
+[RX] Dropping non-key frame while resync seq=8297 payload=35972
+[RX] Dropping non-key frame while resync seq=8323 payload=35302
+[RX] Dropping non-key frame while resync seq=8352 payload=39815
+[RX] Dropping non-key frame while resync seq=8353 payload=954
+[RX] Dropping non-key frame while resync seq=8369 payload=22016
+[RX] Dropping non-key frame while resync seq=8385 payload=21541
+[RX] Dropping non-key frame while resync seq=8401 payload=21514
+[RX] Dropping non-key frame while resync seq=8418 payload=23132
+[RX] Dropping non-key frame while resync seq=8435 payload=22892
+[RX] Dropping non-key frame while resync seq=8454 payload=25153
+[RX] Dropping non-key frame while resync seq=8455 payload=907
+[RX] Dropping non-key frame while resync seq=8467 payload=16158
+[RX] Dropping non-key frame while resync seq=8478 payload=14205
+[RX] Dropping non-key frame while resync seq=8491 payload=17175
+[RX] Dropping non-key frame while resync seq=8505 payload=19091
+[RX] Dropping non-key frame while resync seq=8521 payload=21450
+WARNING: Sequence gap detected! Expected 8522 but got 8523
+Packet(s) lost or reordered :  8523 was received, previous rcvd is  8521 
+[RX] Dropping non-key frame while resync seq=8557 payload=25548
+[RX] Dropping non-key frame while resync seq=8578 payload=28987
+[RX] Dropping non-key frame while resync seq=8603 payload=33444
+[RX] Dropping non-key frame while resync seq=8630 payload=37117
+WARNING: Sequence gap detected! Expected 8649 but got 8650
+Packet(s) lost or reordered :  8650 was received, previous rcvd is  8648 
+[RX] Dropping non-key frame while resync seq=8686 payload=36597
+[RX] Dropping non-key frame while resync seq=8712 payload=35163
+[RX] Dropping non-key frame while resync seq=8734 payload=29376
+[RX] Dropping non-key frame while resync seq=8735 payload=728
+[RX] Dropping non-key frame while resync seq=8749 payload=18478
+[RX] Dropping non-key frame while resync seq=8763 payload=18541
+[RX] Dropping non-key frame while resync seq=8778 payload=19484
+[RX] Dropping non-key frame while resync seq=8795 payload=22892
+[RX] Dropping non-key frame while resync seq=8813 payload=24092
+[RX] Dropping non-key frame while resync seq=8834 payload=28186
+[RX] Dropping non-key frame while resync seq=8856 payload=29170
+[RX] Dropping non-key frame while resync seq=8877 payload=28480
+[RX] Dropping non-key frame while resync seq=8898 payload=28424
+[RX] Dropping non-key frame while resync seq=8919 payload=28390
+[RX] Dropping non-key frame while resync seq=8941 payload=30107
+[RX] Dropping non-key frame while resync seq=8964 payload=31329
+[RX] Dropping non-key frame while resync seq=8987 payload=31434
+[RX] Received frame marker seq=9033 payload=63097 decoded=1 key=1
+[RX] Received frame marker seq=9054 payload=27813 decoded=1 key=0
+[RX] Received frame marker seq=9072 payload=24914 decoded=1 key=0
+[RX] Received frame marker seq=9089 payload=22760 decoded=1 key=0
+[RX] Received frame marker seq=9107 payload=23767 decoded=1 key=0
+[RX] Received frame marker seq=9127 payload=27198 decoded=1 key=0
+[RX] Received frame marker seq=9148 payload=28325 decoded=1 key=0
+[RX] Received frame marker seq=9170 payload=29268 decoded=1 key=0
+[RX] Received frame marker seq=9191 payload=28895 decoded=1 key=0
+[RX] Received frame marker seq=9192 payload=741 decoded=1 key=0
+[RX] Received frame marker seq=9201 payload=12042 decoded=1 key=0
+[RX] Received frame marker seq=9209 payload=11003 decoded=1 key=0
+[RX] Received frame marker seq=9218 payload=12462 decoded=1 key=0
+[RX] Received frame marker seq=9228 payload=13607 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 9230 but got 9231
+Packet(s) lost or reordered :  9231 was received, previous rcvd is  9229 
+WARNING: Sequence gap detected! Expected 9242 but got 9243
+Packet(s) lost or reordered :  9243 was received, previous rcvd is  9241 
+WARNING: Sequence gap detected! Expected 9253 but got 9254
+Packet(s) lost or reordered :  9254 was received, previous rcvd is  9252 
+[RX] Dropping non-key frame while resync seq=9270 payload=14894
+WARNING: Sequence gap detected! Expected 9278 but got 9279
+Packet(s) lost or reordered :  9279 was received, previous rcvd is  9277 
+[RX] Dropping non-key frame while resync seq=9297 payload=19545
+WARNING: Sequence gap detected! Expected 9298 but got 9299
+Packet(s) lost or reordered :  9299 was received, previous rcvd is  9297 
+[RX] Dropping non-key frame while resync seq=9330 payload=22257
+[RX] Dropping non-key frame while resync seq=9349 payload=25908
+[RX] Dropping non-key frame while resync seq=9370 payload=29007
+[RX] Dropping non-key frame while resync seq=9393 payload=30725
+WARNING: Sequence gap detected! Expected 9414 but got 9415
+Packet(s) lost or reordered :  9415 was received, previous rcvd is  9413 
+[RX] Dropping non-key frame while resync seq=9445 payload=34893
+WARNING: Sequence gap detected! Expected 9454 but got 9455
+Packet(s) lost or reordered :  9455 was received, previous rcvd is  9453 
+[RX] Dropping non-key frame while resync seq=9502 payload=39587
+WARNING: Sequence gap detected! Expected 9508 but got 9509
+Packet(s) lost or reordered :  9509 was received, previous rcvd is  9507 
+[RX] Dropping non-key frame while resync seq=9539 payload=23632
+[RX] Dropping non-key frame while resync seq=9556 payload=23584
+WARNING: Sequence gap detected! Expected 9573 but got 9574
+Packet(s) lost or reordered :  9574 was received, previous rcvd is  9572 
+WARNING: Sequence gap detected! Expected 9596 but got 9597
+Packet(s) lost or reordered :  9597 was received, previous rcvd is  9595 
+[RX] Dropping non-key frame while resync seq=9621 payload=29468
+WARNING: Sequence gap detected! Expected 9629 but got 9630
+Packet(s) lost or reordered :  9630 was received, previous rcvd is  9628 
+[RX] Dropping non-key frame while resync seq=9666 payload=30387
+[RX] Dropping non-key frame while resync seq=9691 payload=34256
+[RX] Dropping non-key frame while resync seq=9717 payload=34942
+[RX] Dropping non-key frame while resync seq=9743 payload=34910
+[RX] Dropping non-key frame while resync seq=9769 payload=35330
+[RX] Dropping non-key frame while resync seq=9770 payload=935
+[RX] Dropping non-key frame while resync seq=9786 payload=20936
+[RX] Dropping non-key frame while resync seq=9787 payload=819
+[RX] Dropping non-key frame while resync seq=9797 payload=13223
+[RX] Dropping non-key frame while resync seq=9807 payload=13445
+WARNING: Sequence gap detected! Expected 9814 but got 9815
+Packet(s) lost or reordered :  9815 was received, previous rcvd is  9813 
+WARNING: Sequence gap detected! Expected 9821 but got 9822
+Packet(s) lost or reordered :  9822 was received, previous rcvd is  9820 
+[RX] Dropping non-key frame while resync seq=9833 payload=989
+[RX] Dropping non-key frame while resync seq=9845 payload=15366
+[RX] Dropping non-key frame while resync seq=9857 payload=15573
+[RX] Dropping non-key frame while resync seq=9871 payload=18062
+[RX] Dropping non-key frame while resync seq=9885 payload=19325
+[RX] Dropping non-key frame while resync seq=9898 payload=17323
+[RX] Dropping non-key frame while resync seq=9912 payload=18340
+[RX] Dropping non-key frame while resync seq=9927 payload=20011
+[RX] Dropping non-key frame while resync seq=9944 payload=22215
+[RX] Dropping non-key frame while resync seq=9945 payload=931
+[RX] Dropping non-key frame while resync seq=9958 payload=17172
+[RX] Dropping non-key frame while resync seq=9970 payload=16316
+[RX] Received frame marker seq=10032 payload=85094 decoded=1 key=1
+[RX] Received frame marker seq=10033 payload=1018 decoded=1 key=0
+[RX] Received frame marker seq=10042 payload=11432 decoded=1 key=0
+[RX] Received frame marker seq=10043 payload=1068 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 10047 but got 10048
+Packet(s) lost or reordered : 10048 was received, previous rcvd is 10046 
+[RX] Dropping non-key frame while resync seq=10056 payload=8311
+[RX] Dropping non-key frame while resync seq=10063 payload=9241
+[RX] Dropping non-key frame while resync seq=10070 payload=9526
+[RX] Dropping non-key frame while resync seq=10078 payload=10008
+[RX] Dropping non-key frame while resync seq=10087 payload=11473
+[RX] Dropping non-key frame while resync seq=10097 payload=12965
+[RX] Dropping non-key frame while resync seq=10109 payload=15732
+[RX] Dropping non-key frame while resync seq=10122 payload=17482
+[RX] Dropping non-key frame while resync seq=10136 payload=18492
+[RX] Dropping non-key frame while resync seq=10151 payload=20151
+[RX] Dropping non-key frame while resync seq=10167 payload=22117
+[RX] Dropping non-key frame while resync seq=10184 payload=22414
+WARNING: Sequence gap detected! Expected 10187 but got 10188
+Packet(s) lost or reordered : 10188 was received, previous rcvd is 10186 
+WARNING: Sequence gap detected! Expected 10220 but got 10221
+Packet(s) lost or reordered : 10221 was received, previous rcvd is 10219 
+[RX] Dropping non-key frame while resync seq=10242 payload=27702
+[RX] Dropping non-key frame while resync seq=10266 payload=32766
+[RX] Dropping non-key frame while resync seq=10293 payload=36342
+WARNING: Sequence gap detected! Expected 10310 but got 10311
+Packet(s) lost or reordered : 10311 was received, previous rcvd is 10309 
+[RX] Dropping non-key frame while resync seq=10348 payload=36989
+[RX] Dropping non-key frame while resync seq=10369 payload=29023
+[RX] Dropping non-key frame while resync seq=10390 payload=28369
+WARNING: Sequence gap detected! Expected 10393 but got 10394
+Packet(s) lost or reordered : 10394 was received, previous rcvd is 10392 
+WARNING: Sequence gap detected! Expected 10422 but got 10423
+Packet(s) lost or reordered : 10423 was received, previous rcvd is 10421 
+WARNING: Sequence gap detected! Expected 10445 but got 10446
+Packet(s) lost or reordered : 10446 was received, previous rcvd is 10444 
+WARNING: Sequence gap detected! Expected 10464 but got 10465
+Packet(s) lost or reordered : 10465 was received, previous rcvd is 10463 
+[RX] Dropping non-key frame while resync seq=10496 payload=30992
+[RX] Dropping non-key frame while resync seq=10518 payload=29670
+[RX] Dropping non-key frame while resync seq=10539 payload=28815
+[RX] Dropping non-key frame while resync seq=10560 payload=28744
+[RX] Dropping non-key frame while resync seq=10581 payload=27912
+[RX] Dropping non-key frame while resync seq=10582 payload=1372
+[RX] Dropping non-key frame while resync seq=10592 payload=12765
+[RX] Dropping non-key frame while resync seq=10599 payload=9456
+[RX] Dropping non-key frame while resync seq=10608 payload=12263
+[RX] Dropping non-key frame while resync seq=10618 payload=13049
+[RX] Dropping non-key frame while resync seq=10628 payload=12852
+[RX] Dropping non-key frame while resync seq=10639 payload=14043
+[RX] Dropping non-key frame while resync seq=10650 payload=14370
+[RX] Dropping non-key frame while resync seq=10662 payload=15423
+[RX] Dropping non-key frame while resync seq=10674 payload=15349
+[RX] Dropping non-key frame while resync seq=10687 payload=17182
+[RX] Dropping non-key frame while resync seq=10702 payload=20797
+[RX] Dropping non-key frame while resync seq=10718 payload=22142
+[RX] Dropping non-key frame while resync seq=10719 payload=1130
+[RX] Dropping non-key frame while resync seq=10732 payload=16750
+[RX] Dropping non-key frame while resync seq=10744 payload=16046
+[RX] Dropping non-key frame while resync seq=10745 payload=1124
+[RX] Dropping non-key frame while resync seq=10755 payload=12752
+[RX] Dropping non-key frame while resync seq=10764 payload=12038
+[RX] Dropping non-key frame while resync seq=10774 payload=13414
+[RX] Dropping non-key frame while resync seq=10784 payload=13843
+[RX] Dropping non-key frame while resync seq=10796 payload=15841
+[RX] Dropping non-key frame while resync seq=10810 payload=18114
+[RX] Dropping non-key frame while resync seq=10825 payload=20338
+WARNING: Sequence gap detected! Expected 10833 but got 10834
+Packet(s) lost or reordered : 10834 was received, previous rcvd is 10832 
+[RX] Received frame marker seq=10846 payload=4265 decoded=1 key=1
+[RX] Received frame marker seq=10878 payload=43449 decoded=1 key=0
+[RX] Received frame marker seq=10894 payload=22192 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 10896 but got 10897
+Packet(s) lost or reordered : 10897 was received, previous rcvd is 10895 
+[RX] Dropping non-key frame while resync seq=10927 payload=19543
+[RX] Dropping non-key frame while resync seq=10943 payload=20936
+[RX] Dropping non-key frame while resync seq=10961 payload=23903
+[RX] Dropping non-key frame while resync seq=10980 payload=25331
+[RX] Dropping non-key frame while resync seq=11002 payload=29251
+[RX] Dropping non-key frame while resync seq=11025 payload=31278
+WARNING: Sequence gap detected! Expected 11041 but got 11042
+Packet(s) lost or reordered : 11042 was received, previous rcvd is 11040 
+WARNING: Sequence gap detected! Expected 11059 but got 11060
+Packet(s) lost or reordered : 11060 was received, previous rcvd is 11058 
+[RX] Dropping non-key frame while resync seq=11104 payload=36574
+[RX] Dropping non-key frame while resync seq=11133 payload=39559
+[RX] Dropping non-key frame while resync seq=11159 payload=35274
+[RX] Dropping non-key frame while resync seq=11184 payload=33680
+[RX] Dropping non-key frame while resync seq=11209 payload=34004
+[RX] Dropping non-key frame while resync seq=11235 payload=35986
+[RX] Dropping non-key frame while resync seq=11265 payload=41578
+[RX] Dropping non-key frame while resync seq=11294 payload=39457
+[RX] Dropping non-key frame while resync seq=11319 payload=34688
+[RX] Dropping non-key frame while resync seq=11344 payload=34483
+[RX] Dropping non-key frame while resync seq=11368 payload=32575
+[RX] Dropping non-key frame while resync seq=11369 payload=1048
+WARNING: Sequence gap detected! Expected 11377 but got 11378
+Packet(s) lost or reordered : 11378 was received, previous rcvd is 11376 
+[RX] Dropping non-key frame while resync seq=11388 payload=11685
+[RX] Dropping non-key frame while resync seq=11396 payload=10401
+[RX] Dropping non-key frame while resync seq=11405 payload=12445
+[RX] Dropping non-key frame while resync seq=11415 payload=12493
+[RX] Dropping non-key frame while resync seq=11426 payload=14771
+[RX] Dropping non-key frame while resync seq=11437 payload=14505
+[RX] Dropping non-key frame while resync seq=11450 payload=17683
+[RX] Dropping non-key frame while resync seq=11464 payload=19315
+[RX] Dropping non-key frame while resync seq=11480 payload=22020
+[RX] Dropping non-key frame while resync seq=11498 payload=24611
+[RX] Dropping non-key frame while resync seq=11517 payload=25145
+[RX] Dropping non-key frame while resync seq=11539 payload=30235
+[RX] Dropping non-key frame while resync seq=11563 payload=33130
+[RX] Dropping non-key frame while resync seq=11589 payload=35973
+[RX] Dropping non-key frame while resync seq=11616 payload=36541
+[RX] Dropping non-key frame while resync seq=11617 payload=1340
+[RX] Dropping non-key frame while resync seq=11635 payload=24873
+[RX] Dropping non-key frame while resync seq=11653 payload=23703
+WARNING: Sequence gap detected! Expected 11661 but got 11662
+Packet(s) lost or reordered : 11662 was received, previous rcvd is 11660 
+[RX] Dropping non-key frame while resync seq=11694 payload=27845
+[RX] Dropping non-key frame while resync seq=11716 payload=30433
+[RX] Dropping non-key frame while resync seq=11740 payload=32555
+[RX] Dropping non-key frame while resync seq=11767 payload=37105
+[RX] Dropping non-key frame while resync seq=11796 payload=39242
+WARNING: Sequence gap detected! Expected 11806 but got 11807
+Packet(s) lost or reordered : 11807 was received, previous rcvd is 11805 
+WARNING: Sequence gap detected! Expected 11829 but got 11830
+Packet(s) lost or reordered : 11830 was received, previous rcvd is 11828 
+WARNING: Sequence gap detected! Expected 11849 but got 11850
+Packet(s) lost or reordered : 11850 was received, previous rcvd is 11848 
+[RX] Dropping non-key frame while resync seq=11882 payload=38194
+WARNING: Sequence gap detected! Expected 11884 but got 11885
+Packet(s) lost or reordered : 11885 was received, previous rcvd is 11883 
+[RX] Dropping non-key frame while resync seq=11952 payload=33944
+[RX] Dropping non-key frame while resync seq=11954 payload=1392
+[RX] Dropping non-key frame while resync seq=11965 payload=15219
+[RX] Dropping non-key frame while resync seq=11975 payload=12502
+[RX] Dropping non-key frame while resync seq=11985 payload=12987
+[RX] Dropping non-key frame while resync seq=11997 payload=15804
+[RX] Received frame marker seq=12030 payload=44917 decoded=1 key=1
+[RX] Received frame marker seq=12040 payload=13232 decoded=1 key=0
+[RX] Received frame marker seq=12053 payload=17845 decoded=1 key=0
+[RX] Received frame marker seq=12068 payload=20183 decoded=1 key=0
+[RX] Received frame marker seq=12084 payload=21327 decoded=1 key=0
+[RX] Received frame marker seq=12101 payload=23001 decoded=1 key=0
+[RX] Received frame marker seq=12120 payload=25320 decoded=1 key=0
+WARNING: Sequence gap detected! Expected 12131 but got 12132
+Packet(s) lost or reordered : 12132 was received, previous rcvd is 12130 
+WARNING: Sequence gap detected! Expected 12144 but got 12145
+Packet(s) lost or reordered : 12145 was received, previous rcvd is 12143 
+WARNING: Sequence gap detected! Expected 12164 but got 12165
+Packet(s) lost or reordered : 12165 was received, previous rcvd is 12163 
+[RX] Dropping non-key frame while resync seq=12218 payload=40258
+[RX] Dropping non-key frame while resync seq=12246 payload=38265
+[RX] Dropping non-key frame while resync seq=12268 payload=29592
+[RX] Dropping non-key frame while resync seq=12288 payload=26825
+[RX] Dropping non-key frame while resync seq=12309 payload=28406
+[RX] Dropping non-key frame while resync seq=12333 payload=32098
+[RX] Dropping non-key frame while resync seq=12358 payload=33796
+[RX] Dropping non-key frame while resync seq=12385 payload=36276
+[RX] Dropping non-key frame while resync seq=12411 payload=35983
+[RX] Dropping non-key frame while resync seq=12412 payload=1059
+[RX] Dropping non-key frame while resync seq=12428 payload=20908
+[RX] Dropping non-key frame while resync seq=12443 payload=19965
+[RX] Dropping non-key frame while resync seq=12458 payload=20184
+[RX] Dropping non-key frame while resync seq=12475 payload=22654
+WARNING: Sequence gap detected! Expected 12488 but got 12489
+Packet(s) lost or reordered : 12489 was received, previous rcvd is 12487 
+[RX] Dropping non-key frame while resync seq=12513 payload=26947
+WARNING: Sequence gap detected! Expected 12516 but got 12517
+Packet(s) lost or reordered : 12517 was received, previous rcvd is 12515 
+WARNING: Sequence gap detected! Expected 12519 but got 12520
+Packet(s) lost or reordered : 12520 was received, previous rcvd is 12518 
+WARNING: Sequence gap detected! Expected 12540 but got 12541
+Packet(s) lost or reordered : 12541 was received, previous rcvd is 12539 
+[RX] Dropping non-key frame while resync seq=12579 payload=31219
+[RX] Dropping non-key frame while resync seq=12603 payload=32199
+[RX] Dropping non-key frame while resync seq=12627 payload=32835
+[RX] Dropping non-key frame while resync seq=12654 payload=37109
+[RX] Dropping non-key frame while resync seq=12683 payload=39167
+[RX] Dropping non-key frame while resync seq=12684 payload=924
+[RX] Dropping non-key frame while resync seq=12697 payload=16694
+[RX] Dropping non-key frame while resync seq=12709 payload=15771
+[RX] Dropping non-key frame while resync seq=12723 payload=18537
+[RX] Dropping non-key frame while resync seq=12738 payload=19947
+[RX] Dropping non-key frame while resync seq=12754 payload=22118
+WARNING: Sequence gap detected! Expected 12763 but got 12764
+Packet(s) lost or reordered : 12764 was received, previous rcvd is 12762 
+[RX] Dropping non-key frame while resync seq=12792 payload=27755
+[RX] Dropping non-key frame while resync seq=12815 payload=30746
+[RX] Dropping non-key frame while resync seq=12840 payload=33600
+[RX] Dropping non-key frame while resync seq=12865 payload=34698
+[RX] Dropping non-key frame while resync seq=12890 payload=33890
+[RX] Dropping non-key frame while resync seq=12914 payload=33244
+[RX] Dropping non-key frame while resync seq=12937 payload=31607
+WARNING: Sequence gap detected! Expected 12950 but got 12951
+Packet(s) lost or reordered : 12951 was received, previous rcvd is 12949 
+[RX] Dropping non-key frame while resync seq=12989 payload=36171
+[RX] Dropping non-key frame while resync seq=13014 payload=34578
+[RX] Dropping non-key frame while resync seq=13039 payload=34571
+[RX] Dropping non-key frame while resync seq=13040 payload=970
+[RX] Dropping non-key frame while resync seq=13053 payload=17942
+WARNING: Sequence gap detected! Expected 13061 but got 13062
+Packet(s) lost or reordered : 13062 was received, previous rcvd is 13060 
+[RX] Dropping non-key frame while resync seq=13067 payload=847
+[RX] Dropping non-key frame while resync seq=13077 payload=13202
+[RX] Dropping non-key frame while resync seq=13087 payload=12786
+[RX] Dropping non-key frame while resync seq=13098 payload=14174
+[RX] Dropping non-key frame while resync seq=13110 payload=15555
+[RX] Dropping non-key frame while resync seq=13122 payload=16045
+[RX] Dropping non-key frame while resync seq=13136 payload=19069
+WARNING: Sequence gap detected! Expected 13151 but got 13152
+Packet(s) lost or reordered : 13152 was received, previous rcvd is 13150 
+[RX] Dropping non-key frame while resync seq=13193 payload=16828
+[RX] Dropping non-key frame while resync seq=13194 payload=968
+[RX] Dropping non-key frame while resync seq=13204 payload=12604
+[RX] Dropping non-key frame while resync seq=13213 payload=12477
+[RX] Dropping non-key frame while resync seq=13223 payload=13391
+[RX] Dropping non-key frame while resync seq=13234 payload=14811
+[RX] Dropping non-key frame while resync seq=13246 payload=15717
+[RX] Dropping non-key frame while resync seq=13260 payload=18082
+[RX] Dropping non-key frame while resync seq=13274 payload=18422
+[RX] Dropping non-key frame while resync seq=13290 payload=21362
+[RX] Dropping non-key frame while resync seq=13307 payload=23281
+WARNING: Sequence gap detected! Expected 13324 but got 13325
+Packet(s) lost or reordered : 13325 was received, previous rcvd is 13323 
+[RX] Dropping non-key frame while resync seq=13346 payload=27712
+[RX] Dropping non-key frame while resync seq=13368 payload=29933
+WARNING: Sequence gap detected! Expected 13375 but got 13376
+Packet(s) lost or reordered : 13376 was received, previous rcvd is 13374 
+[RX] Dropping non-key frame while resync seq=13415 payload=34562
+WARNING: Sequence gap detected! Expected 13434 but got 13435
+Packet(s) lost or reordered : 13435 was received, previous rcvd is 13433 
+WARNING: Sequence gap detected! Expected 13453 but got 13454
+Packet(s) lost or reordered : 13454 was received, previous rcvd is 13452 
+[RX] Dropping non-key frame while resync seq=13502 payload=39412
+[RX] Dropping non-key frame while resync seq=13527 payload=34024
+[RX] Dropping non-key frame while resync seq=13552 payload=33557
+[RX] Dropping non-key frame while resync seq=13575 payload=31326
+[RX] Dropping non-key frame while resync seq=13604 payload=39188
+[RX] Dropping non-key frame while resync seq=13635 payload=42375
+WARNING: Sequence gap detected! Expected 13650 but got 13651
+Packet(s) lost or reordered : 13651 was received, previous rcvd is 13649 
+[RX] Dropping non-key frame while resync seq=13691 payload=35411
+[RX] Dropping non-key frame while resync seq=13692 payload=760
+[RX] Dropping non-key frame while resync seq=13699 payload=9321
+[RX] Dropping non-key frame while resync seq=13707 payload=10363
+[RX] Dropping non-key frame while resync seq=13716 payload=11468
+[RX] Dropping non-key frame while resync seq=13725 payload=12249
+[RX] Dropping non-key frame while resync seq=13734 payload=11468
+[RX] Dropping non-key frame while resync seq=13743 payload=12140
+[RX] Dropping non-key frame while resync seq=13753 payload=13251
+[RX] Dropping non-key frame while resync seq=13765 payload=16380
+[RX] Dropping non-key frame while resync seq=13777 payload=16208
+[RX] Dropping non-key frame while resync seq=13792 payload=20217
+[RX] Dropping non-key frame while resync seq=13808 payload=21909
+[RX] Dropping non-key frame while resync seq=13827 payload=24987
+[RX] Dropping non-key frame while resync seq=13847 payload=27756
+[RX] Dropping non-key frame while resync seq=13869 payload=30312
+[RX] Dropping non-key frame while resync seq=13893 payload=32462
+[RX] Dropping non-key frame while resync seq=13918 payload=33675
+[RX] Dropping non-key frame while resync seq=13948 payload=40775
+[RX] Dropping non-key frame while resync seq=13970 payload=29940
+[RX] Dropping non-key frame while resync seq=13971 payload=845
+[RX] Dropping non-key frame while resync seq=13986 payload=20312
+WARNING: Sequence gap detected! Expected 14000 but got 14001
+Packet(s) lost or reordered : 14001 was received, previous rcvd is 13999 
+[RX] Dropping non-key frame while resync seq=14033 payload=23416
+[RX] Dropping non-key frame while resync seq=14052 payload=25441
+[RX] Dropping non-key frame while resync seq=14073 payload=27870
+[RX] Dropping non-key frame while resync seq=14095 payload=29754
+[RX] Dropping non-key frame while resync seq=14120 payload=33516
+WARNING: Sequence gap detected! Expected 14126 but got 14127
+Packet(s) lost or reordered : 14127 was received, previous rcvd is 14125 
+[RX] Dropping non-key frame while resync seq=14173 payload=38580
+[RX] Dropping non-key frame while resync seq=14204 payload=42322
+WARNING: Sequence gap detected! Expected 14223 but got 14224
+Packet(s) lost or reordered : 14224 was received, previous rcvd is 14222 
+[RX] Dropping non-key frame while resync seq=14265 payload=41527
+WARNING: Sequence gap detected! Expected 14291 but got 14292
+Packet(s) lost or reordered : 14292 was received, previous rcvd is 14290 
+[RX] Dropping non-key frame while resync seq=14349 payload=39704
+[RX] Dropping non-key frame while resync seq=14350 payload=844
+[RX] Dropping non-key frame while resync seq=14360 payload=13593
+[RX] Dropping non-key frame while resync seq=14368 payload=10577
+[RX] Dropping non-key frame while resync seq=14377 payload=11499
+[RX] Dropping non-key frame while resync seq=14385 payload=10275
+[RX] Dropping non-key frame while resync seq=14393 payload=10457
+[RX] Dropping non-key frame while resync seq=14402 payload=11681
+[RX] Dropping non-key frame while resync seq=14411 payload=12244
+[RX] Dropping non-key frame while resync seq=14421 payload=12839
+[RX] Dropping non-key frame while resync seq=14432 payload=14469
+[RX] Dropping non-key frame while resync seq=14444 payload=15394
+[RX] Dropping non-key frame while resync seq=14457 payload=17511
+[RX] Dropping non-key frame while resync seq=14472 payload=19612
+[RX] Dropping non-key frame while resync seq=14487 payload=20342
+[RX] Dropping non-key frame while resync seq=14504 payload=22916
+WARNING: Sequence gap detected! Expected 14507 but got 14508
+Packet(s) lost or reordered : 14508 was received, previous rcvd is 14506 
+[RX] Dropping non-key frame while resync seq=14544 payload=28548
+WARNING: Sequence gap detected! Expected 14545 but got 14546
+Packet(s) lost or reordered : 14546 was received, previous rcvd is 14544 
+WARNING: Sequence gap detected! Expected 14553 but got 14554
+Packet(s) lost or reordered : 14554 was received, previous rcvd is 14552 
+WARNING: Sequence gap detected! Expected 14556 but got 14557
+Packet(s) lost or reordered : 14557 was received, previous rcvd is 14555 
+[RX] Dropping non-key frame while resync seq=14591 payload=32682
+[RX] Dropping non-key frame while resync seq=14618 payload=37451
+WARNING: Sequence gap detected! Expected 14635 but got 14636
+Packet(s) lost or reordered : 14636 was received, previous rcvd is 14634 
+[RX] Dropping non-key frame while resync seq=14669 payload=30078
+[RX] Dropping non-key frame while resync seq=14689 payload=26559
+[RX] Dropping non-key frame while resync seq=14711 payload=29348
+[RX] Dropping non-key frame while resync seq=14734 payload=31107
+[RX] Dropping non-key frame while resync seq=14761 payload=36283
+WARNING: Sequence gap detected! Expected 14772 but got 14773
+Packet(s) lost or reordered : 14773 was received, previous rcvd is 14771 
+[RX] Dropping non-key frame while resync seq=14809 payload=31165
+WARNING: Sequence gap detected! Expected 14816 but got 14817
+Packet(s) lost or reordered : 14817 was received, previous rcvd is 14815 
+[RX] Dropping non-key frame while resync seq=14862 payload=35396
+[RX] Dropping non-key frame while resync seq=14888 payload=35542
+WARNING: Sequence gap detected! Expected 14896 but got 14897
+Packet(s) lost or reordered : 14897 was received, previous rcvd is 14895 
+WARNING: Sequence gap detected! Expected 14919 but got 14920
+Packet(s) lost or reordered : 14920 was received, previous rcvd is 14918 
+WARNING: Sequence gap detected! Expected 14932 but got 14933
+Packet(s) lost or reordered : 14933 was received, previous rcvd is 14931 
+[RX] Dropping non-key frame while resync seq=14961 payload=31846
+[RX] Dropping non-key frame while resync seq=14986 payload=34464
+[RX] Dropping non-key frame while resync seq=15010 payload=32828
+[RX] Dropping non-key frame while resync seq=15034 payload=32919
+[RX] Dropping non-key frame while resync seq=15058 payload=33132
+[RX] Dropping non-key frame while resync seq=15059 payload=1142
+[RX] Dropping non-key frame while resync seq=15074 payload=20413
+[RX] Dropping non-key frame while resync seq=15075 payload=1109
+[RX] Dropping non-key frame while resync seq=15086 payload=15002
+[RX] Dropping non-key frame while resync seq=15087 payload=1162
+[RX] Dropping non-key frame while resync seq=15095 payload=10462
+[RX] Dropping non-key frame while resync seq=15103 payload=9756
+[RX] Dropping non-key frame while resync seq=15111 payload=11071
+[RX] Dropping non-key frame while resync seq=15121 payload=12775
+WARNING: Sequence gap detected! Expected 15127 but got 15128
+Packet(s) lost or reordered : 15128 was received, previous rcvd is 15126 
+[RX] Dropping non-key frame while resync seq=15144 payload=15636
+[RX] Dropping non-key frame while resync seq=15157 payload=16924
+[RX] Dropping non-key frame while resync seq=15170 payload=17980
+.
+recvmsg(): Interrupted system call

@@ -1,0 +1,782 @@
+1388
+Listen on port 8080 to receive RTCP from decoder 
+Scream sender started! 
+SCReAM target bitrate: 1000 kbps
+Encoder initialized with target bitrate: 500 kbps
+Encoder configured with periodic keyframes: interval=2s (no artificial size multiplier)
+* Periodic key frame forced at frame 0 (interval: 2000 ms)
+[TX-QUEUE] seq=7 recvlen=961 encoded=1
+Frame size: 10761
+SCReAM target bitrate: 1000 kbps
+[TX-SEND] seq=7 size=961 isMark=1 ts=107
+[TX-QUEUE] seq=9 recvlen=460 encoded=1
+Frame size: 1860
+[TX-SEND] seq=9 size=460 isMark=1 ts=4802
+[SCREAM-CWND] cwnd=12500 sRtt=0.0494232 queueDelay=0 bytesInFlight=11221 rateLeft=1.98321e+06 stream[0].rateShare=1.90618e+06 targetBitrateH=1e+06
+SCReAM target bitrate: 1906.18 kbps
+[TX-QUEUE] seq=13 recvlen=416 encoded=1
+Frame size: 4616
+[SCREAM-CWND] cwnd=12500 sRtt=0.0494232 queueDelay=0.00843811 bytesInFlight=3260 rateLeft=1.98321e+06 stream[0].rateShare=2.02737e+06 targetBitrateH=1.90618e+06
+[TX-SEND] seq=13 size=416 isMark=1 ts=6112
+SCReAM target bitrate: 2027.37 kbps
+[TX-QUEUE] seq=16 recvlen=1276 encoded=1
+Frame size: 4076
+[SCREAM-CWND] cwnd=12669 sRtt=0.0494232 queueDelay=0.0195465 bytesInFlight=4616 rateLeft=2.01003e+06 stream[0].rateShare=2.11234e+06 targetBitrateH=2.02737e+06
+[TX-SEND] seq=16 size=1276 isMark=1 ts=9165
+SCReAM target bitrate: 2112.34 kbps
+[TX-QUEUE] seq=20 recvlen=243 encoded=1
+Frame size: 4443
+[TX-SEND] seq=20 size=243 isMark=1 ts=12111
+[SCREAM-CWND] cwnd=13853 sRtt=0.0462799 queueDelay=0 bytesInFlight=0 rateLeft=2.344e+06 stream[0].rateShare=2.87618e+06 targetBitrateH=2.11234e+06
+SCReAM target bitrate: 2876.18 kbps
+[TX-QUEUE] seq=24 recvlen=996 encoded=1
+Frame size: 5196
+[TX-SEND] seq=24 size=996 isMark=1 ts=15172
+[SCREAM-CWND] cwnd=13970 sRtt=0.0462799 queueDelay=0.000350952 bytesInFlight=3796 rateLeft=2.3638e+06 stream[0].rateShare=3.16563e+06 targetBitrateH=2.87618e+06
+SCReAM target bitrate: 3165.63 kbps
+[TX-QUEUE] seq=29 recvlen=692 encoded=1
+Frame size: 6292
+[TX-SEND] seq=29 size=692 isMark=1 ts=18109
+[SCREAM-CWND] cwnd=14400 sRtt=0.0440826 queueDelay=0.000717163 bytesInFlight=4892 rateLeft=2.55531e+06 stream[0].rateShare=3.9597e+06 targetBitrateH=3.16563e+06
+SCReAM target bitrate: 3959.7 kbps
+[TX-QUEUE] seq=34 recvlen=780 encoded=1
+Frame size: 6380
+[TX-SEND] seq=34 size=780 isMark=1 ts=21112
+[SCREAM-CWND] cwnd=14906 sRtt=0.0415802 queueDelay=0.000717163 bytesInFlight=4980 rateLeft=2.80055e+06 stream[0].rateShare=4.71832e+06 targetBitrateH=3.9597e+06
+SCReAM target bitrate: 4718.32 kbps
+[TX-QUEUE] seq=39 recvlen=1110 encoded=1
+Frame size: 6710
+[TX-SEND] seq=39 size=1110 isMark=1 ts=24121
+[SCREAM-CWND] cwnd=15407 sRtt=0.0365295 queueDelay=0.00141907 bytesInFlight=5310 rateLeft=3.28424e+06 stream[0].rateShare=5.3253e+06 targetBitrateH=4.71832e+06
+SCReAM target bitrate: 5325.3 kbps
+[TX-QUEUE] seq=45 recvlen=362 encoded=1
+Frame size: 7362
+[TX-SEND] seq=45 size=362 isMark=1 ts=27121
+[SCREAM-CWND] cwnd=15919 sRtt=0.034256 queueDelay=0.0010376 bytesInFlight=5962 rateLeft=3.61221e+06 stream[0].rateShare=5.89234e+06 targetBitrateH=5.3253e+06
+SCReAM target bitrate: 5892.34 kbps
+[TX-QUEUE] seq=52 recvlen=49 encoded=1
+Frame size: 8449
+[TX-SEND] seq=52 size=49 isMark=1 ts=30112
+[SCREAM-CWND] cwnd=16467 sRtt=0.0321045 queueDelay=0 bytesInFlight=7049 rateLeft=3.9794e+06 stream[0].rateShare=6.52705e+06 targetBitrateH=5.89234e+06
+SCReAM target bitrate: 6527.05 kbps
+[TX-QUEUE] seq=58 recvlen=765 encoded=1
+Frame size: 7765
+[TX-SEND] seq=58 size=765 isMark=1 ts=33115
+[SCREAM-CWND] cwnd=17080 sRtt=0.0301208 queueDelay=0.00112915 bytesInFlight=6365 rateLeft=4.39063e+06 stream[0].rateShare=7.09311e+06 targetBitrateH=6.52705e+06
+SCReAM target bitrate: 7093.11 kbps
+[TX-QUEUE] seq=65 recvlen=199 encoded=1
+Frame size: 8599
+[TX-SEND] seq=65 size=199 isMark=1 ts=36113
+[SCREAM-CWND] cwnd=17630 sRtt=0.0282898 queueDelay=0.000671387 bytesInFlight=7199 rateLeft=4.81533e+06 stream[0].rateShare=7.65999e+06 targetBitrateH=7.09311e+06
+SCReAM target bitrate: 7659.99 kbps
+[TX-QUEUE] seq=72 recvlen=709 encoded=1
+Frame size: 9109
+[TX-SEND] seq=72 size=709 isMark=1 ts=39116
+[SCREAM-CWND] cwnd=18223 sRtt=0.0266266 queueDelay=0.00100708 bytesInFlight=7709 rateLeft=5.27695e+06 stream[0].rateShare=8.13579e+06 targetBitrateH=7.65999e+06
+SCReAM target bitrate: 8135.79 kbps
+[TX-QUEUE] seq=80 recvlen=230 encoded=1
+Frame size: 10030
+[TX-SEND] seq=80 size=230 isMark=1 ts=42109
+[SCREAM-CWND] cwnd=18838 sRtt=0.025177 queueDelay=0.00167847 bytesInFlight=8630 rateLeft=5.75711e+06 stream[0].rateShare=8.41036e+06 targetBitrateH=8.13579e+06
+SCReAM target bitrate: 8410.36 kbps
+[TX-QUEUE] seq=88 recvlen=1354 encoded=1
+Frame size: 11154
+[TX-SEND] seq=88 size=1354 isMark=1 ts=45118
+[SCREAM-CWND] cwnd=19471 sRtt=0.0238342 queueDelay=0.000946045 bytesInFlight=9754 rateLeft=6.27231e+06 stream[0].rateShare=9.01857e+06 targetBitrateH=8.41036e+06
+SCReAM target bitrate: 9018.57 kbps
+[TX-QUEUE] seq=98 recvlen=584 encoded=1
+Frame size: 13184
+[TX-SEND] seq=98 size=584 isMark=1 ts=48120
+[SCREAM-CWND] cwnd=20292 sRtt=0.0225983 queueDelay=0 bytesInFlight=8984 rateLeft=6.87915e+06 stream[0].rateShare=9.69508e+06 targetBitrateH=9.01857e+06
+SCReAM target bitrate: 9695.08 kbps
+[TX-QUEUE] seq=108 recvlen=390 encoded=1
+Frame size: 12990
+[TX-SEND] seq=108 size=390 isMark=1 ts=51113
+[SCREAM-CWND] cwnd=20855 sRtt=0.0215149 queueDelay=0.00172424 bytesInFlight=11590 rateLeft=7.41021e+06 stream[0].rateShare=1.00048e+07 targetBitrateH=9.69508e+06
+SCReAM target bitrate: 10004.8 kbps
+[TX-QUEUE] seq=120 recvlen=334 encoded=1
+Frame size: 15734
+[TX-SEND] seq=120 size=334 isMark=1 ts=54113
+[SCREAM-CWND] cwnd=21516 sRtt=0.0205383 queueDelay=0.00125122 bytesInFlight=14334 rateLeft=7.99171e+06 stream[0].rateShare=1.04391e+07 targetBitrateH=1.00048e+07
+SCReAM target bitrate: 10439.1 kbps
+[TX-QUEUE] seq=133 recvlen=1340 encoded=1
+Frame size: 18140
+[TX-SEND] seq=133 size=1340 isMark=1 ts=57109
+[SCREAM-CWND] cwnd=22272 sRtt=0.0196686 queueDelay=0.000793457 bytesInFlight=16740 rateLeft=8.62062e+06 stream[0].rateShare=1.08846e+07 targetBitrateH=1.04391e+07
+SCReAM target bitrate: 10884.6 kbps
+[TX-QUEUE] seq=147 recvlen=609 encoded=1
+Frame size: 18809
+[TX-SEND] seq=147 size=609 isMark=1 ts=60113
+[SCREAM-CWND] cwnd=23098 sRtt=0.0189514 queueDelay=0.000930786 bytesInFlight=17409 rateLeft=9.2617e+06 stream[0].rateShare=1.1047e+07 targetBitrateH=1.08846e+07
+[SCREAM-CWND] cwnd=21171 sRtt=0.0189514 queueDelay=0.00370789 bytesInFlight=3409 rateLeft=8.48902e+06 stream[0].rateShare=9.9831e+06 targetBitrateH=1.1047e+07
+SCReAM target bitrate: 9983.1 kbps
+[TX-QUEUE] seq=162 recvlen=98 encoded=1
+Frame size: 19698
+[TX-SEND] seq=162 size=98 isMark=1 ts=63112
+[SCREAM-CWND] cwnd=21233 sRtt=0.0183411 queueDelay=0.000854492 bytesInFlight=18298 rateLeft=8.78256e+06 stream[0].rateShare=1.00527e+07 targetBitrateH=9.9831e+06
+[SCREAM-CWND] cwnd=20419 sRtt=0.0183411 queueDelay=0.00390625 bytesInFlight=4298 rateLeft=8.44586e+06 stream[0].rateShare=9.56133e+06 targetBitrateH=1.00527e+07
+SCReAM target bitrate: 9561.33 kbps
+[TX-QUEUE] seq=178 recvlen=45 encoded=1
+Frame size: 21045
+[TX-SEND] seq=178 size=45 isMark=1 ts=66115
+[SCREAM-CWND] cwnd=20519 sRtt=0.0174561 queueDelay=0.000823975 bytesInFlight=19645 rateLeft=8.89421e+06 stream[0].rateShare=9.50398e+06 targetBitrateH=9.56133e+06
+SCReAM target bitrate: 9503.98 kbps
+[TX-QUEUE] seq=195 recvlen=244 encoded=1
+Frame size: 22644
+[SCREAM-CWND] cwnd=21176 sRtt=0.0170288 queueDelay=0.000244141 bytesInFlight=19600 rateLeft=9.39652e+06 stream[0].rateShare=1.00663e+07 targetBitrateH=9.50398e+06
+[TX-SEND] seq=195 size=244 isMark=1 ts=69114
+SCReAM target bitrate: 10066.3 kbps
+[TX-QUEUE] seq=213 recvlen=1093 encoded=1
+Frame size: 24893
+[SCREAM-CWND] cwnd=21541 sRtt=0.0162811 queueDelay=4.57764e-05 bytesInFlight=18200 rateLeft=9.97203e+06 stream[0].rateShare=1.04404e+07 targetBitrateH=1.00663e+07
+[TX-SEND] seq=213 size=1093 isMark=1 ts=72117
+SCReAM target bitrate: 10440.4 kbps
+[SCREAM-CWND] cwnd=21778 sRtt=0.0159912 queueDelay=0.00318909 bytesInFlight=0 rateLeft=1.02538e+07 stream[0].rateShare=1.03839e+07 targetBitrateH=1.04404e+07
+[TX-QUEUE] seq=232 recvlen=1101 encoded=1
+Frame size: 26301
+[SCREAM-CWND] cwnd=21790 sRtt=0.0157166 queueDelay=0.000961304 bytesInFlight=21000 rateLeft=1.0428e+07 stream[0].rateShare=1.04962e+07 targetBitrateH=1.03839e+07
+[TX-SEND] seq=232 size=1101 isMark=1 ts=75112
+SCReAM target bitrate: 10496.2 kbps
+[SCREAM-CWND] cwnd=21358 sRtt=0.0155334 queueDelay=0.00442505 bytesInFlight=0 rateLeft=1.03344e+07 stream[0].rateShare=9.97122e+06 targetBitrateH=1.04962e+07
+[TX-QUEUE] seq=252 recvlen=1288 encoded=1
+Frame size: 27888
+[SCREAM-CWND] cwnd=21370 sRtt=0.0153656 queueDelay=0.00123596 bytesInFlight=23800 rateLeft=1.04463e+07 stream[0].rateShare=1.00467e+07 targetBitrateH=9.97122e+06
+[TX-SEND] seq=252 size=1288 isMark=1 ts=78119
+[SCREAM-CWND] cwnd=20838 sRtt=0.0153656 queueDelay=0.00398254 bytesInFlight=12488 rateLeft=1.01862e+07 stream[0].rateShare=9.66126e+06 targetBitrateH=1.00467e+07
+SCReAM target bitrate: 9661.26 kbps
+[TX-QUEUE] seq=274 recvlen=1176 encoded=1
+Frame size: 30576
+[SCREAM-CWND] cwnd=20872 sRtt=0.0152893 queueDelay=0.00131226 bytesInFlight=21000 rateLeft=1.02507e+07 stream[0].rateShare=9.57312e+06 targetBitrateH=9.66126e+06
+[TX-SEND] seq=274 size=1176 isMark=1 ts=81109
+SCReAM target bitrate: 9573.12 kbps
+[TX-QUEUE] seq=297 recvlen=1258 encoded=1
+Frame size: 32058
+[SCREAM-CWND] cwnd=20240 sRtt=0.0151978 queueDelay=0.0043335 bytesInFlight=2800 rateLeft=9.99645e+06 stream[0].rateShare=9.16694e+06 targetBitrateH=9.57312e+06
+[TX-SEND] seq=297 size=1258 isMark=1 ts=84123
+[SCREAM-CWND] cwnd=20357 sRtt=0.0151062 queueDelay=0.00250244 bytesInFlight=18058 rateLeft=1.01114e+07 stream[0].rateShare=9.42895e+06 targetBitrateH=9.16694e+06
+SCReAM target bitrate: 9428.95 kbps
+[SCREAM-CWND] cwnd=19710 sRtt=0.0150299 queueDelay=0.00317383 bytesInFlight=2658 rateLeft=9.83661e+06 stream[0].rateShare=9.09342e+06 targetBitrateH=9.42895e+06
+[TX-QUEUE] seq=322 recvlen=1257 encoded=1
+Frame size: 34857
+[SCREAM-CWND] cwnd=19732 sRtt=0.0150299 queueDelay=0.00341797 bytesInFlight=2800 rateLeft=9.84759e+06 stream[0].rateShare=9.05025e+06 targetBitrateH=9.09342e+06
+[TX-SEND] seq=322 size=1257 isMark=1 ts=87118
+[SCREAM-CWND] cwnd=19860 sRtt=0.0149384 queueDelay=0.00239563 bytesInFlight=19457 rateLeft=9.96841e+06 stream[0].rateShare=9.29958e+06 targetBitrateH=9.05025e+06
+SCReAM target bitrate: 9299.58 kbps
+[TX-QUEUE] seq=349 recvlen=560 encoded=1
+Frame size: 36960
+[SCREAM-CWND] cwnd=20020 sRtt=0.0149384 queueDelay=0.00256348 bytesInFlight=5600 rateLeft=1.00487e+07 stream[0].rateShare=9.30956e+06 targetBitrateH=9.29958e+06
+[TX-SEND] seq=349 size=560 isMark=1 ts=90118
+[SCREAM-CWND] cwnd=20145 sRtt=0.0148621 queueDelay=0.00282288 bytesInFlight=21560 rateLeft=1.01601e+07 stream[0].rateShare=9.40492e+06 targetBitrateH=9.30956e+06
+SCReAM target bitrate: 9404.92 kbps
+[TX-QUEUE] seq=378 recvlen=550 encoded=1
+Frame size: 39750
+[SCREAM-CWND] cwnd=20280 sRtt=0.0147858 queueDelay=0.00205994 bytesInFlight=6160 rateLeft=1.02776e+07 stream[0].rateShare=9.51521e+06 targetBitrateH=9.40492e+06
+[SCREAM-CWND] cwnd=19648 sRtt=0.01474 queueDelay=0.00125122 bytesInFlight=22400 rateLeft=9.98628e+06 stream[0].rateShare=9.10953e+06 targetBitrateH=9.51521e+06
+[TX-SEND] seq=378 size=550 isMark=1 ts=93114
+SCReAM target bitrate: 9109.53 kbps
+[TX-QUEUE] seq=410 recvlen=395 encoded=1
+Frame size: 43795
+[SCREAM-CWND] cwnd=19044 sRtt=0.0147552 queueDelay=0.0042572 bytesInFlight=10350 rateLeft=9.66992e+06 stream[0].rateShare=8.66702e+06 targetBitrateH=9.10953e+06
+[TX-SEND] seq=410 size=395 isMark=1 ts=96111
+[SCREAM-CWND] cwnd=19247 sRtt=0.0147552 queueDelay=0.00271606 bytesInFlight=22795 rateLeft=9.773e+06 stream[0].rateShare=8.75941e+06 targetBitrateH=8.66702e+06
+SCReAM target bitrate: 8759.41 kbps
+[TX-QUEUE] seq=443 recvlen=592 encoded=1
+Frame size: 45392
+[SCREAM-CWND] cwnd=18379 sRtt=0.0147552 queueDelay=0.00489807 bytesInFlight=17195 rateLeft=9.33226e+06 stream[0].rateShare=8.36438e+06 targetBitrateH=8.75941e+06
+[SCREAM-CWND] cwnd=18510 sRtt=0.014801 queueDelay=0.00233459 bytesInFlight=25200 rateLeft=9.37154e+06 stream[0].rateShare=8.39959e+06 targetBitrateH=8.36438e+06
+[TX-SEND] seq=443 size=592 isMark=1 ts=99111
+SCReAM target bitrate: 8399.59 kbps
+[SCREAM-CWND] cwnd=17679 sRtt=0.0148468 queueDelay=0.00444031 bytesInFlight=17392 rateLeft=8.92496e+06 stream[0].rateShare=7.99932e+06 targetBitrateH=8.39959e+06
+[TX-QUEUE] seq=477 recvlen=523 encoded=1
+Frame size: 46723
+[SCREAM-CWND] cwnd=17679 sRtt=0.0148468 queueDelay=0.00624084 bytesInFlight=18792 rateLeft=8.92496e+06 stream[0].rateShare=7.99932e+06 targetBitrateH=7.99932e+06
+[TX-SEND] seq=477 size=523 isMark=1 ts=102109
+SCReAM target bitrate: 7999.32 kbps
+[TX-QUEUE] seq=509 recvlen=559 encoded=1
+Frame size: 43959
+[SCREAM-CWND] cwnd=16214 sRtt=0.0149689 queueDelay=0.00567627 bytesInFlight=18723 rateLeft=8.1228e+06 stream[0].rateShare=7.28036e+06 targetBitrateH=7.99932e+06
+[TX-SEND] seq=509 size=559 isMark=1 ts=105113
+[SCREAM-CWND] cwnd=12919 sRtt=0.0151978 queueDelay=0.00346375 bytesInFlight=31359 rateLeft=6.38064e+06 stream[0].rateShare=5.6466e+06 targetBitrateH=7.28036e+06
+SCReAM target bitrate: 5646.6 kbps
+[TX-QUEUE] seq=535 recvlen=579 encoded=1
+Frame size: 35579
+[SCREAM-CWND] cwnd=9876 sRtt=0.0154724 queueDelay=0.0111694 bytesInFlight=18759 rateLeft=4.79638e+06 stream[0].rateShare=4.11426e+06 targetBitrateH=5.6466e+06
+[TX-SEND] seq=535 size=579 isMark=1 ts=108126
+SCReAM target bitrate: 4114.26 kbps
+[SCREAM-CWND] cwnd=7975 sRtt=0.0158081 queueDelay=0.00801086 bytesInFlight=8979 rateLeft=3.79579e+06 stream[0].rateShare=3.09868e+06 targetBitrateH=4.11426e+06
+[TX-QUEUE] seq=563 recvlen=1375 encoded=1
+Frame size: 39175
+[SCREAM-CWND] cwnd=8207 sRtt=0.0158081 queueDelay=0.0111847 bytesInFlight=12600 rateLeft=3.90621e+06 stream[0].rateShare=3.23658e+06 targetBitrateH=3.09868e+06
+[TX-SEND] seq=563 size=1375 isMark=1 ts=111115
+[SCREAM-CWND] cwnd=7135 sRtt=0.016098 queueDelay=0.00665283 bytesInFlight=19575 rateLeft=3.3384e+06 stream[0].rateShare=2.62856e+06 targetBitrateH=3.23658e+06
+SCReAM target bitrate: 2628.56 kbps
+[TX-QUEUE] seq=593 recvlen=627 encoded=1
+Frame size: 41227
+[SCREAM-CWND] cwnd=7135 sRtt=0.0164337 queueDelay=0.0105896 bytesInFlight=15375 rateLeft=3.27412e+06 stream[0].rateShare=2.6522e+06 targetBitrateH=2.62856e+06
+[SCREAM-CWND] cwnd=7691 sRtt=0.0166931 queueDelay=0.00674438 bytesInFlight=14000 rateLeft=3.47751e+06 stream[0].rateShare=2.81696e+06 targetBitrateH=2.6522e+06
+SCReAM target bitrate: 2816.96 kbps
+[TX-SEND] seq=593 size=627 isMark=1 ts=114110
+[TX-QUEUE] seq=618 recvlen=863 encoded=1
+Frame size: 34463
+[SCREAM-CWND] cwnd=7897 sRtt=0.0166931 queueDelay=0.00582886 bytesInFlight=17427 rateLeft=3.57065e+06 stream[0].rateShare=2.9378e+06 targetBitrateH=2.81696e+06
+[SCREAM-CWND] cwnd=7061 sRtt=0.0168304 queueDelay=0.00476074 bytesInFlight=19600 rateLeft=3.16806e+06 stream[0].rateShare=2.46299e+06 targetBitrateH=2.9378e+06
+[TX-SEND] seq=618 size=863 isMark=1 ts=117122
+SCReAM target bitrate: 2462.99 kbps
+[TX-QUEUE] seq=645 recvlen=1373 encoded=1
+Frame size: 37773
+[SCREAM-CWND] cwnd=7349 sRtt=0.0168304 queueDelay=0.00177002 bytesInFlight=2800 rateLeft=3.29728e+06 stream[0].rateShare=2.66489e+06 targetBitrateH=2.46299e+06
+[SCREAM-CWND] cwnd=6372 sRtt=0.0168915 queueDelay=0.00761414 bytesInFlight=15400 rateLeft=2.84918e+06 stream[0].rateShare=2.2243e+06 targetBitrateH=2.66489e+06
+[TX-SEND] seq=645 size=1373 isMark=1 ts=120109
+SCReAM target bitrate: 2224.3 kbps
+[TX-QUEUE] seq=672 recvlen=1373 encoded=1
+Frame size: 37773
+[SCREAM-CWND] cwnd=6607 sRtt=0.016983 queueDelay=0.00634766 bytesInFlight=9773 rateLeft=2.93922e+06 stream[0].rateShare=2.31901e+06 targetBitrateH=2.2243e+06
+[SCREAM-CWND] cwnd=5921 sRtt=0.016983 queueDelay=0.00367737 bytesInFlight=16800 rateLeft=2.63404e+06 stream[0].rateShare=1.88868e+06 targetBitrateH=2.31901e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=673 recvlen=893 encoded=1
+Frame size: 2266
+[TX-SEND] seq=672 size=1373 isMark=1 ts=123125
+[TX-SEND] seq=673 size=893 isMark=1 ts=126125
+[SCREAM-CWND] cwnd=6917 sRtt=0.0170288 queueDelay=0.00341797 bytesInFlight=2266 rateLeft=3.06931e+06 stream[0].rateShare=2.37562e+06 targetBitrateH=1.88868e+06
+SCReAM target bitrate: 2375.62 kbps
+[TX-QUEUE] seq=684 recvlen=432 encoded=1
+Frame size: 14432
+[TX-SEND] seq=684 size=432 isMark=1 ts=129114
+[SCREAM-CWND] cwnd=7205 sRtt=0.0169067 queueDelay=0.00152588 bytesInFlight=13032 rateLeft=3.2189e+06 stream[0].rateShare=2.71211e+06 targetBitrateH=2.37562e+06
+SCReAM target bitrate: 2712.11 kbps
+[TX-QUEUE] seq=694 recvlen=169 encoded=1
+Frame size: 12769
+[TX-SEND] seq=694 size=169 isMark=1 ts=132113
+[SCREAM-CWND] cwnd=7749 sRtt=0.0167084 queueDelay=0.00137329 bytesInFlight=11369 rateLeft=3.50072e+06 stream[0].rateShare=3.06917e+06 targetBitrateH=2.71211e+06
+[SCREAM-CWND] cwnd=5559 sRtt=0.0167084 queueDelay=0.00312805 bytesInFlight=0 rateLeft=2.51135e+06 stream[0].rateShare=2.05431e+06 targetBitrateH=3.06917e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=695 recvlen=816 encoded=1
+Frame size: 816
+[TX-SEND] seq=695 size=816 isMark=1 ts=135115
+[SCREAM-CWND] cwnd=5634 sRtt=0.0164948 queueDelay=0.00115967 bytesInFlight=0 rateLeft=2.57632e+06 stream[0].rateShare=2.13746e+06 targetBitrateH=2.05431e+06
+SCReAM target bitrate: 2137.46 kbps
+[TX-QUEUE] seq=704 recvlen=1384 encoded=1
+Frame size: 12584
+[SCREAM-CWND] cwnd=5759 sRtt=0.0162964 queueDelay=0.00245667 bytesInFlight=9800 rateLeft=2.66368e+06 stream[0].rateShare=2.20824e+06 targetBitrateH=2.13746e+06
+[TX-SEND] seq=704 size=1384 isMark=1 ts=138110
+SCReAM target bitrate: 2208.24 kbps
+[TX-QUEUE] seq=713 recvlen=1181 encoded=1
+Frame size: 12381
+[TX-SEND] seq=713 size=1181 isMark=1 ts=141118
+[SCREAM-CWND] cwnd=6967 sRtt=0.0158234 queueDelay=0.000259399 bytesInFlight=9581 rateLeft=3.31301e+06 stream[0].rateShare=2.81515e+06 targetBitrateH=2.20824e+06
+SCReAM target bitrate: 2815.15 kbps
+[TX-QUEUE] seq=723 recvlen=1235 encoded=1
+Frame size: 13835
+[SCREAM-CWND] cwnd=7690 sRtt=0.0155792 queueDelay=0.00167847 bytesInFlight=9800 rateLeft=3.71067e+06 stream[0].rateShare=3.3269e+06 targetBitrateH=2.81515e+06
+[TX-SEND] seq=723 size=1235 isMark=1 ts=144120
+SCReAM target bitrate: 3326.9 kbps
+[SCREAM-CWND] cwnd=7899 sRtt=0.0153351 queueDelay=0.00163269 bytesInFlight=0 rateLeft=3.86848e+06 stream[0].rateShare=3.53254e+06 targetBitrateH=3.3269e+06
+[TX-QUEUE] seq=735 recvlen=221 encoded=1
+Frame size: 15621
+[SCREAM-CWND] cwnd=7922 sRtt=0.0151062 queueDelay=0.00131226 bytesInFlight=8400 rateLeft=3.93488e+06 stream[0].rateShare=3.58746e+06 targetBitrateH=3.53254e+06
+[TX-SEND] seq=735 size=221 isMark=1 ts=147108
+SCReAM target bitrate: 3587.46 kbps
+[TX-QUEUE] seq=747 recvlen=244 encoded=1
+Frame size: 15644
+[SCREAM-CWND] cwnd=8147 sRtt=0.0149384 queueDelay=0.00132751 bytesInFlight=1621 rateLeft=4.08926e+06 stream[0].rateShare=3.64948e+06 targetBitrateH=3.58746e+06
+[SCREAM-CWND] cwnd=8260 sRtt=0.0147705 queueDelay=0.00154114 bytesInFlight=7000 rateLeft=4.1901e+06 stream[0].rateShare=3.75064e+06 targetBitrateH=3.64948e+06
+[TX-SEND] seq=747 size=244 isMark=1 ts=150110
+SCReAM target bitrate: 3750.64 kbps
+[TX-QUEUE] seq=759 recvlen=595 encoded=1
+Frame size: 15995
+[SCREAM-CWND] cwnd=8392 sRtt=0.0146179 queueDelay=0.000259399 bytesInFlight=1400 rateLeft=4.29865e+06 stream[0].rateShare=3.84424e+06 targetBitrateH=3.75064e+06
+[TX-SEND] seq=759 size=595 isMark=1 ts=153112
+[SCREAM-CWND] cwnd=8519 sRtt=0.0144806 queueDelay=0.000701904 bytesInFlight=7595 rateLeft=4.40242e+06 stream[0].rateShare=3.92181e+06 targetBitrateH=3.84424e+06
+SCReAM target bitrate: 3921.81 kbps
+[TX-QUEUE] seq=772 recvlen=514 encoded=1
+Frame size: 17314
+[SCREAM-CWND] cwnd=8619 sRtt=0.0144806 queueDelay=0.000701904 bytesInFlight=4795 rateLeft=4.45409e+06 stream[0].rateShare=3.86482e+06 targetBitrateH=3.92181e+06
+[SCREAM-CWND] cwnd=8994 sRtt=0.014389 queueDelay=0.00102234 bytesInFlight=8400 rateLeft=4.67554e+06 stream[0].rateShare=4.09126e+06 targetBitrateH=3.86482e+06
+[TX-SEND] seq=772 size=514 isMark=1 ts=156107
+SCReAM target bitrate: 4091.26 kbps
+[TX-QUEUE] seq=785 recvlen=100 encoded=1
+Frame size: 16900
+[SCREAM-CWND] cwnd=9400 sRtt=0.0142975 queueDelay=0.000823975 bytesInFlight=1914 rateLeft=4.91584e+06 stream[0].rateShare=4.33818e+06 targetBitrateH=4.09126e+06
+[SCREAM-CWND] cwnd=9662 sRtt=0.0141907 queueDelay=0.00105286 bytesInFlight=8400 rateLeft=5.08838e+06 stream[0].rateShare=4.52852e+06 targetBitrateH=4.33818e+06
+[TX-SEND] seq=785 size=100 isMark=1 ts=159109
+SCReAM target bitrate: 4528.52 kbps
+[TX-QUEUE] seq=799 recvlen=523 encoded=1
+Frame size: 18723
+[SCREAM-CWND] cwnd=10425 sRtt=0.0140991 queueDelay=0.00241089 bytesInFlight=1500 rateLeft=5.5235e+06 stream[0].rateShare=4.91204e+06 targetBitrateH=4.52852e+06
+[SCREAM-CWND] cwnd=8104 sRtt=0.0140991 queueDelay=0.00178528 bytesInFlight=2800 rateLeft=4.29376e+06 stream[0].rateShare=3.70706e+06 targetBitrateH=4.91204e+06
+[TX-SEND] seq=799 size=523 isMark=1 ts=162110
+SCReAM target bitrate: 3707.06 kbps
+[SCREAM-CWND] cwnd=8252 sRtt=0.0140228 queueDelay=0.000473022 bytesInFlight=8923 rateLeft=4.39438e+06 stream[0].rateShare=3.77476e+06 targetBitrateH=3.70706e+06
+[TX-QUEUE] seq=811 recvlen=133 encoded=1
+Frame size: 15533
+[SCREAM-CWND] cwnd=8378 sRtt=0.0140228 queueDelay=0.00120544 bytesInFlight=3323 rateLeft=4.46148e+06 stream[0].rateShare=3.82114e+06 targetBitrateH=3.77476e+06
+[TX-SEND] seq=811 size=133 isMark=1 ts=165110
+[SCREAM-CWND] cwnd=8509 sRtt=0.0139465 queueDelay=0.00180054 bytesInFlight=7133 rateLeft=4.55437e+06 stream[0].rateShare=3.89153e+06 targetBitrateH=3.82114e+06
+SCReAM target bitrate: 3891.53 kbps
+[TX-QUEUE] seq=824 recvlen=591 encoded=1
+Frame size: 17391
+[SCREAM-CWND] cwnd=8665 sRtt=0.0139008 queueDelay=0.00190735 bytesInFlight=133 rateLeft=4.65211e+06 stream[0].rateShare=3.95729e+06 targetBitrateH=3.89153e+06
+[TX-SEND] seq=824 size=591 isMark=1 ts=168110
+[SCREAM-CWND] cwnd=9010 sRtt=0.0138397 queueDelay=0.00111389 bytesInFlight=7591 rateLeft=4.85723e+06 stream[0].rateShare=4.19322e+06 targetBitrateH=3.95729e+06
+SCReAM target bitrate: 4193.22 kbps
+[TX-QUEUE] seq=838 recvlen=354 encoded=1
+Frame size: 18554
+[SCREAM-CWND] cwnd=9400 sRtt=0.0138397 queueDelay=0.00256348 bytesInFlight=1991 rateLeft=5.06748e+06 stream[0].rateShare=4.37586e+06 targetBitrateH=4.19322e+06
+[TX-SEND] seq=838 size=354 isMark=1 ts=171112
+[SCREAM-CWND] cwnd=10038 sRtt=0.0137939 queueDelay=0.001297 bytesInFlight=7354 rateLeft=5.42817e+06 stream[0].rateShare=4.73954e+06 targetBitrateH=4.37586e+06
+SCReAM target bitrate: 4739.54 kbps
+[TX-QUEUE] seq=854 recvlen=571 encoded=1
+Frame size: 21571
+[SCREAM-CWND] cwnd=10414 sRtt=0.0137482 queueDelay=0.000839233 bytesInFlight=2800 rateLeft=5.64897e+06 stream[0].rateShare=4.95033e+06 targetBitrateH=4.73954e+06
+[SCREAM-CWND] cwnd=10621 sRtt=0.0137329 queueDelay=0.00363159 bytesInFlight=14000 rateLeft=5.76722e+06 stream[0].rateShare=5.00145e+06 targetBitrateH=4.95033e+06
+[TX-SEND] seq=854 size=571 isMark=1 ts=174109
+SCReAM target bitrate: 5001.45 kbps
+[SCREAM-CWND] cwnd=9356 sRtt=0.0137177 queueDelay=0.000259399 bytesInFlight=0 rateLeft=5.08559e+06 stream[0].rateShare=4.27516e+06 targetBitrateH=5.00145e+06
+[TX-QUEUE] seq=869 recvlen=952 encoded=1
+Frame size: 20552
+[SCREAM-CWND] cwnd=9406 sRtt=0.0136871 queueDelay=0.000518799 bytesInFlight=11200 rateLeft=5.1234e+06 stream[0].rateShare=4.42851e+06 targetBitrateH=4.27516e+06
+[TX-SEND] seq=869 size=952 isMark=1 ts=177111
+SCReAM target bitrate: 4428.51 kbps
+[TX-QUEUE] seq=883 recvlen=199 encoded=1
+Frame size: 18399
+ summary   2.0  Transmit rate =  3954kbps, PLR =  0.28%( 0.37%), CE = 18.89%(28.96%)[ 0.0%,  0.0%, 71.8%, 28.2%], RTT = 0.033s, Queue delay = 0.011s, MTU = 1388
+[SCREAM-CWND] cwnd=9947 sRtt=0.0136719 queueDelay=0.00170898 bytesInFlight=6552 rateLeft=5.42371e+06 stream[0].rateShare=4.65281e+06 targetBitrateH=4.42851e+06
+[TX-SEND] seq=883 size=199 isMark=1 ts=180230
+SCReAM target bitrate: 4652.81 kbps
+* Periodic key frame forced at frame 61 (interval: 2000 ms)
+[SCREAM-CWND] cwnd=10135 sRtt=0.0136566 queueDelay=0.00111389 bytesInFlight=5799 rateLeft=5.53197e+06 stream[0].rateShare=4.79112e+06 targetBitrateH=4.65281e+06
+[TX-QUEUE] seq=894 recvlen=1047 encoded=1
+Frame size: 15047
+[SCREAM-CWND] cwnd=10207 sRtt=0.0136566 queueDelay=0.00120544 bytesInFlight=4200 rateLeft=5.57127e+06 stream[0].rateShare=4.86893e+06 targetBitrateH=4.79112e+06
+[TX-SEND] seq=894 size=1047 isMark=1 ts=183114
+[SCREAM-CWND] cwnd=10362 sRtt=0.0136261 queueDelay=0.00038147 bytesInFlight=2447 rateLeft=5.66768e+06 stream[0].rateShare=5.01134e+06 targetBitrateH=4.86893e+06
+SCReAM target bitrate: 5011.34 kbps
+[TX-QUEUE] seq=920 recvlen=819 encoded=1
+Frame size: 35819
+[SCREAM-CWND] cwnd=10409 sRtt=0.0135498 queueDelay=0.00137329 bytesInFlight=9800 rateLeft=5.72324e+06 stream[0].rateShare=5.02332e+06 targetBitrateH=5.01134e+06
+SCReAM target bitrate: 5023.32 kbps
+[TX-SEND] seq=920 size=819 isMark=1 ts=186115
+[TX-QUEUE] seq=931 recvlen=1328 encoded=1
+Frame size: 15328
+[SCREAM-CWND] cwnd=7624 sRtt=0.013504 queueDelay=0.000259399 bytesInFlight=14819 rateLeft=4.20518e+06 stream[0].rateShare=3.49527e+06 targetBitrateH=5.02332e+06
+[TX-SEND] seq=931 size=1328 isMark=1 ts=189133
+[SCREAM-CWND] cwnd=8968 sRtt=0.0134583 queueDelay=0.00215149 bytesInFlight=6928 rateLeft=4.96215e+06 stream[0].rateShare=4.13668e+06 targetBitrateH=3.49527e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=932 recvlen=996 encoded=1
+Frame size: 996
+[TX-SEND] seq=932 size=996 isMark=1 ts=192109
+[SCREAM-CWND] cwnd=9397 sRtt=0.0133972 queueDelay=0.00123596 bytesInFlight=0 rateLeft=5.22156e+06 stream[0].rateShare=4.51798e+06 targetBitrateH=4.13668e+06
+SCReAM target bitrate: 4517.98 kbps
+[TX-QUEUE] seq=945 recvlen=138 encoded=1
+Frame size: 16938
+[SCREAM-CWND] cwnd=9442 sRtt=0.0133514 queueDelay=0.00183105 bytesInFlight=11200 rateLeft=5.2633e+06 stream[0].rateShare=4.56399e+06 targetBitrateH=4.51798e+06
+[TX-SEND] seq=945 size=138 isMark=1 ts=195122
+SCReAM target bitrate: 4563.99 kbps
+[TX-QUEUE] seq=957 recvlen=166 encoded=1
+Frame size: 15566
+[SCREAM-CWND] cwnd=9896 sRtt=0.0133209 queueDelay=0.00291443 bytesInFlight=0 rateLeft=5.52814e+06 stream[0].rateShare=4.75104e+06 targetBitrateH=4.56399e+06
+[TX-SEND] seq=957 size=166 isMark=1 ts=198110
+[SCREAM-CWND] cwnd=10017 sRtt=0.0132904 queueDelay=0.000793457 bytesInFlight=5766 rateLeft=5.60768e+06 stream[0].rateShare=4.8644e+06 targetBitrateH=4.75104e+06
+SCReAM target bitrate: 4864.4 kbps
+[TX-QUEUE] seq=970 recvlen=991 encoded=1
+Frame size: 17791
+[SCREAM-CWND] cwnd=10121 sRtt=0.0132294 queueDelay=0.00012207 bytesInFlight=9800 rateLeft=5.6902e+06 stream[0].rateShare=5.0211e+06 targetBitrateH=4.8644e+06
+[TX-SEND] seq=970 size=991 isMark=1 ts=201110
+SCReAM target bitrate: 5021.1 kbps
+[TX-QUEUE] seq=984 recvlen=137 encoded=1
+Frame size: 18337
+[SCREAM-CWND] cwnd=10302 sRtt=0.0132141 queueDelay=0.0010376 bytesInFlight=0 rateLeft=5.79818e+06 stream[0].rateShare=5.03006e+06 targetBitrateH=5.0211e+06
+[SCREAM-CWND] cwnd=10319 sRtt=0.0131989 queueDelay=0.000991821 bytesInFlight=11200 rateLeft=5.81399e+06 stream[0].rateShare=5.04564e+06 targetBitrateH=5.03006e+06
+[TX-SEND] seq=984 size=137 isMark=1 ts=204117
+SCReAM target bitrate: 5045.64 kbps
+[TX-QUEUE] seq=999 recvlen=338 encoded=1
+Frame size: 19938
+[SCREAM-CWND] cwnd=10519 sRtt=0.0132599 queueDelay=0.00143433 bytesInFlight=2937 rateLeft=5.90131e+06 stream[0].rateShare=5.10059e+06 targetBitrateH=5.04564e+06
+[TX-SEND] seq=999 size=338 isMark=1 ts=207107
+[SCREAM-CWND] cwnd=10637 sRtt=0.0133514 queueDelay=0.000900269 bytesInFlight=10138 rateLeft=5.92944e+06 stream[0].rateShare=5.13861e+06 targetBitrateH=5.10059e+06
+SCReAM target bitrate: 5138.61 kbps
+[TX-QUEUE] seq=1014 recvlen=227 encoded=1
+Frame size: 19827
+[SCREAM-CWND] cwnd=10752 sRtt=0.0133514 queueDelay=0.000946045 bytesInFlight=5938 rateLeft=5.99354e+06 stream[0].rateShare=5.2021e+06 targetBitrateH=5.13861e+06
+[TX-SEND] seq=1014 size=227 isMark=1 ts=210121
+[SCREAM-CWND] cwnd=10920 sRtt=0.0134277 queueDelay=0.000564575 bytesInFlight=5827 rateLeft=6.055e+06 stream[0].rateShare=5.26308e+06 targetBitrateH=5.2021e+06
+SCReAM target bitrate: 5263.08 kbps
+[TX-QUEUE] seq=1030 recvlen=528 encoded=1
+Frame size: 21528
+[SCREAM-CWND] cwnd=10988 sRtt=0.0134735 queueDelay=0.00152588 bytesInFlight=1400 rateLeft=6.07344e+06 stream[0].rateShare=5.29001e+06 targetBitrateH=5.26308e+06
+[TX-SEND] seq=1030 size=528 isMark=1 ts=213112
+[SCREAM-CWND] cwnd=11119 sRtt=0.0134735 queueDelay=0.000961304 bytesInFlight=10328 rateLeft=6.14585e+06 stream[0].rateShare=5.35745e+06 targetBitrateH=5.29001e+06
+SCReAM target bitrate: 5357.45 kbps
+[TX-QUEUE] seq=1048 recvlen=304 encoded=1
+Frame size: 24104
+[SCREAM-CWND] cwnd=11255 sRtt=0.0134735 queueDelay=0.000595093 bytesInFlight=0 rateLeft=6.22102e+06 stream[0].rateShare=5.43135e+06 targetBitrateH=5.35745e+06
+[SCREAM-CWND] cwnd=11492 sRtt=0.0134583 queueDelay=0.000686646 bytesInFlight=11200 rateLeft=6.35872e+06 stream[0].rateShare=5.60758e+06 targetBitrateH=5.43135e+06
+[TX-SEND] seq=1048 size=304 isMark=1 ts=216117
+SCReAM target bitrate: 5607.58 kbps
+[TX-QUEUE] seq=1067 recvlen=175 encoded=1
+Frame size: 25375
+[SCREAM-CWND] cwnd=11751 sRtt=0.013443 queueDelay=0.00221252 bytesInFlight=3104 rateLeft=6.5089e+06 stream[0].rateShare=5.71256e+06 targetBitrateH=5.60758e+06
+[SCREAM-CWND] cwnd=11958 sRtt=0.013443 queueDelay=0.00216675 bytesInFlight=14000 rateLeft=6.62356e+06 stream[0].rateShare=5.82299e+06 targetBitrateH=5.71256e+06
+[TX-SEND] seq=1067 size=175 isMark=1 ts=219129
+[SCREAM-CWND] cwnd=8937 sRtt=0.013443 queueDelay=0.000671387 bytesInFlight=14175 rateLeft=4.95022e+06 stream[0].rateShare=4.13838e+06 targetBitrateH=5.82299e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=1068 recvlen=803 encoded=1
+Frame size: 803
+[TX-SEND] seq=1068 size=803 isMark=1 ts=222128
+[SCREAM-CWND] cwnd=9710 sRtt=0.0134277 queueDelay=0.000701904 bytesInFlight=978 rateLeft=5.38407e+06 stream[0].rateShare=4.55229e+06 targetBitrateH=4.13838e+06
+SCReAM target bitrate: 4552.29 kbps
+[TX-QUEUE] seq=1079 recvlen=1375 encoded=1
+Frame size: 15375
+[SCREAM-CWND] cwnd=9769 sRtt=0.0134125 queueDelay=0.0010376 bytesInFlight=11200 rateLeft=5.42252e+06 stream[0].rateShare=4.66021e+06 targetBitrateH=4.55229e+06
+[TX-SEND] seq=1079 size=1375 isMark=1 ts=225126
+SCReAM target bitrate: 4660.21 kbps
+[TX-QUEUE] seq=1090 recvlen=439 encoded=1
+Frame size: 14439
+[SCREAM-CWND] cwnd=9951 sRtt=0.013382 queueDelay=0.000854492 bytesInFlight=11200 rateLeft=5.53527e+06 stream[0].rateShare=4.78183e+06 targetBitrateH=4.66021e+06
+[TX-SEND] seq=1090 size=439 isMark=1 ts=228128
+[SCREAM-CWND] cwnd=10116 sRtt=0.0133362 queueDelay=0.000656128 bytesInFlight=0 rateLeft=5.64502e+06 stream[0].rateShare=4.9271e+06 targetBitrateH=4.78183e+06
+SCReAM target bitrate: 4927.1 kbps
+[TX-QUEUE] seq=1102 recvlen=551 encoded=1
+Frame size: 15951
+[SCREAM-CWND] cwnd=10133 sRtt=0.0133057 queueDelay=0.00151062 bytesInFlight=11200 rateLeft=5.66657e+06 stream[0].rateShare=4.95254e+06 targetBitrateH=4.9271e+06
+[TX-SEND] seq=1102 size=551 isMark=1 ts=231108
+SCReAM target bitrate: 4952.54 kbps
+[SCREAM-CWND] cwnd=10314 sRtt=0.0132751 queueDelay=0.0010376 bytesInFlight=0 rateLeft=5.78012e+06 stream[0].rateShare=5.04222e+06 targetBitrateH=4.95254e+06
+[TX-QUEUE] seq=1115 recvlen=1396 encoded=1
+Frame size: 18196
+[SCREAM-CWND] cwnd=10331 sRtt=0.0132599 queueDelay=0.00183105 bytesInFlight=11200 rateLeft=5.79584e+06 stream[0].rateShare=5.04689e+06 targetBitrateH=5.04222e+06
+[TX-SEND] seq=1115 size=1396 isMark=1 ts=234111
+SCReAM target bitrate: 5046.89 kbps
+[SCREAM-CWND] cwnd=10537 sRtt=0.0132599 queueDelay=0.000701904 bytesInFlight=0 rateLeft=5.91141e+06 stream[0].rateShare=5.11015e+06 targetBitrateH=5.04689e+06
+[TX-QUEUE] seq=1128 recvlen=1266 encoded=1
+Frame size: 18066
+[SCREAM-CWND] cwnd=10554 sRtt=0.0132599 queueDelay=0.00190735 bytesInFlight=12600 rateLeft=5.92094e+06 stream[0].rateShare=5.13245e+06 targetBitrateH=5.11015e+06
+[TX-SEND] seq=1128 size=1266 isMark=1 ts=237111
+SCReAM target bitrate: 5132.45 kbps
+[TX-QUEUE] seq=1143 recvlen=1264 encoded=1
+Frame size: 20864
+[SCREAM-CWND] cwnd=10741 sRtt=0.0133362 queueDelay=0.00146484 bytesInFlight=4066 rateLeft=5.99379e+06 stream[0].rateShare=5.19674e+06 targetBitrateH=5.13245e+06
+[TX-SEND] seq=1143 size=1264 isMark=1 ts=240107
+[SCREAM-CWND] cwnd=10891 sRtt=0.013382 queueDelay=0.00102234 bytesInFlight=9664 rateLeft=6.05815e+06 stream[0].rateShare=5.26509e+06 targetBitrateH=5.19674e+06
+SCReAM target bitrate: 5265.09 kbps
+[TX-QUEUE] seq=1159 recvlen=522 encoded=1
+Frame size: 21522
+[SCREAM-CWND] cwnd=10991 sRtt=0.013382 queueDelay=0.00242615 bytesInFlight=1264 rateLeft=6.11377e+06 stream[0].rateShare=5.32327e+06 targetBitrateH=5.26509e+06
+[SCREAM-CWND] cwnd=11039 sRtt=0.0134125 queueDelay=0.00050354 bytesInFlight=11200 rateLeft=6.12747e+06 stream[0].rateShare=5.34162e+06 targetBitrateH=5.32327e+06
+[TX-SEND] seq=1159 size=522 isMark=1 ts=243109
+SCReAM target bitrate: 5341.62 kbps
+[TX-QUEUE] seq=1176 recvlen=1115 encoded=1
+Frame size: 23515
+[SCREAM-CWND] cwnd=11223 sRtt=0.0134888 queueDelay=0.00143433 bytesInFlight=6122 rateLeft=6.1968e+06 stream[0].rateShare=5.40513e+06 targetBitrateH=5.34162e+06
+[TX-SEND] seq=1176 size=1115 isMark=1 ts=246114
+[SCREAM-CWND] cwnd=11507 sRtt=0.0135193 queueDelay=0.00195312 bytesInFlight=10915 rateLeft=6.34026e+06 stream[0].rateShare=5.54208e+06 targetBitrateH=5.40513e+06
+SCReAM target bitrate: 5542.08 kbps
+[TX-QUEUE] seq=1197 recvlen=476 encoded=1
+Frame size: 28476
+[SCREAM-CWND] cwnd=11862 sRtt=0.0135193 queueDelay=0.00135803 bytesInFlight=4200 rateLeft=6.53586e+06 stream[0].rateShare=5.73109e+06 targetBitrateH=5.54208e+06
+[TX-SEND] seq=1197 size=476 isMark=1 ts=249106
+[SCREAM-CWND] cwnd=12387 sRtt=0.0135651 queueDelay=0.00262451 bytesInFlight=17276 rateLeft=6.80368e+06 stream[0].rateShare=5.98814e+06 targetBitrateH=5.73109e+06
+SCReAM target bitrate: 5988.14 kbps
+[TX-QUEUE] seq=1218 recvlen=144 encoded=1
+Frame size: 28144
+[SCREAM-CWND] cwnd=13171 sRtt=0.0136261 queueDelay=0.00183105 bytesInFlight=1400 rateLeft=7.20411e+06 stream[0].rateShare=6.37287e+06 targetBitrateH=5.98814e+06
+SCReAM target bitrate: 6372.87 kbps
+[SCREAM-CWND] cwnd=13659 sRtt=0.0136566 queueDelay=0.00170898 bytesInFlight=15400 rateLeft=7.45547e+06 stream[0].rateShare=6.64018e+06 targetBitrateH=6.37287e+06
+[TX-SEND] seq=1218 size=144 isMark=1 ts=252117
+[TX-QUEUE] seq=1242 recvlen=1031 encoded=1
+Frame size: 33231
+[SCREAM-CWND] cwnd=14193 sRtt=0.0136871 queueDelay=0.00222778 bytesInFlight=4344 rateLeft=7.73085e+06 stream[0].rateShare=6.91176e+06 targetBitrateH=6.64018e+06
+[SCREAM-CWND] cwnd=14488 sRtt=0.0136871 queueDelay=0.0015564 bytesInFlight=18200 rateLeft=7.89153e+06 stream[0].rateShare=7.07308e+06 targetBitrateH=6.91176e+06
+SCReAM target bitrate: 7073.08 kbps
+[TX-SEND] seq=1242 size=1031 isMark=1 ts=255109
+[SCREAM-CWND] cwnd=15119 sRtt=0.0137329 queueDelay=0.000747681 bytesInFlight=15031 rateLeft=8.20965e+06 stream[0].rateShare=7.3582e+06 targetBitrateH=7.07308e+06
+[TX-QUEUE] seq=1267 recvlen=988 encoded=1
+Frame size: 34588
+[SCREAM-CWND] cwnd=15563 sRtt=0.0137329 queueDelay=0.00253296 bytesInFlight=6631 rateLeft=8.45074e+06 stream[0].rateShare=7.57429e+06 targetBitrateH=7.3582e+06
+[SCREAM-CWND] cwnd=15984 sRtt=0.0137482 queueDelay=0.00120544 bytesInFlight=18200 rateLeft=8.67036e+06 stream[0].rateShare=7.77113e+06 targetBitrateH=7.57429e+06
+SCReAM target bitrate: 7771.13 kbps
+[TX-SEND] seq=1267 size=988 isMark=1 ts=258125
+[TX-QUEUE] seq=1294 recvlen=760 encoded=1
+Frame size: 37160
+[SCREAM-CWND] cwnd=17035 sRtt=0.0137634 queueDelay=0.00209045 bytesInFlight=7000 rateLeft=9.23092e+06 stream[0].rateShare=8.27355e+06 targetBitrateH=7.77113e+06
+[TX-SEND] seq=1294 size=760 isMark=1 ts=261110
+SCReAM target bitrate: 8273.55 kbps
+[SCREAM-CWND] cwnd=17748 sRtt=0.0138245 queueDelay=0.00221252 bytesInFlight=17560 rateLeft=9.57768e+06 stream[0].rateShare=8.58435e+06 targetBitrateH=8.27355e+06
+[TX-QUEUE] seq=1321 recvlen=590 encoded=1
+Frame size: 36990
+[SCREAM-CWND] cwnd=15389 sRtt=0.0138245 queueDelay=0.00502014 bytesInFlight=9160 rateLeft=8.30465e+06 stream[0].rateShare=7.44335e+06 targetBitrateH=8.58435e+06
+SCReAM target bitrate: 7443.35 kbps
+[TX-SEND] seq=1321 size=590 isMark=1 ts=264116
+[SCREAM-CWND] cwnd=16085 sRtt=0.0139465 queueDelay=0.00346375 bytesInFlight=20190 rateLeft=8.60935e+06 stream[0].rateShare=7.71645e+06 targetBitrateH=7.44335e+06
+[TX-QUEUE] seq=1346 recvlen=1288 encoded=1
+Frame size: 34888
+[SCREAM-CWND] cwnd=11665 sRtt=0.0140686 queueDelay=0.0030365 bytesInFlight=4790 rateLeft=6.19301e+06 stream[0].rateShare=5.41558e+06 targetBitrateH=7.71645e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-SEND] seq=1346 size=1288 isMark=1 ts=267106
+[SCREAM-CWND] cwnd=12215 sRtt=0.0141296 queueDelay=0.0018158 bytesInFlight=19488 rateLeft=6.45885e+06 stream[0].rateShare=5.6731e+06 targetBitrateH=5.41558e+06
+[TX-QUEUE] seq=1347 recvlen=1021 encoded=1
+Frame size: 1021
+[TX-SEND] seq=1347 size=1021 isMark=1 ts=270115
+[SCREAM-CWND] cwnd=12918 sRtt=0.0141296 queueDelay=0.00192261 bytesInFlight=5109 rateLeft=6.83057e+06 stream[0].rateShare=6.03268e+06 targetBitrateH=5.6731e+06
+SCReAM target bitrate: 6032.68 kbps
+[TX-QUEUE] seq=1360 recvlen=1096 encoded=1
+Frame size: 17896
+[TX-SEND] seq=1360 size=1096 isMark=1 ts=273114
+[SCREAM-CWND] cwnd=13204 sRtt=0.0141144 queueDelay=0.00115967 bytesInFlight=16496 rateLeft=6.98884e+06 stream[0].rateShare=6.23672e+06 targetBitrateH=6.03268e+06
+SCReAM target bitrate: 6236.73 kbps
+[SCREAM-CWND] cwnd=13914 sRtt=0.0140839 queueDelay=0.0019989 bytesInFlight=0 rateLeft=7.37954e+06 stream[0].rateShare=6.6212e+06 targetBitrateH=6.23672e+06
+[TX-QUEUE] seq=1373 recvlen=1001 encoded=1
+Frame size: 17801
+[TX-SEND] seq=1373 size=1001 isMark=1 ts=276105
+[SCREAM-CWND] cwnd=13972 sRtt=0.0140381 queueDelay=0.00137329 bytesInFlight=16401 rateLeft=7.43286e+06 stream[0].rateShare=6.7538e+06 targetBitrateH=6.6212e+06
+SCReAM target bitrate: 6753.8 kbps
+[TX-QUEUE] seq=1387 recvlen=754 encoded=1
+Frame size: 18954
+[SCREAM-CWND] cwnd=14709 sRtt=0.0139771 queueDelay=0.000610352 bytesInFlight=14000 rateLeft=7.85682e+06 stream[0].rateShare=7.20198e+06 targetBitrateH=6.7538e+06
+[TX-SEND] seq=1387 size=754 isMark=1 ts=279115
+SCReAM target bitrate: 7201.98 kbps
+[SCREAM-CWND] cwnd=15396 sRtt=0.0139465 queueDelay=0.00337219 bytesInFlight=0 rateLeft=8.24057e+06 stream[0].rateShare=7.4698e+06 targetBitrateH=7.20198e+06
+[TX-QUEUE] seq=1402 recvlen=620 encoded=1
+Frame size: 20220
+[SCREAM-CWND] cwnd=15449 sRtt=0.013916 queueDelay=0.00186157 bytesInFlight=15400 rateLeft=8.28586e+06 stream[0].rateShare=7.49552e+06 targetBitrateH=7.4698e+06
+[TX-SEND] seq=1402 size=620 isMark=1 ts=282106
+SCReAM target bitrate: 7495.52 kbps
+[TX-QUEUE] seq=1418 recvlen=848 encoded=1
+Frame size: 21848
+[SCREAM-CWND] cwnd=16161 sRtt=0.0139008 queueDelay=0.00146484 bytesInFlight=1400 rateLeft=8.67661e+06 stream[0].rateShare=7.8248e+06 targetBitrateH=7.49552e+06
+[TX-SEND] seq=1418 size=848 isMark=1 ts=285106
+[SCREAM-CWND] cwnd=16775 sRtt=0.0138397 queueDelay=0 bytesInFlight=5048 rateLeft=9.0433e+06 stream[0].rateShare=8.33684e+06 targetBitrateH=7.8248e+06
+SCReAM target bitrate: 8336.84 kbps
+[TX-QUEUE] seq=1436 recvlen=397 encoded=1
+Frame size: 24197
+[SCREAM-CWND] cwnd=17002 sRtt=0.0137634 queueDelay=0.00132751 bytesInFlight=15400 rateLeft=9.21304e+06 stream[0].rateShare=8.51267e+06 targetBitrateH=8.33684e+06
+[TX-SEND] seq=1436 size=397 isMark=1 ts=288105
+SCReAM target bitrate: 8512.67 kbps
+[SCREAM-CWND] cwnd=17796 sRtt=0.0137177 queueDelay=0.000930786 bytesInFlight=0 rateLeft=9.67328e+06 stream[0].rateShare=8.81628e+06 targetBitrateH=8.51267e+06
+[TX-QUEUE] seq=1456 recvlen=1010 encoded=1
+Frame size: 27610
+[SCREAM-CWND] cwnd=17843 sRtt=0.0136719 queueDelay=0.00141907 bytesInFlight=16800 rateLeft=9.72909e+06 stream[0].rateShare=8.86761e+06 targetBitrateH=8.81628e+06
+[TX-SEND] seq=1456 size=1010 isMark=1 ts=291110
+SCReAM target bitrate: 8867.61 kbps
+[TX-QUEUE] seq=1479 recvlen=402 encoded=1
+Frame size: 31202
+[SCREAM-CWND] cwnd=13620 sRtt=0.0136261 queueDelay=0.00126648 bytesInFlight=0 rateLeft=7.4497e+06 stream[0].rateShare=6.71544e+06 targetBitrateH=8.86761e+06
+[TX-SEND] seq=1479 size=402 isMark=1 ts=294109
+[SCREAM-CWND] cwnd=14291 sRtt=0.0135803 queueDelay=0.00160217 bytesInFlight=14402 rateLeft=7.84125e+06 stream[0].rateShare=7.16589e+06 targetBitrateH=6.71544e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=1480 recvlen=1071 encoded=1
+Frame size: 1071
+[TX-SEND] seq=1480 size=1071 isMark=1 ts=297130
+[SCREAM-CWND] cwnd=14721 sRtt=0.0135803 queueDelay=0.00379944 bytesInFlight=4273 rateLeft=8.07719e+06 stream[0].rateShare=7.23948e+06 targetBitrateH=7.16589e+06
+SCReAM target bitrate: 7239.48 kbps
+[TX-QUEUE] seq=1493 recvlen=369 encoded=1
+Frame size: 17169
+[TX-SEND] seq=1493 size=369 isMark=1 ts=300109
+[SCREAM-CWND] cwnd=14935 sRtt=0.0135803 queueDelay=0.00236511 bytesInFlight=15769 rateLeft=8.19461e+06 stream[0].rateShare=7.34472e+06 targetBitrateH=7.23948e+06
+[SCREAM-CWND] cwnd=15523 sRtt=0.0135803 queueDelay=0.00201416 bytesInFlight=0 rateLeft=8.51723e+06 stream[0].rateShare=7.63388e+06 targetBitrateH=7.34472e+06
+SCReAM target bitrate: 7633.88 kbps
+[TX-QUEUE] seq=1504 recvlen=1357 encoded=1
+Frame size: 15357
+[TX-SEND] seq=1504 size=1357 isMark=1 ts=303127
+[SCREAM-CWND] cwnd=15574 sRtt=0.0135651 queueDelay=0.00125122 bytesInFlight=13957 rateLeft=8.55417e+06 stream[0].rateShare=7.70736e+06 targetBitrateH=7.63388e+06
+SCReAM target bitrate: 7707.36 kbps
+[TX-QUEUE] seq=1517 recvlen=656 encoded=1
+Frame size: 17456
+[TX-SEND] seq=1517 size=656 isMark=1 ts=306147
+[SCREAM-CWND] cwnd=16136 sRtt=0.0135651 queueDelay=0.00137329 bytesInFlight=16056 rateLeft=8.86285e+06 stream[0].rateShare=7.94366e+06 targetBitrateH=7.70736e+06
+[SCREAM-CWND] cwnd=16707 sRtt=0.0135498 queueDelay=0.00163269 bytesInFlight=0 rateLeft=9.1861e+06 stream[0].rateShare=8.28552e+06 targetBitrateH=7.94366e+06
+SCReAM target bitrate: 8285.52 kbps
+[TX-QUEUE] seq=1531 recvlen=1080 encoded=1
+Frame size: 19280
+[SCREAM-CWND] cwnd=16756 sRtt=0.0135345 queueDelay=0.00192261 bytesInFlight=16800 rateLeft=9.22272e+06 stream[0].rateShare=8.29232e+06 targetBitrateH=8.28552e+06
+[TX-SEND] seq=1531 size=1080 isMark=1 ts=309112
+[SCREAM-CWND] cwnd=17376 sRtt=0.0135345 queueDelay=0.00222778 bytesInFlight=0 rateLeft=9.56397e+06 stream[0].rateShare=8.57206e+06 targetBitrateH=8.29232e+06
+SCReAM target bitrate: 8572.06 kbps
+[TX-QUEUE] seq=1546 recvlen=1023 encoded=1
+Frame size: 20623
+[SCREAM-CWND] cwnd=17423 sRtt=0.0135193 queueDelay=0.00105286 bytesInFlight=18200 rateLeft=9.59992e+06 stream[0].rateShare=8.61333e+06 targetBitrateH=8.57206e+06
+[TX-SEND] seq=1546 size=1023 isMark=1 ts=312109
+SCReAM target bitrate: 8613.33 kbps
+[TX-QUEUE] seq=1562 recvlen=619 encoded=1
+Frame size: 21619
+[SCREAM-CWND] cwnd=18124 sRtt=0.0134888 queueDelay=0.00125122 bytesInFlight=18200 rateLeft=1.00072e+07 stream[0].rateShare=9.04553e+06 targetBitrateH=8.61333e+06
+[TX-SEND] seq=1562 size=619 isMark=1 ts=315105
+SCReAM target bitrate: 9045.53 kbps
+[SCREAM-CWND] cwnd=18790 sRtt=0.0134583 queueDelay=0.00149536 bytesInFlight=0 rateLeft=1.03968e+07 stream[0].rateShare=9.4079e+06 targetBitrateH=9.04553e+06
+[TX-QUEUE] seq=1580 recvlen=759 encoded=1
+Frame size: 24559
+[SCREAM-CWND] cwnd=18835 sRtt=0.0134277 queueDelay=0.00134277 bytesInFlight=19600 rateLeft=1.04438e+07 stream[0].rateShare=9.45057e+06 targetBitrateH=9.4079e+06
+[TX-SEND] seq=1580 size=759 isMark=1 ts=318114
+[SCREAM-CWND] cwnd=19580 sRtt=0.0133972 queueDelay=0.00146484 bytesInFlight=0 rateLeft=1.08799e+07 stream[0].rateShare=9.83488e+06 targetBitrateH=9.45057e+06
+SCReAM target bitrate: 9834.88 kbps
+[TX-QUEUE] seq=1600 recvlen=522 encoded=1
+Frame size: 27122
+[SCREAM-CWND] cwnd=19624 sRtt=0.0133667 queueDelay=0.00135803 bytesInFlight=19600 rateLeft=1.09275e+07 stream[0].rateShare=9.8781e+06 targetBitrateH=9.83488e+06
+[TX-SEND] seq=1600 size=522 isMark=1 ts=321105
+SCReAM target bitrate: 9878.1 kbps
+[SCREAM-CWND] cwnd=20430 sRtt=0.013382 queueDelay=0.00222778 bytesInFlight=0 rateLeft=1.13642e+07 stream[0].rateShare=1.01856e+07 targetBitrateH=9.8781e+06
+[TX-QUEUE] seq=1623 recvlen=517 encoded=1
+Frame size: 31317
+[SCREAM-CWND] cwnd=20473 sRtt=0.0133667 queueDelay=0.000640869 bytesInFlight=19600 rateLeft=1.14003e+07 stream[0].rateShare=1.02288e+07 targetBitrateH=1.01856e+07
+[TX-SEND] seq=1623 size=517 isMark=1 ts=324158
+SCReAM target bitrate: 10228.8 kbps
+[TX-QUEUE] seq=1647 recvlen=640 encoded=1
+Frame size: 32840
+[SCREAM-CWND] cwnd=18275 sRtt=0.013443 queueDelay=0.00476074 bytesInFlight=6117 rateLeft=1.01226e+07 stream[0].rateShare=9.07271e+06 targetBitrateH=1.02288e+07
+[TX-SEND] seq=1647 size=640 isMark=1 ts=327106
+[SCREAM-CWND] cwnd=18407 sRtt=0.0135193 queueDelay=0.00274658 bytesInFlight=17440 rateLeft=1.01421e+07 stream[0].rateShare=9.09023e+06 targetBitrateH=9.07271e+06
+SCReAM target bitrate: 9090.23 kbps
+[SCREAM-CWND] cwnd=17706 sRtt=0.0135193 queueDelay=0.00514221 bytesInFlight=3440 rateLeft=9.75585e+06 stream[0].rateShare=8.74404e+06 targetBitrateH=9.09023e+06
+[TX-QUEUE] seq=1672 recvlen=1315 encoded=1
+Frame size: 34915
+[SCREAM-CWND] cwnd=17770 sRtt=0.0135193 queueDelay=0.00547791 bytesInFlight=4200 rateLeft=9.79111e+06 stream[0].rateShare=8.77565e+06 targetBitrateH=8.74404e+06
+[TX-SEND] seq=1672 size=1315 isMark=1 ts=330114
+[SCREAM-CWND] cwnd=12988 sRtt=0.0136261 queueDelay=0.00262451 bytesInFlight=22315 rateLeft=7.10401e+06 stream[0].rateShare=6.28733e+06 targetBitrateH=8.77565e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=1673 recvlen=887 encoded=1
+Frame size: 887
+[TX-SEND] seq=1673 size=887 isMark=1 ts=333113
+[SCREAM-CWND] cwnd=13695 sRtt=0.0137482 queueDelay=0.00254822 bytesInFlight=6402 rateLeft=7.42872e+06 stream[0].rateShare=6.60638e+06 targetBitrateH=6.28733e+06
+SCReAM target bitrate: 6606.38 kbps
+[TX-QUEUE] seq=1687 recvlen=474 encoded=1
+Frame size: 18674
+[SCREAM-CWND] cwnd=14013 sRtt=0.0137787 queueDelay=0.00050354 bytesInFlight=14000 rateLeft=7.58552e+06 stream[0].rateShare=6.78366e+06 targetBitrateH=6.60638e+06
+[TX-SEND] seq=1687 size=474 isMark=1 ts=336104
+SCReAM target bitrate: 6783.66 kbps
+[SCREAM-CWND] cwnd=14702 sRtt=0.0137787 queueDelay=0.00196838 bytesInFlight=0 rateLeft=7.95849e+06 stream[0].rateShare=7.13309e+06 targetBitrateH=6.78366e+06
+[TX-QUEUE] seq=1700 recvlen=713 encoded=1
+Frame size: 17513
+[SCREAM-CWND] cwnd=14756 sRtt=0.0137787 queueDelay=0.00140381 bytesInFlight=14000 rateLeft=7.98772e+06 stream[0].rateShare=7.15929e+06 targetBitrateH=7.13309e+06
+[TX-SEND] seq=1700 size=713 isMark=1 ts=339114
+[SCREAM-CWND] cwnd=15372 sRtt=0.0137634 queueDelay=0.00230408 bytesInFlight=0 rateLeft=8.32977e+06 stream[0].rateShare=7.48909e+06 targetBitrateH=7.15929e+06
+SCReAM target bitrate: 7489.09 kbps
+[TX-QUEUE] seq=1715 recvlen=913 encoded=1
+Frame size: 20513
+[SCREAM-CWND] cwnd=15424 sRtt=0.0137482 queueDelay=0.00224304 bytesInFlight=15400 rateLeft=8.3666e+06 stream[0].rateShare=7.50664e+06 targetBitrateH=7.48909e+06
+[TX-SEND] seq=1715 size=913 isMark=1 ts=342110
+[SCREAM-CWND] cwnd=16130 sRtt=0.0137024 queueDelay=0.00126648 bytesInFlight=0 rateLeft=8.7768e+06 stream[0].rateShare=7.99937e+06 targetBitrateH=7.50664e+06
+SCReAM target bitrate: 7999.37 kbps
+[TX-QUEUE] seq=1731 recvlen=1344 encoded=1
+Frame size: 22344
+[SCREAM-CWND] cwnd=16180 sRtt=0.0136719 queueDelay=0.0018158 bytesInFlight=16800 rateLeft=8.82232e+06 stream[0].rateShare=8.0157e+06 targetBitrateH=7.99937e+06
+[TX-SEND] seq=1731 size=1344 isMark=1 ts=345110
+[SCREAM-CWND] cwnd=16926 sRtt=0.0136261 queueDelay=0.00111389 bytesInFlight=0 rateLeft=9.25797e+06 stream[0].rateShare=8.47462e+06 targetBitrateH=8.0157e+06
+SCReAM target bitrate: 8474.62 kbps
+[TX-QUEUE] seq=1750 recvlen=1113 encoded=1
+Frame size: 26313
+[SCREAM-CWND] cwnd=16974 sRtt=0.0135956 queueDelay=0.00202942 bytesInFlight=18200 rateLeft=9.30364e+06 stream[0].rateShare=8.46259e+06 targetBitrateH=8.47462e+06
+[TX-SEND] seq=1750 size=1113 isMark=1 ts=348111
+SCReAM target bitrate: 8462.59 kbps
+[SCREAM-CWND] cwnd=17829 sRtt=0.0135498 queueDelay=0.00140381 bytesInFlight=0 rateLeft=9.80302e+06 stream[0].rateShare=8.93626e+06 targetBitrateH=8.46259e+06
+[TX-QUEUE] seq=1770 recvlen=1011 encoded=1
+Frame size: 27611
+[SCREAM-CWND] cwnd=17875 sRtt=0.013504 queueDelay=0.00138855 bytesInFlight=18200 rateLeft=9.85933e+06 stream[0].rateShare=8.97847e+06 targetBitrateH=8.93626e+06
+[TX-SEND] seq=1770 size=1011 isMark=1 ts=351123
+SCReAM target bitrate: 8978.47 kbps
+[TX-QUEUE] seq=1792 recvlen=791 encoded=1
+Frame size: 30191
+[SCREAM-CWND] cwnd=18736 sRtt=0.0135193 queueDelay=0.0035553 bytesInFlight=1400 rateLeft=1.03234e+07 stream[0].rateShare=9.2527e+06 targetBitrateH=8.97847e+06
+[TX-SEND] seq=1792 size=791 isMark=1 ts=354108
+[SCREAM-CWND] cwnd=18954 sRtt=0.013504 queueDelay=0.00169373 bytesInFlight=14791 rateLeft=1.04545e+07 stream[0].rateShare=9.41976e+06 targetBitrateH=9.2527e+06
+SCReAM target bitrate: 9419.76 kbps
+[TX-QUEUE] seq=1818 recvlen=260 encoded=1
+Frame size: 35260
+[SCREAM-CWND] cwnd=19128 sRtt=0.0135345 queueDelay=0.000793457 bytesInFlight=19600 rateLeft=1.05283e+07 stream[0].rateShare=9.43637e+06 targetBitrateH=9.41976e+06
+[TX-SEND] seq=1818 size=260 isMark=1 ts=357140
+SCReAM target bitrate: 9436.37 kbps
+[TX-QUEUE] seq=1852 recvlen=238 encoded=1
+Frame size: 46438
+[SCREAM-CWND] cwnd=19371 sRtt=0.0135803 queueDelay=0.0027771 bytesInFlight=11460 rateLeft=1.06286e+07 stream[0].rateShare=9.52625e+06 targetBitrateH=9.43637e+06
+ summary   4.0  Transmit rate =  4635kbps, PLR =  0.56%( 0.57%), CE = 20.34%(15.68%)[ 0.0%,  0.0%, 84.8%, 15.2%], RTT = 0.022s, Queue delay = 0.006s, MTU = 1388
+[SCREAM-CWND] cwnd=19455 sRtt=0.0135803 queueDelay=0.00265503 bytesInFlight=29400 rateLeft=1.06747e+07 stream[0].rateShare=9.56756e+06 targetBitrateH=9.52625e+06
+[TX-SEND] seq=1852 size=238 isMark=1 ts=360111
+[SCREAM-CWND] cwnd=18764 sRtt=0.0137024 queueDelay=0.00508118 bytesInFlight=25438 rateLeft=1.021e+07 stream[0].rateShare=9.15112e+06 targetBitrateH=9.56756e+06
+SCReAM target bitrate: 9151.12 kbps
+[TX-QUEUE] seq=1887 recvlen=473 encoded=1
+Frame size: 48073
+[SCREAM-CWND] cwnd=18764 sRtt=0.0137024 queueDelay=0.00849915 bytesInFlight=21238 rateLeft=1.021e+07 stream[0].rateShare=9.15112e+06 targetBitrateH=9.15112e+06
+[SCREAM-CWND] cwnd=17983 sRtt=0.0140076 queueDelay=0.0105591 bytesInFlight=26600 rateLeft=9.5861e+06 stream[0].rateShare=8.59189e+06 targetBitrateH=9.15112e+06
+[TX-SEND] seq=1887 size=473 isMark=1 ts=363110
+SCReAM target bitrate: 8591.89 kbps
+* Periodic key frame forced at frame 122 (interval: 2000 ms)
+[TX-QUEUE] seq=1904 recvlen=576 encoded=1
+Frame size: 22976
+[SCREAM-CWND] cwnd=16745 sRtt=0.0143127 queueDelay=0.00720215 bytesInFlight=17273 rateLeft=8.74827e+06 stream[0].rateShare=7.84096e+06 targetBitrateH=8.59189e+06
+[TX-SEND] seq=1904 size=576 isMark=1 ts=366107
+[SCREAM-CWND] cwnd=17135 sRtt=0.0146637 queueDelay=0.00160217 bytesInFlight=8976 rateLeft=8.75145e+06 stream[0].rateShare=7.84381e+06 targetBitrateH=7.84096e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=1905 recvlen=991 encoded=1
+Frame size: 991
+[TX-SEND] seq=1905 size=991 isMark=1 ts=369117
+[SCREAM-CWND] cwnd=17295 sRtt=0.0148621 queueDelay=0.00166321 bytesInFlight=0 rateLeft=8.7227e+06 stream[0].rateShare=7.81804e+06 targetBitrateH=7.84381e+06
+SCReAM target bitrate: 7818.04 kbps
+[TX-QUEUE] seq=1926 recvlen=523 encoded=1
+Frame size: 28523
+[SCREAM-CWND] cwnd=17313 sRtt=0.0149689 queueDelay=0.000961304 bytesInFlight=18200 rateLeft=8.67337e+06 stream[0].rateShare=7.77383e+06 targetBitrateH=7.81804e+06
+[TX-SEND] seq=1926 size=523 isMark=1 ts=372134
+SCReAM target bitrate: 7773.83 kbps
+[TX-QUEUE] seq=1945 recvlen=865 encoded=1
+Frame size: 26065
+[SCREAM-CWND] cwnd=17662 sRtt=0.0149841 queueDelay=0.00146484 bytesInFlight=0 rateLeft=8.83977e+06 stream[0].rateShare=7.92297e+06 targetBitrateH=7.77383e+06
+[TX-SEND] seq=1945 size=865 isMark=1 ts=375108
+[SCREAM-CWND] cwnd=17777 sRtt=0.0149384 queueDelay=0.00204468 bytesInFlight=12065 rateLeft=8.92288e+06 stream[0].rateShare=8.12187e+06 targetBitrateH=7.92297e+06
+SCReAM target bitrate: 8121.87 kbps
+[TX-QUEUE] seq=1964 recvlen=1370 encoded=1
+Frame size: 26570
+[SCREAM-CWND] cwnd=12578 sRtt=0.0149384 queueDelay=0.000976562 bytesInFlight=0 rateLeft=6.31332e+06 stream[0].rateShare=5.77575e+06 targetBitrateH=8.12187e+06
+[TX-SEND] seq=1964 size=1370 isMark=1 ts=378113
+[SCREAM-CWND] cwnd=13260 sRtt=0.0148315 queueDelay=0.000549316 bytesInFlight=11170 rateLeft=6.70055e+06 stream[0].rateShare=6.32157e+06 targetBitrateH=5.77575e+06
+SCReAM target bitrate: -0.001 kbps
+[TX-QUEUE] seq=1965 recvlen=1050 encoded=1
+Frame size: 1050
+[SCREAM-CWND] cwnd=13728 sRtt=0.0146942 queueDelay=0.00137329 bytesInFlight=0 rateLeft=6.99774e+06 stream[0].rateShare=6.6302e+06 targetBitrateH=6.32157e+06
+[TX-SEND] seq=1965 size=1050 isMark=1 ts=381141
+[SCREAM-CWND] cwnd=13770 sRtt=0.0145721 queueDelay=0.00183105 bytesInFlight=0 rateLeft=7.07417e+06 stream[0].rateShare=6.66079e+06 targetBitrateH=6.6302e+06
+SCReAM target bitrate: 6660.79 kbps
+[TX-QUEUE] seq=1978 recvlen=904 encoded=1
+Frame size: 17704
+[SCREAM-CWND] cwnd=13826 sRtt=0.0144806 queueDelay=0.00201416 bytesInFlight=15400 rateLeft=7.14495e+06 stream[0].rateShare=6.66932e+06 targetBitrateH=6.66079e+06
+[TX-SEND] seq=1978 size=904 isMark=1 ts=384108
+[SCREAM-CWND] cwnd=14478 sRtt=0.0143738 queueDelay=0.00137329 bytesInFlight=0 rateLeft=7.53387e+06 stream[0].rateShare=7.04466e+06 targetBitrateH=6.66932e+06
+SCReAM target bitrate: 7044.66 kbps
+[TX-QUEUE] seq=1991 recvlen=443 encoded=1
+Frame size: 17243
+[SCREAM-CWND] cwnd=14586 sRtt=0.014267 queueDelay=0.000701904 bytesInFlight=12600 rateLeft=7.64317e+06 stream[0].rateShare=7.17309e+06 targetBitrateH=7.04466e+06
+[TX-SEND] seq=1991 size=443 isMark=1 ts=387125
+SCReAM target bitrate: 7173.09 kbps
+[SCREAM-CWND] cwnd=15135 sRtt=0.0142212 queueDelay=0.00238037 bytesInFlight=0 rateLeft=7.9547e+06 stream[0].rateShare=7.23118e+06 targetBitrateH=7.17309e+06
+[TX-QUEUE] seq=2004 recvlen=596 encoded=1
+Frame size: 17396
+[TX-SEND] seq=2004 size=596 isMark=1 ts=390114
+[SCREAM-CWND] cwnd=15186 sRtt=0.0141754 queueDelay=0.00210571 bytesInFlight=15996 rateLeft=8.00558e+06 stream[0].rateShare=7.28517e+06 targetBitrateH=7.23118e+06
+SCReAM target bitrate: 7285.17 kbps
+[TX-QUEUE] seq=2019 recvlen=126 encoded=1
+Frame size: 19726
+[SCREAM-CWND] cwnd=15828 sRtt=0.0141144 queueDelay=0.00152588 bytesInFlight=14000 rateLeft=8.37772e+06 stream[0].rateShare=7.72727e+06 targetBitrateH=7.28517e+06
+[TX-SEND] seq=2019 size=126 isMark=1 ts=393118
+SCReAM target bitrate: 7727.27 kbps
+[SCREAM-CWND] cwnd=16481 sRtt=0.0140533 queueDelay=0.00184631 bytesInFlight=0 rateLeft=8.75872e+06 stream[0].rateShare=8.05443e+06 targetBitrateH=7.72727e+06
+[TX-QUEUE] seq=2034 recvlen=614 encoded=1
+Frame size: 20214
+[SCREAM-CWND] cwnd=16527 sRtt=0.0139923 queueDelay=0.0017395 bytesInFlight=16800 rateLeft=8.81892e+06 stream[0].rateShare=8.09375e+06 targetBitrateH=8.05443e+06
+[TX-SEND] seq=2034 size=614 isMark=1 ts=396109
+[SCREAM-CWND] cwnd=17116 sRtt=0.0139313 queueDelay=0.00115967 bytesInFlight=0 rateLeft=9.17055e+06 stream[0].rateShare=8.41729e+06 targetBitrateH=8.09375e+06
+SCReAM target bitrate: 8417.29 kbps
+[TX-QUEUE] seq=2050 recvlen=843 encoded=1
+Frame size: 21843
+[SCREAM-CWND] cwnd=17139 sRtt=0.0138855 queueDelay=0.00195312 bytesInFlight=16800 rateLeft=9.21111e+06 stream[0].rateShare=8.4286e+06 targetBitrateH=8.41729e+06
+[TX-SEND] seq=2050 size=843 isMark=1 ts=399122
+SCReAM target bitrate: 8428.6 kbps
+[SCREAM-CWND] cwnd=17458 sRtt=0.0138245 queueDelay=0.00228882 bytesInFlight=0 rateLeft=9.42118e+06 stream[0].rateShare=8.63064e+06 targetBitrateH=8.4286e+06
+[TX-QUEUE] seq=2068 recvlen=1294 encoded=1
+Frame size: 25094
+[SCREAM-CWND] cwnd=17472 sRtt=0.0137787 queueDelay=0.00144958 bytesInFlight=18200 rateLeft=9.45794e+06 stream[0].rateShare=8.66491e+06 targetBitrateH=8.63064e+06
+[TX-SEND] seq=2068 size=1294 isMark=1 ts=402116
+
+======================== Summary ==========================
+ Bitrate min/max/avg [kbps]          : 1000000/    0/ 4459
+ RTT     min/max/avg [s]             : 0.013/0.050/0.017
+ Queue delay max/avg [s]             : 0.020/0.002
+ Packet loss avg [%]                 : 0.594
+ ECN/L4S NotECT/ECT(0)/ECT(1)/CE [%] :  0.0/ 0.0/84.0/16.0
+===========================================================

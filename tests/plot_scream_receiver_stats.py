@@ -19,7 +19,7 @@ def parse_stats_file(filename):
         'freeze_count': r'Freeze count:\s*([\d.]+)',
         'freeze_duration': r'total freeze duration:\s*([\d.]+)',
         'inter_frame_delay': r'Total Inter-Frame Delay:\s*([\d.]+)',
-        'inter_frame_delay_variance': r'Inter-Frame Delay Variance:\s*([\d.]+)',
+        'inter_frame_delay_difference': r'Inter-Frame Delay difference:\s*([\d.]+)',
     }
     
     with open(filename, 'r') as f:
@@ -101,16 +101,16 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_freezes.png', dpi=150)
     plt.close()
     
-    # Plot 4: Inter-Frame Delay and Variance
+    # Plot 4: Inter-Frame Delay and difference
     fig5, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
     
     line1, = ax1.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2, marker='o', markersize=4)
-    line2, = ax2.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Inter-Frame Delay Variance (s)', linewidth=2, marker='.', markersize=4)
+    line2, = ax2.plot(time, stats['inter_frame_delay_difference'], 'r-', label='Inter-Frame Delay difference (s)', linewidth=2, marker='.', markersize=4)
     
     ax1.set_xlabel('Time (s)', fontsize=12)
     ax1.set_ylabel('Frames', color='b', fontsize=12)
-    ax2.set_ylabel('Inter-Frame Delay Variance (s)', color='r', fontsize=12)
+    ax2.set_ylabel('Inter-Frame Delay difference (s)', color='r', fontsize=12)
     ax1.tick_params(axis='y', labelcolor='b')
     ax2.tick_params(axis='y', labelcolor='r')
     
@@ -173,13 +173,13 @@ def plot_histograms(stats, output_prefix='stats'):
         f'{output_prefix}_hist_freeze_duration.png'
     )
 
-    # 3. Inter-Frame Variance Histogram
+    # 3. Inter-Frame difference Histogram
     plot_single_hist(
-        stats['inter_frame_delay_variance'],
-        'Distribution of Inter-Frame Delay Variance',
-        'Variance (s)',
+        stats['inter_frame_delay_difference'],
+        'Distribution of Inter-Frame Delay difference',
+        'difference (s)',
         'purple',
-        f'{output_prefix}_hist_variance.png'
+        f'{output_prefix}_hist_difference.png'
     )
     
     print(f"Histogram plots saved with prefix '{output_prefix}_hist_*.png'")
@@ -219,14 +219,14 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax4_twin.set_ylabel('Duration (s)', color='r')
     ax4.set_title('Freeze Statistics')
     
-    # Plot 4: Inter-frame delay (bottom-left)
+    # Plot 4: Inter-frame delay (bottom-left) *use frames rendered instead, move inter-frame delay to different plot
     ax5 = axes[2, 0]
     ax5_twin = ax5.twinx()
     ax5.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2)
-    ax5_twin.plot(time, stats['inter_frame_delay_variance'], 'r-', label='Variance', linewidth=2)
+    ax5_twin.plot(time, stats['inter_frame_delay_difference'], 'r-', label='difference', linewidth=2)
     ax5.set_xlabel('Time (s)')
     ax5.set_ylabel('Frames', color='b')
-    ax5_twin.set_ylabel('Variance (s)', color='r')
+    ax5_twin.set_ylabel('difference (s)', color='r')
     ax5.set_title('Inter-Frame Delay Statistics')
     
     # Hide unused subplot (bottom-right)

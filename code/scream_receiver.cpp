@@ -260,7 +260,7 @@ static void update_inter_frame_stats(uint32_t render_time_ntp)
             total_freezes_duration += duration_s;
         }
 
-        // update inter-frame sums for variance computation
+        // update inter-frame sums for difference computation
         total_inter_frame_delay += duration_s;
         total_squared_inter_frame_delay += duration_s * duration_s;
         frames_rendered++;
@@ -281,15 +281,15 @@ void print_periodic_stats(uint32_t current_time_ntp){
         double elapsed_sec = elapsed_ntp * NTP_TO_SEC; // convert elapsed time to seconds
         double receive_rate_mbps = (total_bytes_received * 8.0) / (elapsed_sec * 1e6); // calculate receive rate(Mbps)
 
-        // calculate inter-frame delay variance
-        double inter_frame_delay_variance = 0.0;
+        // calculate inter-frame delay difference
+        double inter_frame_delay_difference = 0.0;
         if(frames_rendered > 0){
             double mean = total_inter_frame_delay / static_cast<double>(frames_rendered);
             double ex2 = total_squared_inter_frame_delay / static_cast<double>(frames_rendered);
             double var = ex2 - mean * mean;
             const double reduce_noise = 1e-12; // numerical noise reduction
             if(var < 0.0 && var > -reduce_noise){var = 0.0;}
-            inter_frame_delay_variance = std::max(0.0, var);
+            inter_frame_delay_difference = std::max(0.0, var);
         }
         
         // print statistics
@@ -301,7 +301,7 @@ void print_periodic_stats(uint32_t current_time_ntp){
         cout << "Total frames rendered: " << frames_rendered << endl;
         cout << "Freeze count: " << freeze_count << ", total freeze duration: " << total_freezes_duration << " s" << endl;
         cout << "Total Inter-Frame Delay: " << total_inter_frame_delay << " s" << endl;
-        cout << "Inter-Frame Delay Variance: " << inter_frame_delay_variance << " s" << endl;
+        cout << "Inter-Frame Delay difference: " << inter_frame_delay_difference << " s" << endl;
         cout << "=================================================" << endl;
         
         // reset per-interval counters

@@ -2,7 +2,7 @@
 #
 # Automated batch testing script for SCReAM with Mahimahi
 #
-# Usage: ./run_batch_tests.sh <num_iterations> [output_dir]
+# Usage: ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <video_file> <test_duration> <video_resolution> [output_dir]
 #
 # Sender is called with: scream_bw_test_tx -video <file> -fps 30 -time <duration> -key 2.0 5.0 -mtu 1388 <ip> <port>
 # Receiver is called with: scream_bw_test_rx -video <resolution> <ip> <port>
@@ -16,18 +16,56 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Paths (adjust if needed)
 SCREAM_RX="${SCRIPT_DIR}/../bin/scream_bw_test_rx"
 SCREAM_TX="${SCRIPT_DIR}/../bin/scream_bw_test_tx"
-MM_DIR="$HOME/projects/mahimahi"  # Mahimahi project directory (for setup script)
-MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-routing.sh"
+MM_DIR="$HOME/UCSB/mahimahi"  # Mahimahi project directory (for setup script)
+MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
 HELPER_SCRIPT="${SCRIPT_DIR}/mahimahi_helper.sh"
 
+# Parse arguments
+if [ $# -lt 5 ]; then
+    echo "Usage: $0 <l4s_enabled> <num_iterations> <loss_pct> <trace_file> <video_file> [output_dir]"
+    echo ""
+    echo "Arguments:"
+    echo "  l4s_enabled      : 0 or 1 to disable/enable L4S ECT marking"
+    echo "  num_iterations   : Number of test runs to perform"
+    echo "  delay_ms         : Link delay in milliseconds (e.g., 5)"
+    echo "  loss_pct         : Uplink packet loss percentage (e.g., 0.01 for 1%)"
+    echo "  trace_file       : Path to mahimahi trace file"
+    echo "  video_file       : Path to input video file (.y4m)"
+    echo "  test_duration    : Test duration in seconds (e.g., 30)"
+    echo "  video_resolution : Video resolution WxH (e.g., 704x576)"
+    echo "  output_dir       : (Optional) Directory for logs (default: auto-generated)"
+    exit 1
+fi
+
 # Configuration
-NUM_ITERATIONS=${1:-5}
-OUTPUT_DIR=${2:-"${SCRIPT_DIR}/logs/bw_test_results_$(date +%Y%m%d_%H%M)"}
-DELAY_MS=5
-TRACE_FILE="${MM_DIR}/traces/fixed-12mbps.trace"
-VIDEO_FILE="$HOME/Downloads/ice_4cif_30fps.y4m"
-TEST_DURATION=30
-VIDEO_RESOLUTION="704x576"
+L4S_ENABLED=$1
+NUM_ITERATIONS=$2
+DELAY_MS=$3
+LOSS_PCT=$4
+TRACE_FILE=$5
+VIDEO_FILE=$6
+TEST_DURATION=$7
+VIDEO_RESOLUTION=$8
+OUTPUT_DIR=${9:-"${SCRIPT_DIR}/logs/bw_test_results_$(date +%Y%m%d_%H%M)"}
+
+# Validation
+if [[ "$L4S_ENABLED" != "0" && "$L4S_ENABLED" != "1" ]]; then
+    echo "ERROR: l4s_enabled must be 0 or 1 (got: '$L4S_ENABLED')"
+    exit 1
+fi
+
+# Validate files exist
+if [ ! -f "$TRACE_FILE" ]; then
+    echo "ERROR: Trace file not found: $TRACE_FILE"
+    exit 1
+fi
+
+if [ ! -f "$VIDEO_FILE" ]; then
+    echo "ERROR: Video file not found: $VIDEO_FILE"
+    exit 1
+fi
+
+# Fixed parameters
 RX_IP="10.0.0.2"
 TX_IP="10.0.0.1"
 PORT=8080
@@ -35,10 +73,15 @@ PORT=8080
 
 
 echo "=== SCReAM Batch Test Runner ==="
+echo "L4S enabled: $L4S_ENABLED"
 echo "Iterations: $NUM_ITERATIONS"
-echo "Output directory: $OUTPUT_DIR"
 echo "Delay: ${DELAY_MS}ms"
+echo "Loss: ${LOSS_PCT}%"
+echo "Trace file: $TRACE_FILE"
+echo "Video file: $VIDEO_FILE"
 echo "Test duration: ${TEST_DURATION}s"
+echo "Video resolution: $VIDEO_RESOLUTION"
+echo "Output directory: $OUTPUT_DIR"
 echo ""
 
 # Create output directory
@@ -72,12 +115,13 @@ run_test() {
     # Start mahimahi in background, it will signal when to start receiver
     echo "Starting mahimahi shell..."
     mm-delay $DELAY_MS \
-        mm-link --uplink-queue=droptail --uplink-queue-args="packets=100" \
+        mm-loss uplink $LOSS_PCT \
+        mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100" \
         "$TRACE_FILE" "$TRACE_FILE" \
         -- bash "$HELPER_SCRIPT" \
             "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION" \
             "$VIDEO_FILE" "$TEST_DURATION" "$log_prefix" \
-            "$SCREAM_RX" "$SCREAM_TX" "$MM_SETUP_SCRIPT" "$$" \
+            "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
         > /dev/null 2>&1 &
     
     MAHIMAHI_PID=$!

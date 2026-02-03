@@ -13,6 +13,12 @@ import sys
 import re
 import matplotlib.pyplot as plt
 from pathlib import Path
+import argparse
+
+
+def _save_fig(fig, outdir: Path, filename: str) -> None:
+    outdir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(outdir / filename, dpi=200, bbox_inches='tight')
 
 
 def parse_scream_log(logfile):
@@ -93,7 +99,7 @@ def parse_scream_log(logfile):
     return data
 
 
-def plot_scream_data(data, output_prefix='scream_cwnd'):
+def plot_scream_data(data, outdir: Path | None = None, show_plots: bool = True):
     """Create four plots: CWND, sRTT, rate parameters, and frame sizes."""
     
     if not data['cwnd']:
@@ -111,6 +117,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     ax1.grid(True, alpha=0.3)
     ax1.legend(fontsize=10)
     fig1.tight_layout()
+    if outdir:
+        _save_fig(fig1, outdir, 'cwnd_over_samples.png')
     
     # Plot 2: sRTT and Queue Delay over time
     fig2, (ax2a, ax2b) = plt.subplots(2, 1, figsize=(12, 8))
@@ -131,6 +139,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     ax2b.grid(True, alpha=0.3)
     ax2b.legend(fontsize=10)
     fig2.tight_layout()
+    if outdir:
+        _save_fig(fig2, outdir, 'srtt_queue_delay_over_samples.png')
     
     # Plot 3: Rate parameters (rateLeft, rateShare, targetBitrateH) in Mbps
     fig3, ax3 = plt.subplots(figsize=(12, 6))
@@ -147,6 +157,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     ax3.grid(True, alpha=0.3)
     ax3.legend(fontsize=10, loc='best')
     fig3.tight_layout()
+    if outdir:
+        _save_fig(fig3, outdir, 'rate_params_over_samples.png')
     
     # Plot 4: Bytes in Flight over time
     fig4, ax4 = plt.subplots(figsize=(12, 5))
@@ -158,6 +170,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
     ax4.grid(True, alpha=0.3)
     ax4.legend(fontsize=10)
     fig4.tight_layout()
+    if outdir:
+        _save_fig(fig4, outdir, 'bytes_in_flight_over_samples.png')
     
     # Plot 5: Frame sizes over time
     if data['frameSize']:
@@ -172,6 +186,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
         ax5.grid(True, alpha=0.3)
         ax5.legend(fontsize=10)
         fig5.tight_layout()
+        if outdir:
+            _save_fig(fig5, outdir, 'frame_size_over_frames.png')
     
     # Plot 6: Transmit Rate over time
     if data['transmitRate']:
@@ -187,6 +203,8 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
                     linewidth=1.5, alpha=0.7, label=f'Mean: {mean_txrate:.2f} Mbps')
         ax6.legend(fontsize=10)
         fig6.tight_layout()
+        if outdir:
+            _save_fig(fig6, outdir, 'transmit_rate_over_time.png')
     
     # Plot 7: Packet Loss Rate over time
     if data['packetLossRate']:
@@ -202,9 +220,11 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
                     linewidth=1.5, alpha=0.7, label=f'Mean: {mean_plr:.2f}%')
         ax7.legend(fontsize=10)
         fig7.tight_layout()
+        if outdir:
+            _save_fig(fig7, outdir, 'packet_loss_rate_over_time.png')
     
-    # Show all plots
-    plt.show()
+    if show_plots:
+        plt.show()
     
     # Summary statistics
     print("\n=== Summary Statistics ===")
@@ -234,12 +254,13 @@ def plot_scream_data(data, output_prefix='scream_cwnd'):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(__doc__)
-        print("\nError: Please provide a log file path.")
-        sys.exit(1)
-    
-    logfile = sys.argv[1]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('logfile', help='path to *_tx.log file')
+    parser.add_argument('-o', '--outdir', default=None, help='directory to save all plots as PNGs')
+    parser.add_argument('--no-show', action='store_true', help='do not display plots (useful for headless runs)')
+    args = parser.parse_args()
+
+    logfile = args.logfile
     
     if not Path(logfile).exists():
         print(f"Error: File '{logfile}' not found.")
@@ -247,10 +268,20 @@ def main():
     
     print(f"Parsing log file: {logfile}")
     data = parse_scream_log(logfile)
-    
-    plot_scream_data(data)
-    
-    print("\nPlots displayed. Close the plot windows to exit.")
+
+    outdir = Path(args.outdir).expanduser().resolve() if args.outdir else None
+    if outdir:
+        # Avoid overwriting when saving multiple logs into the same directory
+        stem = Path(logfile).stem
+        outdir = outdir / stem
+        print(f"Saving plots to: {outdir}")
+
+    plot_scream_data(data, outdir=outdir, show_plots=not args.no_show)
+
+    if outdir:
+        print("\nPNGs saved.")
+    if not args.no_show:
+        print("\nPlots displayed. Close the plot windows to exit.")
 
 
 if __name__ == '__main__':

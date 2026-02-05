@@ -80,7 +80,17 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_receive_rate.png', dpi=150)
     plt.close()
     
-    # Plot 3: Freeze Count, Total Freeze Duration
+    # Plot 3: Inter-frame delay 
+    fig3, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(time, stats['inter_frame_delay_difference'], 'g-', linewidth=2, marker='o', markersize=4)
+    ax.set_xlabel('Time (s)', fontsize=12)
+    ax.set_ylabel('Inter-frame delay difference (s)', fontsize=12)
+    ax.set_title('Inter-frame delay difference', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(f'{output_prefix}_interframe_delay.png', dpi=150)
+    plt.close()
+    
+    # Plot 4: Freeze Count, Total Freeze Duration
     fig4, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
     
@@ -101,25 +111,24 @@ def plot_stats(stats, output_prefix='stats'):
     plt.savefig(f'{output_prefix}_freezes.png', dpi=150)
     plt.close()
     
-    # Plot 4: Inter-Frame Delay and difference
+    # Plot 5: Frames completed vs frames rendered
     fig5, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
     
     line1, = ax1.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2, marker='o', markersize=4)
-    line2, = ax2.plot(time, stats['inter_frame_delay_difference'], 'r-', label='Inter-Frame Delay difference (s)', linewidth=2, marker='.', markersize=4)
+    line2, = ax2.plot(time, stats['frames_rendered'], 'r-', label='Frames Rendered', linewidth=2, marker='.', markersize=4)
     
     ax1.set_xlabel('Time (s)', fontsize=12)
     ax1.set_ylabel('Frames', color='b', fontsize=12)
-    ax2.set_ylabel('Inter-Frame Delay difference (s)', color='r', fontsize=12)
     ax1.tick_params(axis='y', labelcolor='b')
     ax2.tick_params(axis='y', labelcolor='r')
     
     lines = [line1, line2]
     labels = [l.get_label() for l in lines]
     ax1.legend(lines, labels, loc='upper left')
-    plt.title('Inter-Frame Delay Statistics Over Time', fontsize=14)
+    plt.title('Frames completed vs Frames rendered', fontsize=14)
     plt.tight_layout()
-    plt.savefig(f'{output_prefix}_interframe_delay.png', dpi=150)
+    plt.savefig(f'{output_prefix}_frame_stats.png', dpi=150)
     plt.close()
     
     print(f"Time-series plots saved with prefix '{output_prefix}_*.png'")

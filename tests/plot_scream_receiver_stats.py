@@ -210,7 +210,13 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax2.set_ylabel('Mbps')
     ax2.set_title('Receive Rate')
     
-    # Plot 3: Freezes (middle-right)
+    #Plot 3: Inter-frame delay
+    ax3 = axes[1, 0]
+    ax3.plot(time, stats['inter_frame_delay_difference'], 'r-', linewidth=2)
+    ax3.set_ylabel('difference (s)', color='r')
+    ax3.set_title('Inter-frame Delay Statistics')
+    
+    # Plot 4: Freezes (middle-right)
     ax4 = axes[1, 1]
     ax4_twin = ax4.twinx()
     ax4.plot(time, stats['freeze_count'], 'b-', label='Count', linewidth=2)
@@ -219,15 +225,14 @@ def plot_all_in_one(stats, output_filename='stats_combined.png'):
     ax4_twin.set_ylabel('Duration (s)', color='r')
     ax4.set_title('Freeze Statistics')
     
-    # Plot 4: Inter-frame delay (bottom-left) *use frames rendered instead, move inter-frame delay to different plot
+    # Plot 5: Inter-frame delay (bottom-left) *use frames rendered instead, move inter-frame delay to different plot
     ax5 = axes[2, 0]
     ax5_twin = ax5.twinx()
     ax5.plot(time, stats['frames_completed'], 'b-', label='Frames Completed', linewidth=2)
-    ax5_twin.plot(time, stats['inter_frame_delay_difference'], 'r-', label='difference', linewidth=2)
+    ax5_twin.plot(time, stats['frames_rendered'], 'g-', label='Frames Rendered', linewidth=2)
     ax5.set_xlabel('Time (s)')
     ax5.set_ylabel('Frames', color='b')
-    ax5_twin.set_ylabel('difference (s)', color='r')
-    ax5.set_title('Inter-Frame Delay Statistics')
+    ax5.set_title('Frame Statistics')
     
     # Hide unused subplot (bottom-right)
     axes[2, 1].axis('off')

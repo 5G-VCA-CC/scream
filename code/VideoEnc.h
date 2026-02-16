@@ -1,8 +1,13 @@
 #ifndef VIDEO_ENC
 #define VIDEO_ENC
+
+#include <map> // Added for unacked tracking
+
 static const int kRtpOverHead = 12;
 class RtpQueue;
+
 #define MAX_FRAMES 10000
+
 class VideoEnc {
 public:
     VideoEnc(RtpQueue* rtpQueue, float frameRate, char *fname, int ixOffset=0, float sluggishness = 0.0);
@@ -14,6 +19,9 @@ public:
     void setMss(int mss_) {
         mss = mss_;
     }
+
+    // handle ACKs to track recovery timeout
+    void acknowledge(unsigned int seqNr);
 
     RtpQueue* rtpQueue;
     float frameSize[MAX_FRAMES];
@@ -28,7 +36,11 @@ public:
 
     float sluggishness;
     float bytes;
-};
 
+    // match ringmaster's recovery logic
+    std::map<unsigned int, float> unacked_packets; // SeqNr -> SendTime
+    static constexpr float MAX_UNACKED_TIME = 1.0f; // 1 second timeout
+    bool forceKeyFrame = false;
+};
 
 #endif

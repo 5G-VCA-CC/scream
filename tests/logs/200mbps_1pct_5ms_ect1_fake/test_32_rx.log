@@ -1,0 +1,453 @@
+socket set to IP_RECVTOS
+socket SO_RCVBUF set to 20971520
+Listen on port 8080 to receive RTP from sender 
+.
+.
+.
+.
+Receiver state reset due to idle input
+WARNING: Sequence gap detected! Expected 16 but got 17
+Packet(s) lost or reordered :    17 was received, previous rcvd is    15 
+WARNING: Sequence gap detected! Expected 18 but got 19
+Packet(s) lost or reordered :    19 was received, previous rcvd is    17 
+WARNING: Sequence gap detected! Expected 52 but got 53
+Packet(s) lost or reordered :    53 was received, previous rcvd is    51 
+WARNING: Sequence gap detected! Expected 79 but got 80
+Packet(s) lost or reordered :    80 was received, previous rcvd is    78 
+WARNING: Sequence gap detected! Expected 139 but got 140
+Packet(s) lost or reordered :   140 was received, previous rcvd is   138 
+WARNING: Sequence gap detected! Expected 151 but got 152
+Packet(s) lost or reordered :   152 was received, previous rcvd is   150 
+WARNING: Sequence gap detected! Expected 174 but got 175
+Packet(s) lost or reordered :   175 was received, previous rcvd is   173 
+WARNING: Sequence gap detected! Expected 390 but got 391
+Packet(s) lost or reordered :   391 was received, previous rcvd is   389 
+WARNING: Sequence gap detected! Expected 507 but got 508
+Packet(s) lost or reordered :   508 was received, previous rcvd is   506 
+WARNING: Sequence gap detected! Expected 549 but got 550
+Packet(s) lost or reordered :   550 was received, previous rcvd is   548 
+WARNING: Sequence gap detected! Expected 708 but got 709
+Packet(s) lost or reordered :   709 was received, previous rcvd is   707 
+WARNING: Sequence gap detected! Expected 732 but got 733
+Packet(s) lost or reordered :   733 was received, previous rcvd is   731 
+WARNING: Sequence gap detected! Expected 788 but got 789
+Packet(s) lost or reordered :   789 was received, previous rcvd is   787 
+WARNING: Sequence gap detected! Expected 814 but got 815
+Packet(s) lost or reordered :   815 was received, previous rcvd is   813 
+WARNING: Sequence gap detected! Expected 857 but got 858
+Packet(s) lost or reordered :   858 was received, previous rcvd is   856 
+WARNING: Sequence gap detected! Expected 879 but got 880
+Packet(s) lost or reordered :   880 was received, previous rcvd is   878 
+WARNING: Sequence gap detected! Expected 1010 but got 1011
+Packet(s) lost or reordered :  1011 was received, previous rcvd is  1009 
+WARNING: Sequence gap detected! Expected 1143 but got 1144
+Packet(s) lost or reordered :  1144 was received, previous rcvd is  1142 
+WARNING: Sequence gap detected! Expected 1175 but got 1176
+Packet(s) lost or reordered :  1176 was received, previous rcvd is  1174 
+WARNING: Sequence gap detected! Expected 1218 but got 1219
+Packet(s) lost or reordered :  1219 was received, previous rcvd is  1217 
+WARNING: Sequence gap detected! Expected 1234 but got 1235
+Packet(s) lost or reordered :  1235 was received, previous rcvd is  1233 
+WARNING: Sequence gap detected! Expected 1316 but got 1317
+Packet(s) lost or reordered :  1317 was received, previous rcvd is  1315 
+WARNING: Sequence gap detected! Expected 1399 but got 1400
+Packet(s) lost or reordered :  1400 was received, previous rcvd is  1398 
+WARNING: Sequence gap detected! Expected 1404 but got 1405
+Packet(s) lost or reordered :  1405 was received, previous rcvd is  1403 
+WARNING: Sequence gap detected! Expected 1521 but got 1522
+Packet(s) lost or reordered :  1522 was received, previous rcvd is  1520 
+WARNING: Sequence gap detected! Expected 1645 but got 1646
+Packet(s) lost or reordered :  1646 was received, previous rcvd is  1644 
+WARNING: Sequence gap detected! Expected 1713 but got 1714
+Packet(s) lost or reordered :  1714 was received, previous rcvd is  1712 
+WARNING: Sequence gap detected! Expected 2020 but got 2021
+Packet(s) lost or reordered :  2021 was received, previous rcvd is  2019 
+WARNING: Sequence gap detected! Expected 2034 but got 2035
+Packet(s) lost or reordered :  2035 was received, previous rcvd is  2033 
+WARNING: Sequence gap detected! Expected 2068 but got 2069
+Packet(s) lost or reordered :  2069 was received, previous rcvd is  2067 
+WARNING: Sequence gap detected! Expected 2104 but got 2105
+Packet(s) lost or reordered :  2105 was received, previous rcvd is  2103 
+WARNING: Sequence gap detected! Expected 2309 but got 2310
+Packet(s) lost or reordered :  2310 was received, previous rcvd is  2308 
+WARNING: Sequence gap detected! Expected 2418 but got 2420
+Packet(s) lost or reordered :  2420 was received, previous rcvd is  2417 
+WARNING: Sequence gap detected! Expected 2460 but got 2461
+Packet(s) lost or reordered :  2461 was received, previous rcvd is  2459 
+WARNING: Sequence gap detected! Expected 2479 but got 2480
+Packet(s) lost or reordered :  2480 was received, previous rcvd is  2478 
+WARNING: Sequence gap detected! Expected 2555 but got 2556
+Packet(s) lost or reordered :  2556 was received, previous rcvd is  2554 
+WARNING: Sequence gap detected! Expected 2622 but got 2623
+Packet(s) lost or reordered :  2623 was received, previous rcvd is  2621 
+WARNING: Sequence gap detected! Expected 3121 but got 3122
+Packet(s) lost or reordered :  3122 was received, previous rcvd is  3120 
+WARNING: Sequence gap detected! Expected 3131 but got 3132
+Packet(s) lost or reordered :  3132 was received, previous rcvd is  3130 
+WARNING: Sequence gap detected! Expected 3195 but got 3196
+Packet(s) lost or reordered :  3196 was received, previous rcvd is  3194 
+WARNING: Sequence gap detected! Expected 3241 but got 3242
+Packet(s) lost or reordered :  3242 was received, previous rcvd is  3240 
+WARNING: Sequence gap detected! Expected 3296 but got 3297
+Packet(s) lost or reordered :  3297 was received, previous rcvd is  3295 
+WARNING: Sequence gap detected! Expected 3321 but got 3322
+Packet(s) lost or reordered :  3322 was received, previous rcvd is  3320 
+WARNING: Sequence gap detected! Expected 3491 but got 3492
+Packet(s) lost or reordered :  3492 was received, previous rcvd is  3490 
+WARNING: Sequence gap detected! Expected 3734 but got 3735
+Packet(s) lost or reordered :  3735 was received, previous rcvd is  3733 
+WARNING: Sequence gap detected! Expected 3771 but got 3772
+Packet(s) lost or reordered :  3772 was received, previous rcvd is  3770 
+WARNING: Sequence gap detected! Expected 3895 but got 3896
+Packet(s) lost or reordered :  3896 was received, previous rcvd is  3894 
+WARNING: Sequence gap detected! Expected 3966 but got 3967
+Packet(s) lost or reordered :  3967 was received, previous rcvd is  3965 
+WARNING: Sequence gap detected! Expected 4011 but got 4012
+Packet(s) lost or reordered :  4012 was received, previous rcvd is  4010 
+WARNING: Sequence gap detected! Expected 4054 but got 4055
+Packet(s) lost or reordered :  4055 was received, previous rcvd is  4053 
+WARNING: Sequence gap detected! Expected 4112 but got 4113
+Packet(s) lost or reordered :  4113 was received, previous rcvd is  4111 
+WARNING: Sequence gap detected! Expected 4265 but got 4266
+Packet(s) lost or reordered :  4266 was received, previous rcvd is  4264 
+WARNING: Sequence gap detected! Expected 4472 but got 4473
+Packet(s) lost or reordered :  4473 was received, previous rcvd is  4471 
+WARNING: Sequence gap detected! Expected 4493 but got 4494
+Packet(s) lost or reordered :  4494 was received, previous rcvd is  4492 
+WARNING: Sequence gap detected! Expected 4652 but got 4654
+Packet(s) lost or reordered :  4654 was received, previous rcvd is  4651 
+WARNING: Sequence gap detected! Expected 4756 but got 4757
+Packet(s) lost or reordered :  4757 was received, previous rcvd is  4755 
+WARNING: Sequence gap detected! Expected 4828 but got 4829
+Packet(s) lost or reordered :  4829 was received, previous rcvd is  4827 
+WARNING: Sequence gap detected! Expected 5026 but got 5027
+Packet(s) lost or reordered :  5027 was received, previous rcvd is  5025 
+WARNING: Sequence gap detected! Expected 5142 but got 5143
+Packet(s) lost or reordered :  5143 was received, previous rcvd is  5141 
+WARNING: Sequence gap detected! Expected 5155 but got 5156
+Packet(s) lost or reordered :  5156 was received, previous rcvd is  5154 
+WARNING: Sequence gap detected! Expected 5219 but got 5220
+Packet(s) lost or reordered :  5220 was received, previous rcvd is  5218 
+WARNING: Sequence gap detected! Expected 5302 but got 5303
+Packet(s) lost or reordered :  5303 was received, previous rcvd is  5301 
+WARNING: Sequence gap detected! Expected 5333 but got 5334
+Packet(s) lost or reordered :  5334 was received, previous rcvd is  5332 
+WARNING: Sequence gap detected! Expected 5404 but got 5405
+Packet(s) lost or reordered :  5405 was received, previous rcvd is  5403 
+WARNING: Sequence gap detected! Expected 5611 but got 5612
+Packet(s) lost or reordered :  5612 was received, previous rcvd is  5610 
+WARNING: Sequence gap detected! Expected 5628 but got 5629
+Packet(s) lost or reordered :  5629 was received, previous rcvd is  5627 
+WARNING: Sequence gap detected! Expected 5651 but got 5652
+Packet(s) lost or reordered :  5652 was received, previous rcvd is  5650 
+WARNING: Sequence gap detected! Expected 5863 but got 5864
+Packet(s) lost or reordered :  5864 was received, previous rcvd is  5862 
+WARNING: Sequence gap detected! Expected 6117 but got 6118
+Packet(s) lost or reordered :  6118 was received, previous rcvd is  6116 
+WARNING: Sequence gap detected! Expected 6121 but got 6122
+Packet(s) lost or reordered :  6122 was received, previous rcvd is  6120 
+WARNING: Sequence gap detected! Expected 6347 but got 6348
+Packet(s) lost or reordered :  6348 was received, previous rcvd is  6346 
+WARNING: Sequence gap detected! Expected 6350 but got 6351
+Packet(s) lost or reordered :  6351 was received, previous rcvd is  6349 
+WARNING: Sequence gap detected! Expected 6557 but got 6558
+Packet(s) lost or reordered :  6558 was received, previous rcvd is  6556 
+WARNING: Sequence gap detected! Expected 6629 but got 6630
+Packet(s) lost or reordered :  6630 was received, previous rcvd is  6628 
+WARNING: Sequence gap detected! Expected 6926 but got 6927
+Packet(s) lost or reordered :  6927 was received, previous rcvd is  6925 
+WARNING: Sequence gap detected! Expected 7033 but got 7034
+Packet(s) lost or reordered :  7034 was received, previous rcvd is  7032 
+WARNING: Sequence gap detected! Expected 7153 but got 7154
+Packet(s) lost or reordered :  7154 was received, previous rcvd is  7152 
+WARNING: Sequence gap detected! Expected 7209 but got 7210
+Packet(s) lost or reordered :  7210 was received, previous rcvd is  7208 
+WARNING: Sequence gap detected! Expected 7399 but got 7400
+Packet(s) lost or reordered :  7400 was received, previous rcvd is  7398 
+WARNING: Sequence gap detected! Expected 7443 but got 7444
+Packet(s) lost or reordered :  7444 was received, previous rcvd is  7442 
+WARNING: Sequence gap detected! Expected 7468 but got 7469
+Packet(s) lost or reordered :  7469 was received, previous rcvd is  7467 
+WARNING: Sequence gap detected! Expected 7515 but got 7516
+Packet(s) lost or reordered :  7516 was received, previous rcvd is  7514 
+WARNING: Sequence gap detected! Expected 7537 but got 7538
+Packet(s) lost or reordered :  7538 was received, previous rcvd is  7536 
+WARNING: Sequence gap detected! Expected 7548 but got 7549
+Packet(s) lost or reordered :  7549 was received, previous rcvd is  7547 
+WARNING: Sequence gap detected! Expected 7601 but got 7602
+Packet(s) lost or reordered :  7602 was received, previous rcvd is  7600 
+WARNING: Sequence gap detected! Expected 7806 but got 7807
+Packet(s) lost or reordered :  7807 was received, previous rcvd is  7805 
+WARNING: Sequence gap detected! Expected 7844 but got 7845
+Packet(s) lost or reordered :  7845 was received, previous rcvd is  7843 
+WARNING: Sequence gap detected! Expected 7885 but got 7886
+Packet(s) lost or reordered :  7886 was received, previous rcvd is  7884 
+WARNING: Sequence gap detected! Expected 7949 but got 7950
+Packet(s) lost or reordered :  7950 was received, previous rcvd is  7948 
+WARNING: Sequence gap detected! Expected 7985 but got 7986
+Packet(s) lost or reordered :  7986 was received, previous rcvd is  7984 
+WARNING: Sequence gap detected! Expected 8036 but got 8037
+Packet(s) lost or reordered :  8037 was received, previous rcvd is  8035 
+WARNING: Sequence gap detected! Expected 8069 but got 8070
+Packet(s) lost or reordered :  8070 was received, previous rcvd is  8068 
+WARNING: Sequence gap detected! Expected 8267 but got 8268
+Packet(s) lost or reordered :  8268 was received, previous rcvd is  8266 
+WARNING: Sequence gap detected! Expected 8347 but got 8348
+Packet(s) lost or reordered :  8348 was received, previous rcvd is  8346 
+WARNING: Sequence gap detected! Expected 8371 but got 8372
+Packet(s) lost or reordered :  8372 was received, previous rcvd is  8370 
+WARNING: Sequence gap detected! Expected 8815 but got 8816
+Packet(s) lost or reordered :  8816 was received, previous rcvd is  8814 
+WARNING: Sequence gap detected! Expected 8984 but got 8985
+Packet(s) lost or reordered :  8985 was received, previous rcvd is  8983 
+WARNING: Sequence gap detected! Expected 9006 but got 9007
+Packet(s) lost or reordered :  9007 was received, previous rcvd is  9005 
+WARNING: Sequence gap detected! Expected 9236 but got 9237
+Packet(s) lost or reordered :  9237 was received, previous rcvd is  9235 
+WARNING: Sequence gap detected! Expected 9266 but got 9267
+Packet(s) lost or reordered :  9267 was received, previous rcvd is  9265 
+WARNING: Sequence gap detected! Expected 9315 but got 9316
+Packet(s) lost or reordered :  9316 was received, previous rcvd is  9314 
+WARNING: Sequence gap detected! Expected 9591 but got 9592
+Packet(s) lost or reordered :  9592 was received, previous rcvd is  9590 
+WARNING: Sequence gap detected! Expected 9603 but got 9604
+Packet(s) lost or reordered :  9604 was received, previous rcvd is  9602 
+WARNING: Sequence gap detected! Expected 9786 but got 9787
+Packet(s) lost or reordered :  9787 was received, previous rcvd is  9785 
+WARNING: Sequence gap detected! Expected 9810 but got 9811
+Packet(s) lost or reordered :  9811 was received, previous rcvd is  9809 
+WARNING: Sequence gap detected! Expected 9825 but got 9826
+Packet(s) lost or reordered :  9826 was received, previous rcvd is  9824 
+WARNING: Sequence gap detected! Expected 9933 but got 9934
+Packet(s) lost or reordered :  9934 was received, previous rcvd is  9932 
+WARNING: Sequence gap detected! Expected 10005 but got 10006
+Packet(s) lost or reordered : 10006 was received, previous rcvd is 10004 
+WARNING: Sequence gap detected! Expected 10066 but got 10067
+Packet(s) lost or reordered : 10067 was received, previous rcvd is 10065 
+WARNING: Sequence gap detected! Expected 10077 but got 10078
+Packet(s) lost or reordered : 10078 was received, previous rcvd is 10076 
+WARNING: Sequence gap detected! Expected 10265 but got 10266
+Packet(s) lost or reordered : 10266 was received, previous rcvd is 10264 
+WARNING: Sequence gap detected! Expected 10366 but got 10367
+Packet(s) lost or reordered : 10367 was received, previous rcvd is 10365 
+WARNING: Sequence gap detected! Expected 10391 but got 10392
+Packet(s) lost or reordered : 10392 was received, previous rcvd is 10390 
+WARNING: Sequence gap detected! Expected 10675 but got 10676
+Packet(s) lost or reordered : 10676 was received, previous rcvd is 10674 
+WARNING: Sequence gap detected! Expected 10923 but got 10926
+Packet(s) lost or reordered : 10926 was received, previous rcvd is 10922 
+WARNING: Sequence gap detected! Expected 11125 but got 11126
+Packet(s) lost or reordered : 11126 was received, previous rcvd is 11124 
+WARNING: Sequence gap detected! Expected 11194 but got 11195
+Packet(s) lost or reordered : 11195 was received, previous rcvd is 11193 
+WARNING: Sequence gap detected! Expected 11316 but got 11317
+Packet(s) lost or reordered : 11317 was received, previous rcvd is 11315 
+WARNING: Sequence gap detected! Expected 11325 but got 11326
+Packet(s) lost or reordered : 11326 was received, previous rcvd is 11324 
+WARNING: Sequence gap detected! Expected 11436 but got 11437
+Packet(s) lost or reordered : 11437 was received, previous rcvd is 11435 
+WARNING: Sequence gap detected! Expected 11604 but got 11605
+Packet(s) lost or reordered : 11605 was received, previous rcvd is 11603 
+WARNING: Sequence gap detected! Expected 11705 but got 11706
+Packet(s) lost or reordered : 11706 was received, previous rcvd is 11704 
+WARNING: Sequence gap detected! Expected 11750 but got 11751
+Packet(s) lost or reordered : 11751 was received, previous rcvd is 11749 
+WARNING: Sequence gap detected! Expected 11941 but got 11942
+Packet(s) lost or reordered : 11942 was received, previous rcvd is 11940 
+WARNING: Sequence gap detected! Expected 11980 but got 11981
+Packet(s) lost or reordered : 11981 was received, previous rcvd is 11979 
+WARNING: Sequence gap detected! Expected 12001 but got 12003
+Packet(s) lost or reordered : 12003 was received, previous rcvd is 12000 
+WARNING: Sequence gap detected! Expected 12043 but got 12044
+Packet(s) lost or reordered : 12044 was received, previous rcvd is 12042 
+WARNING: Sequence gap detected! Expected 12078 but got 12079
+Packet(s) lost or reordered : 12079 was received, previous rcvd is 12077 
+WARNING: Sequence gap detected! Expected 12281 but got 12282
+Packet(s) lost or reordered : 12282 was received, previous rcvd is 12280 
+WARNING: Sequence gap detected! Expected 12318 but got 12319
+Packet(s) lost or reordered : 12319 was received, previous rcvd is 12317 
+WARNING: Sequence gap detected! Expected 12408 but got 12409
+Packet(s) lost or reordered : 12409 was received, previous rcvd is 12407 
+WARNING: Sequence gap detected! Expected 12419 but got 12420
+Packet(s) lost or reordered : 12420 was received, previous rcvd is 12418 
+WARNING: Sequence gap detected! Expected 12672 but got 12673
+Packet(s) lost or reordered : 12673 was received, previous rcvd is 12671 
+WARNING: Sequence gap detected! Expected 12712 but got 12713
+Packet(s) lost or reordered : 12713 was received, previous rcvd is 12711 
+WARNING: Sequence gap detected! Expected 12730 but got 12731
+Packet(s) lost or reordered : 12731 was received, previous rcvd is 12729 
+WARNING: Sequence gap detected! Expected 12766 but got 12767
+Packet(s) lost or reordered : 12767 was received, previous rcvd is 12765 
+WARNING: Sequence gap detected! Expected 12810 but got 12811
+Packet(s) lost or reordered : 12811 was received, previous rcvd is 12809 
+WARNING: Sequence gap detected! Expected 12993 but got 12994
+Packet(s) lost or reordered : 12994 was received, previous rcvd is 12992 
+WARNING: Sequence gap detected! Expected 13018 but got 13019
+Packet(s) lost or reordered : 13019 was received, previous rcvd is 13017 
+WARNING: Sequence gap detected! Expected 13131 but got 13132
+Packet(s) lost or reordered : 13132 was received, previous rcvd is 13130 
+WARNING: Sequence gap detected! Expected 13204 but got 13205
+Packet(s) lost or reordered : 13205 was received, previous rcvd is 13203 
+WARNING: Sequence gap detected! Expected 13315 but got 13316
+Packet(s) lost or reordered : 13316 was received, previous rcvd is 13314 
+WARNING: Sequence gap detected! Expected 13411 but got 13412
+Packet(s) lost or reordered : 13412 was received, previous rcvd is 13410 
+WARNING: Sequence gap detected! Expected 13613 but got 13614
+Packet(s) lost or reordered : 13614 was received, previous rcvd is 13612 
+WARNING: Sequence gap detected! Expected 13764 but got 13765
+Packet(s) lost or reordered : 13765 was received, previous rcvd is 13763 
+WARNING: Sequence gap detected! Expected 13800 but got 13801
+Packet(s) lost or reordered : 13801 was received, previous rcvd is 13799 
+WARNING: Sequence gap detected! Expected 13849 but got 13850
+Packet(s) lost or reordered : 13850 was received, previous rcvd is 13848 
+WARNING: Sequence gap detected! Expected 13910 but got 13911
+Packet(s) lost or reordered : 13911 was received, previous rcvd is 13909 
+WARNING: Sequence gap detected! Expected 14219 but got 14220
+Packet(s) lost or reordered : 14220 was received, previous rcvd is 14218 
+WARNING: Sequence gap detected! Expected 14420 but got 14421
+Packet(s) lost or reordered : 14421 was received, previous rcvd is 14419 
+WARNING: Sequence gap detected! Expected 14616 but got 14617
+Packet(s) lost or reordered : 14617 was received, previous rcvd is 14615 
+WARNING: Sequence gap detected! Expected 14803 but got 14804
+Packet(s) lost or reordered : 14804 was received, previous rcvd is 14802 
+WARNING: Sequence gap detected! Expected 14927 but got 14928
+Packet(s) lost or reordered : 14928 was received, previous rcvd is 14926 
+WARNING: Sequence gap detected! Expected 15076 but got 15077
+Packet(s) lost or reordered : 15077 was received, previous rcvd is 15075 
+WARNING: Sequence gap detected! Expected 15178 but got 15179
+Packet(s) lost or reordered : 15179 was received, previous rcvd is 15177 
+WARNING: Sequence gap detected! Expected 15200 but got 15201
+Packet(s) lost or reordered : 15201 was received, previous rcvd is 15199 
+WARNING: Sequence gap detected! Expected 15315 but got 15316
+Packet(s) lost or reordered : 15316 was received, previous rcvd is 15314 
+WARNING: Sequence gap detected! Expected 15388 but got 15389
+Packet(s) lost or reordered : 15389 was received, previous rcvd is 15387 
+WARNING: Sequence gap detected! Expected 15487 but got 15488
+Packet(s) lost or reordered : 15488 was received, previous rcvd is 15486 
+WARNING: Sequence gap detected! Expected 15497 but got 15498
+Packet(s) lost or reordered : 15498 was received, previous rcvd is 15496 
+WARNING: Sequence gap detected! Expected 15524 but got 15525
+Packet(s) lost or reordered : 15525 was received, previous rcvd is 15523 
+WARNING: Sequence gap detected! Expected 15580 but got 15581
+Packet(s) lost or reordered : 15581 was received, previous rcvd is 15579 
+WARNING: Sequence gap detected! Expected 15622 but got 15623
+Packet(s) lost or reordered : 15623 was received, previous rcvd is 15621 
+WARNING: Sequence gap detected! Expected 15935 but got 15936
+Packet(s) lost or reordered : 15936 was received, previous rcvd is 15934 
+WARNING: Sequence gap detected! Expected 15969 but got 15970
+Packet(s) lost or reordered : 15970 was received, previous rcvd is 15968 
+WARNING: Sequence gap detected! Expected 16053 but got 16054
+Packet(s) lost or reordered : 16054 was received, previous rcvd is 16052 
+WARNING: Sequence gap detected! Expected 16455 but got 16456
+Packet(s) lost or reordered : 16456 was received, previous rcvd is 16454 
+WARNING: Sequence gap detected! Expected 16492 but got 16493
+Packet(s) lost or reordered : 16493 was received, previous rcvd is 16491 
+WARNING: Sequence gap detected! Expected 16525 but got 16526
+Packet(s) lost or reordered : 16526 was received, previous rcvd is 16524 
+WARNING: Sequence gap detected! Expected 16606 but got 16607
+Packet(s) lost or reordered : 16607 was received, previous rcvd is 16605 
+WARNING: Sequence gap detected! Expected 16692 but got 16693
+Packet(s) lost or reordered : 16693 was received, previous rcvd is 16691 
+WARNING: Sequence gap detected! Expected 16730 but got 16731
+Packet(s) lost or reordered : 16731 was received, previous rcvd is 16729 
+WARNING: Sequence gap detected! Expected 16866 but got 16867
+Packet(s) lost or reordered : 16867 was received, previous rcvd is 16865 
+WARNING: Sequence gap detected! Expected 16929 but got 16930
+Packet(s) lost or reordered : 16930 was received, previous rcvd is 16928 
+WARNING: Sequence gap detected! Expected 17077 but got 17078
+Packet(s) lost or reordered : 17078 was received, previous rcvd is 17076 
+WARNING: Sequence gap detected! Expected 17106 but got 17107
+Packet(s) lost or reordered : 17107 was received, previous rcvd is 17105 
+WARNING: Sequence gap detected! Expected 17205 but got 17206
+Packet(s) lost or reordered : 17206 was received, previous rcvd is 17204 
+WARNING: Sequence gap detected! Expected 17476 but got 17477
+Packet(s) lost or reordered : 17477 was received, previous rcvd is 17475 
+WARNING: Sequence gap detected! Expected 17597 but got 17598
+Packet(s) lost or reordered : 17598 was received, previous rcvd is 17596 
+WARNING: Sequence gap detected! Expected 17951 but got 17952
+Packet(s) lost or reordered : 17952 was received, previous rcvd is 17950 
+WARNING: Sequence gap detected! Expected 18012 but got 18013
+Packet(s) lost or reordered : 18013 was received, previous rcvd is 18011 
+WARNING: Sequence gap detected! Expected 18053 but got 18054
+Packet(s) lost or reordered : 18054 was received, previous rcvd is 18052 
+WARNING: Sequence gap detected! Expected 18061 but got 18062
+Packet(s) lost or reordered : 18062 was received, previous rcvd is 18060 
+WARNING: Sequence gap detected! Expected 18178 but got 18179
+Packet(s) lost or reordered : 18179 was received, previous rcvd is 18177 
+WARNING: Sequence gap detected! Expected 18276 but got 18277
+Packet(s) lost or reordered : 18277 was received, previous rcvd is 18275 
+WARNING: Sequence gap detected! Expected 18405 but got 18406
+Packet(s) lost or reordered : 18406 was received, previous rcvd is 18404 
+WARNING: Sequence gap detected! Expected 18409 but got 18410
+Packet(s) lost or reordered : 18410 was received, previous rcvd is 18408 
+WARNING: Sequence gap detected! Expected 18700 but got 18701
+Packet(s) lost or reordered : 18701 was received, previous rcvd is 18699 
+WARNING: Sequence gap detected! Expected 18963 but got 18964
+Packet(s) lost or reordered : 18964 was received, previous rcvd is 18962 
+WARNING: Sequence gap detected! Expected 19007 but got 19008
+Packet(s) lost or reordered : 19008 was received, previous rcvd is 19006 
+WARNING: Sequence gap detected! Expected 19131 but got 19132
+Packet(s) lost or reordered : 19132 was received, previous rcvd is 19130 
+WARNING: Sequence gap detected! Expected 19190 but got 19191
+Packet(s) lost or reordered : 19191 was received, previous rcvd is 19189 
+WARNING: Sequence gap detected! Expected 19324 but got 19325
+Packet(s) lost or reordered : 19325 was received, previous rcvd is 19323 
+WARNING: Sequence gap detected! Expected 19363 but got 19364
+Packet(s) lost or reordered : 19364 was received, previous rcvd is 19362 
+WARNING: Sequence gap detected! Expected 19372 but got 19373
+Packet(s) lost or reordered : 19373 was received, previous rcvd is 19371 
+WARNING: Sequence gap detected! Expected 19410 but got 19411
+Packet(s) lost or reordered : 19411 was received, previous rcvd is 19409 
+WARNING: Sequence gap detected! Expected 19482 but got 19483
+Packet(s) lost or reordered : 19483 was received, previous rcvd is 19481 
+WARNING: Sequence gap detected! Expected 19542 but got 19543
+Packet(s) lost or reordered : 19543 was received, previous rcvd is 19541 
+WARNING: Sequence gap detected! Expected 19840 but got 19841
+Packet(s) lost or reordered : 19841 was received, previous rcvd is 19839 
+WARNING: Sequence gap detected! Expected 19853 but got 19854
+Packet(s) lost or reordered : 19854 was received, previous rcvd is 19852 
+WARNING: Sequence gap detected! Expected 19877 but got 19878
+Packet(s) lost or reordered : 19878 was received, previous rcvd is 19876 
+WARNING: Sequence gap detected! Expected 20017 but got 20018
+Packet(s) lost or reordered : 20018 was received, previous rcvd is 20016 
+WARNING: Sequence gap detected! Expected 20037 but got 20038
+Packet(s) lost or reordered : 20038 was received, previous rcvd is 20036 
+WARNING: Sequence gap detected! Expected 20177 but got 20178
+Packet(s) lost or reordered : 20178 was received, previous rcvd is 20176 
+WARNING: Sequence gap detected! Expected 20402 but got 20403
+Packet(s) lost or reordered : 20403 was received, previous rcvd is 20401 
+WARNING: Sequence gap detected! Expected 20406 but got 20407
+Packet(s) lost or reordered : 20407 was received, previous rcvd is 20405 
+WARNING: Sequence gap detected! Expected 20433 but got 20434
+Packet(s) lost or reordered : 20434 was received, previous rcvd is 20432 
+WARNING: Sequence gap detected! Expected 20461 but got 20462
+Packet(s) lost or reordered : 20462 was received, previous rcvd is 20460 
+WARNING: Sequence gap detected! Expected 20633 but got 20634
+Packet(s) lost or reordered : 20634 was received, previous rcvd is 20632 
+WARNING: Sequence gap detected! Expected 20662 but got 20663
+Packet(s) lost or reordered : 20663 was received, previous rcvd is 20661 
+WARNING: Sequence gap detected! Expected 20675 but got 20676
+Packet(s) lost or reordered : 20676 was received, previous rcvd is 20674 
+WARNING: Sequence gap detected! Expected 20690 but got 20691
+Packet(s) lost or reordered : 20691 was received, previous rcvd is 20689 
+WARNING: Sequence gap detected! Expected 20709 but got 20710
+Packet(s) lost or reordered : 20710 was received, previous rcvd is 20708 
+WARNING: Sequence gap detected! Expected 20793 but got 20794
+Packet(s) lost or reordered : 20794 was received, previous rcvd is 20792 
+WARNING: Sequence gap detected! Expected 20818 but got 20819
+Packet(s) lost or reordered : 20819 was received, previous rcvd is 20817 
+WARNING: Sequence gap detected! Expected 20826 but got 20827
+Packet(s) lost or reordered : 20827 was received, previous rcvd is 20825 
+WARNING: Sequence gap detected! Expected 20845 but got 20846
+Packet(s) lost or reordered : 20846 was received, previous rcvd is 20844 
+WARNING: Sequence gap detected! Expected 21025 but got 21026
+Packet(s) lost or reordered : 21026 was received, previous rcvd is 21024 
+WARNING: Sequence gap detected! Expected 21153 but got 21154
+Packet(s) lost or reordered : 21154 was received, previous rcvd is 21152 
+WARNING: Sequence gap detected! Expected 21236 but got 21237
+Packet(s) lost or reordered : 21237 was received, previous rcvd is 21235 
+WARNING: Sequence gap detected! Expected 21372 but got 21373
+Packet(s) lost or reordered : 21373 was received, previous rcvd is 21371 
+WARNING: Sequence gap detected! Expected 21555 but got 21556
+Packet(s) lost or reordered : 21556 was received, previous rcvd is 21554 
+.

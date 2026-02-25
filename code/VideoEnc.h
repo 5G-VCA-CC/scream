@@ -1,55 +1,78 @@
-#ifndef VIDEO_ENC_H
-#define VIDEO_ENC_H
+#ifndef VIDEO_ENC
+#define VIDEO_ENC
 
-#include "RtpQueue.h"
-#include <stdio.h>
 #include <map>
-#include <vector>
+#include <cstdint>
+
+static const int kRtpOverHead = 12;
+class RtpQueue;
 
 #define MAX_FRAMES 10000
+#define MAX_NUM_RTX 3        // Max retransmissions per packet
+#define MAX_UNACKED_US 1000000.0f // 1 second timeout in microseconds
 
 class VideoEnc {
 public:
-    VideoEnc(RtpQueue* rtpQueue, float frameRate, char *fname, int ixOffset = 0, float sluggishness = 0.0);
+    VideoEnc(RtpQueue* rtpQueue, float frameRate, char *fname, int ixOffset=0, float sluggishness = 0.0);
 
-    // Call this when an ACK is received from the network
-    void acknowledge(uint16_t seqNr);
-
-    void setTargetBitrate(float targetBitrate);
-    
-    // Returns number of bytes generated
     int encode(float time);
 
-    float getNominalBitrate() { return nominalBitrate; }
+    void setTargetBitrate(float targetBitrate);
 
-private:
-    RtpQueue* rtpQueue;
-    float frameRate;
-    float nominalBitrate;
-    float targetBitrate;
-    float sluggishness;
-    float bytes; // Running average of frame size
+    void setMss(int mss_) {
+        mss = mss_;
+    }
+
+    // Handle ACKs to track recovery timeout and trigger retransmissions
+    void acknowledge(unsigned int seqNr, float currentTime);
     
+    // Process ACK and determine if retransmissions are needed
+    // Returns the number of packets to retransmit
+    int processAck(unsigned int ackedSeqNr, float currentTime);
+    
+    // Check if a specific packet should be retransmitted
+    bool shouldRetransmit(unsigned int seqNr, float currentTime);
+
+    RtpQueue* rtpQueue;
     float frameSize[MAX_FRAMES];
     int nFrames;
+    float targetBitrate;
+    float frameRate;
+    float nominalBitrate;
+    unsigned int seqNr;
+    unsigned long timeStamp;
     int ix;
-    uint16_t seqNr;
-    uint32_t timeStamp;
+    int mss;
 
-    // --- Ringmaster / Recovery Logic ---
-    
-    // Map of SequenceNumber -> SendTime (seconds)
-    // Used to track how long a packet has been "in flight" without ACK
-    std::map<uint16_t, float> unacked_packets;
-    
-    bool forceKeyFrame;
+    float sluggishness;
+    float bytes;
 
-    // Time (seconds) before giving up on a packet and forcing a resync.
-    // 0.2s (200ms) is typical for low-latency interactive video.
-    const float MAX_UNACKED_TIME = 0.2f; 
+    // Enhanced unacked packet tracking (similar to ringmaster)
+    struct UnackedPacket {
+        unsigned int seqNr;
+        float sendTime;      // Initial send time (seconds)
+        float lastSendTime;  // Last transmission time (seconds)
+        int numRetx;         // Number of retransmissions
+    };
+
+    std::map<unsigned int, UnackedPacket> unacked_;  // SeqNr -> UnackedPacket info
     
-    // Keyframes are significantly larger than delta frames (approx 10x)
-    const float KEY_FRAME_MULTIPLIER = 10.0f;
+    // Recovery timeout parameters
+    static constexpr float MAX_UNACKED_TIME = 1.0f;  // 1 second timeout
+    static constexpr float EWMA_ALPHA = 0.125f;      // EWMA smoothing factor for RTT
+    
+    // RTT tracking
+    float minRttSec = 10.0f;
+    float ewmaRttSec = 0.05f;  // Initial estimate: 50ms
+    
+    // Recovery state
+    bool forceKeyFrame = false;
+    bool recoveryMode = false;
+    float lastRecoveryTime = -1.0f;
+
+    // Stats
+    int numRetransmissions = 0;
+    int numKeyFramesForced = 0;
 };
 
 #endif

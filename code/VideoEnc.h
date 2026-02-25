@@ -16,40 +16,31 @@ public:
 
     void setTargetBitrate(float targetBitrate);
 
+    void setMss(int mss_) {
+        mss = mss_;
+    }
+
     // handle ACKs to track recovery timeout
-    void acknowledge(u_int16_t seqNr);
+    void acknowledge(unsigned int seqNr);
 
-    float getNominalBitrate(){return nominalBitrate;}
+    RtpQueue* rtpQueue;
+    float frameSize[MAX_FRAMES];
+    int nFrames;
+    float targetBitrate;
+    float frameRate;
+    float nominalBitrate;
+    unsigned int seqNr;
+    unsigned long timeStamp;
+    int ix;
+    int mss;
 
-    private:
-        RtpQueue* rtpQueue;
-        float frameRate;
-        float nominalBitrate;
-        float targetBitrate;
-        float sluggishness;
-        float bytes; // Running average of frame size
-        
-        // Trace file data
-        float frameSize[MAX_FRAMES];
-        int nFrames;
-        int ix; // Current frame index
+    float sluggishness;
+    float bytes;
 
-        // RTP / Sequence state
-        uint16_t seqNr;
-        uint32_t timeStamp;
-
-        // --- Ported from Ringmaster Encoder ---
-        
-        // Map of SeqNr -> Send Time (seconds)
-        std::map<uint16_t, float> unacked_packets;
-        
-        bool forceKeyFrame = false;
-
-        // Timeout threshold (e.g., 0.5 seconds / 500ms)
-        const float MAX_UNACKED_TIME = 0.5f; 
-        
-        // Multiplier to simulate I-Frame size (Ringmaster uses 900% cap, we use 10x)
-        const float KEY_FRAME_MULTIPLIER = 10.0f;
+    // match ringmaster's recovery logic
+    std::map<unsigned int, float> unacked_packets; // SeqNr -> SendTime
+    static constexpr float MAX_UNACKED_TIME = 1.0f; // 1 second timeout
+    bool forceKeyFrame = false;
 };
 
 #endif

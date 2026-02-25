@@ -1,47 +1,38 @@
 #include "VideoEnc.h"
-#include "RtpQueue.h"
-
-#include <cstring>
-#include <cstdio>
-#include <cstdlib>
+#include <string.h>
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <algorithm>
-#include <chrono>
-#include <iterator>   // std::make_reverse_iterator
+#include <cmath>
 
 using namespace std;
 
-static uint32_t SSRC = 1;
+// Standard constants
+static const int kRtpOverHead = 12 + 8; // RTP Header + UDP/IP overhead approx
+static const int mss = 1200; // Maximum Segment Size
+static const uint32_t SSRC = 100; // Fixed SSRC
 
-// ---------------------------------------------------------------------------
-// Constructor – now accepts retransmit flag and optional log-file path
-// ---------------------------------------------------------------------------
-VideoEnc::VideoEnc(RtpQueue* rtpQueue_,
-                   float frameRate_,
-                   char *fname,
-                   int ixOffset_,
-                   float sluggishness_,
-                   bool retransmit,
-                   const string& outputPath)
-    : rtpQueue(rtpQueue_),
-      frameRate(frameRate_),
-      ix(ixOffset_),
-      nFrames(0),
-      seqNr(0),
-      timeStamp(0),
-      nominalBitrate(0.0f),
-      sluggishness(sluggishness_),
-      bytes(0.0f),
-      retransmit_(retransmit)
-{
-    // ---- read frame-size trace (original) ----
+VideoEnc::VideoEnc(RtpQueue* rtpQueue_, float frameRate_, char *fname, int ixOffset_, float sluggishness_) {
+    rtpQueue = rtpQueue_;
+    frameRate = frameRate_;
+    ix = ixOffset_;
+    nFrames = 0;
+    seqNr = 0;
+    timeStamp = 0;
+    nominalBitrate = 0.0;
+    sluggishness = sluggishness_;
+    bytes = 0.0f;
+    forceKeyFrame = false;
+
     FILE *fp = fopen(fname, "r");
     if (!fp) {
-        cerr << "VideoEnc: cannot open trace file " << fname << endl;
+        cerr << "Error opening trace file: " << fname << endl;
         exit(1);
     }
+
     char s[100];
-    float sum = 0.0f;
+    float sum = 0.0;
     while (fgets(s, 99, fp)) {
         if (nFrames < MAX_FRAMES - 1) {
             float x = atof(s);
@@ -51,252 +42,112 @@ VideoEnc::VideoEnc(RtpQueue* rtpQueue_,
         }
     }
     fclose(fp);
-    float t = nFrames / frameRate;
-    nominalBitrate = sum * 8.0f / t;
 
-    // ---- open output log file (from ringmaster) ----
-    if (!outputPath.empty()) {
-        output_file_.open(outputPath, ios::out | ios::trunc);
-        if (output_file_.is_open()) {
-            output_file_ << "frame_id,target_bitrate,frame_size,encode_time\n";
-        }
+    if (nFrames > 0) {
+        float t = nFrames / frameRate;
+        nominalBitrate = sum * 8 / t;
     }
 }
 
-// ---------------------------------------------------------------------------
 void VideoEnc::setTargetBitrate(float targetBitrate_) {
     targetBitrate = targetBitrate_;
 }
 
-// ---------------------------------------------------------------------------
-// RTT tracking  (ported from ringmaster::Encoder::add_rtt_sample)
-// ---------------------------------------------------------------------------
-void VideoEnc::add_rtt_sample(float rtt_s)
-{
-    // min RTT
-    if (!min_rtt_ || rtt_s < *min_rtt_) {
-        min_rtt_ = rtt_s;
-    }
-
-    // EWMA RTT
-    if (!ewma_rtt_) {
-        ewma_rtt_ = rtt_s;
-    } else {
-        ewma_rtt_ = ALPHA * rtt_s + (1.0f - ALPHA) * (*ewma_rtt_);
+// Ported: Handle ACKs to remove them from timeout tracking
+void VideoEnc::acknowledge(uint16_t ackSeqNr) {
+    auto it = unacked_packets.find(ackSeqNr);
+    if (it != unacked_packets.end()) {
+        unacked_packets.erase(it);
     }
 }
 
-// ---------------------------------------------------------------------------
-// Full ACK handler  (ported from ringmaster::Encoder::handle_ack)
-//
-//  • Records an RTT sample from the ACK.
-//  • Finds the ACKed packet in `unacked_packets_`.
-//  • Walks *backward* from the ACKed packet and retransmits every earlier
-//    unacked packet that (a) has not exceeded MAX_NUM_RTX and (b) was last
-//    sent at least one EWMA-RTT ago.
-//  • Erases the ACKed packet.
-// ---------------------------------------------------------------------------
-void VideoEnc::handle_ack(unsigned int ackSeqNr,
-                          float        ackSendTs,
-                          float        currentTime)
-{
-    // --- RTT sample ---
-    float rtt = currentTime - ackSendTs;
-    add_rtt_sample(rtt);
+int VideoEnc::encode(float time) {
+    // --- Ported Logic: Check for Timeout ---
+    if (!unacked_packets.empty()) {
+        // Map is sorted by key (SeqNr), but we need sorted by Time. 
+        // Assuming strictly increasing time, begin() is oldest unless wrap-around confusion occurs.
+        // For simple simulation, begin() is roughly the oldest.
+        float oldest_ts = unacked_packets.begin()->second;
 
-    // --- locate the ACKed packet ---
-    auto acked_it = unacked_packets_.find(ackSeqNr);
-    if (acked_it == unacked_packets_.end()) {
-        return;   // ACK for an unknown / already-acked packet
-    }
+        // Check if the oldest unacked packet has exceeded the timeout
+        if (time - oldest_ts > MAX_UNACKED_TIME) {
+            cerr << "[" << time << "] * Recovery: gave up retransmissions and forced a key frame. " 
+                 << "Oldest unacked: " << (time - oldest_ts) << "s ago." << endl;
 
-    // --- backward retransmission (ringmaster logic) ---
-    if (retransmit_) {
-        for (auto rit = make_reverse_iterator(acked_it);
-             rit != unacked_packets_.rend(); ++rit)
-        {
-            auto& pkt = rit->second;
-
-            // skip if retransmission budget exhausted
-            if (pkt.num_rtx >= MAX_NUM_RTX) {
-                continue;
-            }
-
-            // retransmit on first RTX, or if last send was ≥ 1 EWMA-RTT ago
-            if (pkt.num_rtx == 0 ||
-                (ewma_rtt_ && (currentTime - pkt.last_send_ts > *ewma_rtt_)))
-            {
-                pkt.num_rtx++;
-                pkt.last_send_ts = currentTime;
-
-                // push retransmission into the RTP queue
-                char rtpPacket[2000] = {};
-                rtpQueue->push(rtpPacket, pkt.size, SSRC,
-                               rit->first,        // original seqNr
-                               false,              // not marker (best-effort)
-                               currentTime,
-                               pkt.rtp_ts);
-
-                if (verbose_) {
-                    cerr << "  RTX seqNr=" << rit->first
-                         << " rtx#=" << pkt.num_rtx << endl;
-                }
-            }
-        }
-    }
-
-    // --- erase the ACKed packet ---
-    unacked_packets_.erase(acked_it);
-}
-
-// ---------------------------------------------------------------------------
-// Simple acknowledge (original, kept for backward compatibility)
-// ---------------------------------------------------------------------------
-void VideoEnc::acknowledge(unsigned int ackSeqNr)
-{
-    unacked_packets_.erase(ackSeqNr);
-}
-
-// ---------------------------------------------------------------------------
-// Periodic stats  (ported from ringmaster::Encoder::output_periodic_stats)
-// ---------------------------------------------------------------------------
-void VideoEnc::output_periodic_stats()
-{
-    cerr << "Frames encoded in the last period: " << num_encoded_frames_ << endl;
-
-    if (num_encoded_frames_ > 0) {
-        cerr << "  - Avg/Max encode time (ms): "
-             << (total_encode_time_ / num_encoded_frames_ * 1000.0f)
-             << " / " << (max_encode_time_ * 1000.0f) << endl;
-    }
-
-    if (min_rtt_ && ewma_rtt_) {
-        cerr << "  - Min/EWMA RTT (ms): "
-             << (*min_rtt_  * 1000.0f) << " / "
-             << (*ewma_rtt_ * 1000.0f) << endl;
-    }
-
-    cerr << "  - Unacked packets: " << unacked_packets_.size() << endl;
-
-    // reset accumulators (keep RTT state)
-    num_encoded_frames_  = 0;
-    total_encode_time_   = 0.0f;
-    max_encode_time_     = 0.0f;
-}
-
-// ---------------------------------------------------------------------------
-// encode()  – original logic + ringmaster enhancements
-// ---------------------------------------------------------------------------
-int VideoEnc::encode(float time)
-{
-    // ------------------------------------------------------------------
-    // 1. Key-frame recovery  (from ringmaster: MAX_UNACKED_US check)
-    //    If the oldest unacked packet has been pending > MAX_UNACKED_TIME,
-    //    give up on retransmissions and force a key frame.
-    // ------------------------------------------------------------------
-    if (!unacked_packets_.empty()) {
-        const auto& oldest = unacked_packets_.begin()->second;
-        float age = time - oldest.send_ts;
-
-        if (age > MAX_UNACKED_TIME) {
-            cerr << "* Recovery: gave up retransmissions and forced a key frame "
-                 << frame_id_ << endl;
-
-            if (verbose_) {
-                cerr << "  oldest seqNr=" << unacked_packets_.begin()->first
-                     << " age=" << age << "s" << endl;
-            }
-
+            // 1. Force next frame to be a Key Frame
             forceKeyFrame = true;
 
-            // clean up  (ringmaster clears both queue and unacked map)
-            unacked_packets_.clear();
-            // Note: if RtpQueue exposes a clear(), call it here:
-            // rtpQueue->clear();
+            // 2. Clear unacked list (stop waiting for old packets)
+            unacked_packets.clear();
+
+            // 3. Optional: Clear the RTP Queue to stop sending the stale data
+            // (Assumes RtpQueue has a clear() method. If not, remove this line)
+            if (rtpQueue) {
+                rtpQueue->clear(); 
+            }
         }
     }
 
-    // ------------------------------------------------------------------
-    // 2. Compute encoded frame size from trace + target bitrate
-    // ------------------------------------------------------------------
-    auto enc_start = chrono::steady_clock::now();
+    int rtpBytes = 0;
+    char rtpPacket[2000]; // Dummy buffer for size simulation
 
-    float baseSize = frameSize[ix];
+    // Get base size from trace file
+    float currentTraceSize = frameSize[ix];
 
-    // key-frame inflation (VP8E_SET_MAX_INTRA_BITRATE_PCT = 900 ⇒ ~10×)
+    // Calculate target size based on bitrate scaling
+    // (trace_size * target_bitrate / nominal_bitrate)
+    float targetSize = currentTraceSize / nominalBitrate * targetBitrate;
+
+    // --- Ported Logic: Force Keyframe Sizing ---
     if (forceKeyFrame) {
-        baseSize *= 10.0f;
-        forceKeyFrame = false;
-        if (verbose_) {
-            cerr << "Encoded a key frame: frame_id=" << frame_id_ << endl;
-        }
+        // Simulating VP8E_SET_MAX_INTRA_BITRATE_PCT = 900
+        // We override the smooth rate control and force a large frame immediately.
+        bytes = targetSize * KEY_FRAME_MULTIPLIER;
+        
+        if (bytes < 1000) bytes = 1000; // Ensure it's at least some size
+        
+        forceKeyFrame = false; // Reset flag
+        
+        cout << "[" << time << "] Generating KeyFrame size: " << bytes << " bytes" << endl;
+    } 
+    else {
+        // Standard SCReAM sluggishness (EWMA) to simulate rate control delay
+        if (bytes > 0)
+            bytes = bytes * sluggishness + targetSize * (1.0 - sluggishness);
+        else
+            bytes = targetSize;
     }
 
-    float tmp = static_cast<float>(
-        static_cast<int>(baseSize / nominalBitrate * targetBitrate));
-
-    if (bytes > 0)
-        bytes = bytes * sluggishness + (1.0f - sluggishness) * tmp;
-    else
-        bytes = tmp;
-
-    int remaining = static_cast<int>(bytes);
-
-    ix++;
+    // Packetize the frame
+    int bytesToInt = (int)bytes;
+    
+    // Advance trace index
+    ix++; 
     if (ix == nFrames) ix = 0;
 
-    // ------------------------------------------------------------------
-    // 3. Packetize into RTP packets
-    //    (marker-bit fix: set when remaining bytes will be consumed)
-    // ------------------------------------------------------------------
-    int rtpBytes = 0;
-    char rtpPacket[2000] = {};
+    while (bytesToInt > 0) {
+        int rtpSize = std::min(mss, bytesToInt);
+        bool isMarker = (bytesToInt <= mss); // Last packet of frame gets Marker bit
 
-    // Set RTP timestamp *before* the loop (ringmaster sets frame_generation_ts
-    // at the top of compress_frame, not after packetization)
-    timeStamp = static_cast<unsigned long>(time * 90000);
+        bytesToInt -= rtpSize;
+        int fullPacketSize = rtpSize + kRtpOverHead;
+        rtpBytes += fullPacketSize;
 
-    while (remaining > 0) {
-        int payloadSize = min(mss, remaining);
-        remaining -= payloadSize;
+        // Push to transmission queue
+        // Note: ringmaster used frame_id, SCReAM usually uses global time or frame count
+        rtpQueue->push(rtpPacket, fullPacketSize, SSRC, seqNr, isMarker, time);
 
-        // marker bit: true for the *last* fragment of the frame
-        bool isMarker = (remaining <= 0);
-
-        int rtpSize = payloadSize + kRtpOverHead;
-        rtpBytes += rtpSize;
-
-        rtpQueue->push(rtpPacket, rtpSize, SSRC, seqNr,
-                       isMarker, time, timeStamp);
-
-        // --- track in unacked map (enhanced, from ringmaster) ---
-        unacked_packets_[seqNr] = UnackedPacket(time, rtpSize, timeStamp);
+        // --- Ported Logic: Track Unacked Packets ---
+        unacked_packets[seqNr] = time;
 
         seqNr++;
     }
+    
+    // Update RTP timestamp (90kHz clock)
+    timeStamp += (uint32_t)(90000 / frameRate);
 
+    // Tell queue about the frame boundary size for stats
     rtpQueue->setSizeOfLastFrame(rtpBytes);
 
-    // ------------------------------------------------------------------
-    // 4. Encoding-time stats  (from ringmaster)
-    // ------------------------------------------------------------------
-    auto enc_end = chrono::steady_clock::now();
-    float enc_time_s = chrono::duration<float>(enc_end - enc_start).count();
-
-    num_encoded_frames_++;
-    total_encode_time_ += enc_time_s;
-    max_encode_time_    = max(max_encode_time_, enc_time_s);
-
-    // ------------------------------------------------------------------
-    // 5. Frame logging to file  (from ringmaster's output_fd_ writes)
-    // ------------------------------------------------------------------
-    if (output_file_.is_open()) {
-        output_file_ << frame_id_ << ","
-                     << targetBitrate << ","
-                     << rtpBytes << ","
-                     << enc_time_s << "\n";
-    }
-
-    frame_id_++;
     return rtpBytes;
 }

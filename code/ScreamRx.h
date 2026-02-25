@@ -54,7 +54,8 @@ public:
 			bool isEcnCe,
 			uint8_t ceBits,
 			bool isMarker,
-			uint32_t timeStamp);
+			uint32_t timeStamp,
+			bool isKeyFrame = false);
 
 		/*
 		* Get SCReAM standardized RTCP feedback
@@ -124,7 +125,8 @@ public:
 		uint16_t seqNr,
 		uint8_t ceBits,
 		bool isMarker,
-		uint32_t timeStamp);
+		uint32_t timeStamp,
+		bool isKeyFrame = false);
 
 	/*
 	* Return TRUE if an RTP packet has been received and there is

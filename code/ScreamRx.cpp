@@ -53,14 +53,15 @@ void ScreamRx::Stream::receive(uint32_t time_ntp,
 	bool isEcnCe,
 	uint8_t ceBits_,
 	bool isMarker,
-	uint32_t timeStamp) {
+	uint32_t timeStamp,
+	bool isKeyFrame) {
 
 	/*
 	* Count received RTP packets since last RTCP transmitted for this SSRC
 	*/
 	nRtpSinceLastRtcp++;
 
-	doFlush |= isMarker;
+	doFlush |= isMarker || isKeyFrame;
 
 	/*
 	* Initialize on first received packet
@@ -74,6 +75,13 @@ void ScreamRx::Stream::receive(uint32_t time_ntp,
 		}
 		firstReceived = true;
 	}
+
+	if (isKeyFrame) {
+		numOooDetected = 0;
+		// Reset the OOO low tracking to current sequence to avoid looking backwards
+		oooLowSeqNr = seqNr; 
+	}
+
 	/*
 	* Update CE bits and RX time vectors
 	*/
@@ -88,7 +96,7 @@ void ScreamRx::Stream::receive(uint32_t time_ntp,
 	/*
 	* We tag a packet as OOO as soon at it is behind the highest ACKed packet
 	*/
-	if (diff > 0 && diff < (kRxHistorySize-kReportedRtpPackets)) {
+	if (diff > 0 && diff < (kRxHistorySize-kReportedRtpPackets) && isKeyFrame) {
 		/*
 		* Large OOO RTP received, enable transmission of additional RTCP packet to indicate receiption
 		*/ 		
@@ -404,7 +412,8 @@ void ScreamRx::receive(uint32_t time_ntp,
 	uint16_t seqNr,
 	uint8_t ceBits,
 	bool isMark,
-	uint32_t timeStamp) {
+	uint32_t timeStamp,
+	bool isKeyFrame = false) {
 
 	bytesReceived += size;
 	if (lastRateComputeT_ntp == 0)
@@ -448,7 +457,7 @@ void ScreamRx::receive(uint32_t time_ntp,
 	*/
 	Stream* stream = new Stream(ssrc);
 	stream->nReportedRtpPackets = nReportedRtpPackets;
-	stream->receive(time_ntp, rtpPacket, size, seqNr, ceBits == 0x03, ceBits, isMark, timeStamp);
+	stream->receive(time_ntp, rtpPacket, size, seqNr, ceBits == 0x03, ceBits, isMark, timeStamp, isKeyFrame);
 	streams.push_back(stream);
 }
 

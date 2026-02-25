@@ -4,7 +4,7 @@
 #include "RtpQueue.h"
 #include <stdio.h>
 #include <map>
-#include <cstdint>
+#include <vector>
 
 #define MAX_FRAMES 10000
 
@@ -12,13 +12,14 @@ class VideoEnc {
 public:
     VideoEnc(RtpQueue* rtpQueue, float frameRate, char *fname, int ixOffset = 0, float sluggishness = 0.0);
 
-    // Call this when the sender receives an ACK for a specific sequence number
+    // Call this when an ACK is received from the network
     void acknowledge(uint16_t seqNr);
 
     void setTargetBitrate(float targetBitrate);
+    
+    // Returns number of bytes generated
     int encode(float time);
 
-    // Getters for stats if needed
     float getNominalBitrate() { return nominalBitrate; }
 
 private:
@@ -29,29 +30,26 @@ private:
     float sluggishness;
     float bytes; // Running average of frame size
     
-    // Trace file data
     float frameSize[MAX_FRAMES];
     int nFrames;
-    int ix; // Current frame index
-
-    // RTP / Sequence state
+    int ix;
     uint16_t seqNr;
     uint32_t timeStamp;
 
-    // --- Ported from Ringmaster Encoder ---
+    // --- Ringmaster / Recovery Logic ---
     
-    // Map of SeqNr -> Send Time (seconds)
+    // Map of SequenceNumber -> SendTime (seconds)
+    // Used to track how long a packet has been "in flight" without ACK
     std::map<uint16_t, float> unacked_packets;
     
-    bool forceKeyFrame = false;
+    bool forceKeyFrame;
 
-    // Timeout threshold (e.g., 0.5 seconds / 500ms)
-    const float MAX_UNACKED_TIME = 0.5f; 
+    // Time (seconds) before giving up on a packet and forcing a resync.
+    // 0.2s (200ms) is typical for low-latency interactive video.
+    const float MAX_UNACKED_TIME = 0.2f; 
     
-    // Multiplier to simulate I-Frame size (Ringmaster uses 900% cap, we use 10x)
+    // Keyframes are significantly larger than delta frames (approx 10x)
     const float KEY_FRAME_MULTIPLIER = 10.0f;
-    
-    // --------------------------------------
 };
 
 #endif

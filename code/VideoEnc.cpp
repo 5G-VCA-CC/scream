@@ -8,10 +8,9 @@
 
 using namespace std;
 
-// Standard constants
-static const int kRtpOverHead = 12 + 8; // RTP Header + UDP/IP overhead approx
-static const int mss = 1200; // Maximum Segment Size
-static const uint32_t SSRC = 100; // Fixed SSRC
+static const int kRtpOverHead = 12 + 8; // RTP Header + UDP/IP overhead
+static const int mss = 1200; 
+static const uint32_t SSRC = 100; // Fixed SSRC for simulation
 
 VideoEnc::VideoEnc(RtpQueue* rtpQueue_, float frameRate_, char *fname, int ixOffset_, float sluggishness_) {
     rtpQueue = rtpQueue_;
@@ -23,14 +22,16 @@ VideoEnc::VideoEnc(RtpQueue* rtpQueue_, float frameRate_, char *fname, int ixOff
     nominalBitrate = 0.0;
     sluggishness = sluggishness_;
     bytes = 0.0f;
+    
+    // Initialize Recovery State
     forceKeyFrame = false;
 
     FILE *fp = fopen(fname, "r");
     if (!fp) {
-        cerr << "Error opening trace file: " << fname << endl;
+        cerr << "Error: Cannot open video trace file " << fname << endl;
         exit(1);
     }
-
+    
     char s[100];
     float sum = 0.0;
     while (fgets(s, 99, fp)) {
@@ -53,7 +54,10 @@ void VideoEnc::setTargetBitrate(float targetBitrate_) {
     targetBitrate = targetBitrate_;
 }
 
-// Ported: Handle ACKs to remove them from timeout tracking
+// -----------------------------------------------------------------------------
+// Acknowledge:
+// Removes the packet from the tracking map. This stops the timeout timer for it.
+// -----------------------------------------------------------------------------
 void VideoEnc::acknowledge(uint16_t ackSeqNr) {
     auto it = unacked_packets.find(ackSeqNr);
     if (it != unacked_packets.end()) {
@@ -62,91 +66,100 @@ void VideoEnc::acknowledge(uint16_t ackSeqNr) {
 }
 
 int VideoEnc::encode(float time) {
-    // --- Ported Logic: Check for Timeout ---
+    // -------------------------------------------------------------------------
+    // 1. Timeout / Recovery Logic
+    // -------------------------------------------------------------------------
     if (!unacked_packets.empty()) {
-        // Map is sorted by key (SeqNr), but we need sorted by Time. 
-        // Assuming strictly increasing time, begin() is oldest unless wrap-around confusion occurs.
-        // For simple simulation, begin() is roughly the oldest.
+        // Since map is sorted by seqNr, and seqNr increases with time,
+        // begin() is roughly the oldest packet (ignoring wrap-around for now).
         float oldest_ts = unacked_packets.begin()->second;
+        uint16_t oldest_seq = unacked_packets.begin()->first;
 
-        // Check if the oldest unacked packet has exceeded the timeout
         if (time - oldest_ts > MAX_UNACKED_TIME) {
-            cerr << "[" << time << "] * Recovery: gave up retransmissions and forced a key frame. " 
-                 << "Oldest unacked: " << (time - oldest_ts) << "s ago." << endl;
+            std::cout << "[" << time << "] VideoEnc Recovery: Packet " << oldest_seq 
+                      << " timed out (" << (time - oldest_ts)*1000 << "ms). "
+                      << "Clearing Queue & Forcing KeyFrame." << std::endl;
 
-            // 1. Force next frame to be a Key Frame
+            // A. Force the NEXT frame to be a Keyframe (I-Frame)
             forceKeyFrame = true;
 
-            // 2. Clear unacked list (stop waiting for old packets)
+            // B. Give up on all currently unacked packets
             unacked_packets.clear();
 
-            // 3. Optional: Clear the RTP Queue to stop sending the stale data
-            // (Assumes RtpQueue has a clear() method. If not, remove this line)
+            // C. CRITICAL: Clear the RTP Transmission Queue.
+            // We are dropping the "stuck" delta frames so the Keyframe can go out immediately.
             if (rtpQueue) {
-                rtpQueue->clear(); 
+                rtpQueue->clear();
             }
         }
     }
 
+    // -------------------------------------------------------------------------
+    // 2. Determine Frame Size
+    // -------------------------------------------------------------------------
     int rtpBytes = 0;
-    char rtpPacket[2000]; // Dummy buffer for size simulation
-
+    char rtpPacket[2000]; // Dummy buffer
+    
     // Get base size from trace file
-    float currentTraceSize = frameSize[ix];
+    float traceVal = frameSize[ix];
+    
+    // Scale based on Congestion Control target
+    float targetSize = traceVal * (targetBitrate / nominalBitrate);
 
-    // Calculate target size based on bitrate scaling
-    // (trace_size * target_bitrate / nominal_bitrate)
-    float targetSize = currentTraceSize / nominalBitrate * targetBitrate;
+    bool isKeyFrameCurrent = false;
 
-    // --- Ported Logic: Force Keyframe Sizing ---
     if (forceKeyFrame) {
-        // Simulating VP8E_SET_MAX_INTRA_BITRATE_PCT = 900
-        // We override the smooth rate control and force a large frame immediately.
+        // Simulate a Keyframe size (large spike, typically 10x a P-frame)
         bytes = targetSize * KEY_FRAME_MULTIPLIER;
         
-        if (bytes < 1000) bytes = 1000; // Ensure it's at least some size
-        
+        // Ensure a minimum size for I-frames
+        if (bytes < 2000) bytes = 2000;
+
+        isKeyFrameCurrent = true;
         forceKeyFrame = false; // Reset flag
         
-        cout << "[" << time << "] Generating KeyFrame size: " << bytes << " bytes" << endl;
+        // Debug output
+        // cout << "Encoding KeyFrame size: " << bytes << endl;
     } 
     else {
-        // Standard SCReAM sluggishness (EWMA) to simulate rate control delay
+        // Standard "Sluggish" rate control (EWMA) for P-frames
         if (bytes > 0)
             bytes = bytes * sluggishness + targetSize * (1.0 - sluggishness);
         else
             bytes = targetSize;
     }
 
-    // Packetize the frame
     int bytesToInt = (int)bytes;
     
     // Advance trace index
     ix++; 
     if (ix == nFrames) ix = 0;
 
+    // -------------------------------------------------------------------------
+    // 3. Packetize and Push to Queue
+    // -------------------------------------------------------------------------
     while (bytesToInt > 0) {
         int rtpSize = std::min(mss, bytesToInt);
-        bool isMarker = (bytesToInt <= mss); // Last packet of frame gets Marker bit
-
+        bool isMarker = (bytesToInt <= mss); // Last packet of the frame
+        
         bytesToInt -= rtpSize;
         int fullPacketSize = rtpSize + kRtpOverHead;
         rtpBytes += fullPacketSize;
 
-        // Push to transmission queue
-        // Note: ringmaster used frame_id, SCReAM usually uses global time or frame count
-        rtpQueue->push(rtpPacket, fullPacketSize, SSRC, seqNr, isMarker, time);
+        // Push to RTP Queue
+        // NOTE: We pass 'isKeyFrameCurrent' so the Receiver knows to reset OOO counters
+        rtpQueue->push(rtpPacket, fullPacketSize, SSRC, seqNr, isMarker, time, isKeyFrameCurrent);
 
-        // --- Ported Logic: Track Unacked Packets ---
+        // Track this packet for timeouts
         unacked_packets[seqNr] = time;
 
         seqNr++;
     }
-    
+
     // Update RTP timestamp (90kHz clock)
     timeStamp += (uint32_t)(90000 / frameRate);
-
-    // Tell queue about the frame boundary size for stats
+    
+    // Notify queue about the frame boundary for stats
     rtpQueue->setSizeOfLastFrame(rtpBytes);
 
     return rtpBytes;

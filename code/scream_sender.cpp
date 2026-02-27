@@ -11,6 +11,7 @@
 #include <cstring>
 #include "Encoder.h"
 #include "VideoEnc.h"
+#include "VideoEnc.h"
 #include <string.h> /* needed for memset */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -23,6 +24,20 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/timerfd.h>
+#include <map>
+
+// Global unacked packet tracking (for ACK-based retransmission)
+std::map<uint16_t, VideoEnc::UnackedPacket> unacked_packets;
+pthread_mutex_t lock_unacked = PTHREAD_MUTEX_INITIALIZER;
+uint64_t ewma_rtt_us = 0;  // Exponential moving average RTT in microseconds
+
+// Helper to get current time in microseconds
+uint64_t getTimeInUs() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
 #include <map>
 
 // Global unacked packet tracking (for ACK-based retransmission)
@@ -67,9 +82,7 @@ float FPS = 50.0f; // Frames per second
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
-bool useLossKeyframe = false;
-bool useTimekeyKeyframe = false;
-float timekeyTimeout = 1.0f;
+bool forceKeyFrame = false;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
@@ -480,7 +493,7 @@ void handle_ack(uint16_t acked_seqNr, uint32_t time_ntp) {
 				// Schedule for immediate retransmission
 				uint8_t* buf_copy = (uint8_t*)malloc(lost_pkt.size);
 				memcpy(buf_copy, lost_pkt.data, lost_pkt.size);
-				rtpQueue->push_front(buf_copy, lost_pkt.size, SSRC, lost_pkt.seqNr, lost_pkt.isMark, (time_ntp) / 65536.0f, lost_pkt.ts);
+				rtpQueue->push(buf_copy, lost_pkt.size, SSRC, lost_pkt.seqNr, lost_pkt.isMark, (time_ntp) / 65536.0f, lost_pkt.ts);
 				std::cout << "[ARQ] Retransmitting seq: " << lost_pkt.seqNr << std::endl;
 			}
 		}
@@ -546,7 +559,7 @@ void* createRtpThread(void* arg) {
 					// If any unacked packet has been lost for over 1 second (1000000 us)
 					if (current_us - pair.second.lastSendTimeUs > 1000000) {
 						std::cerr << "* Recovery: Gave up retransmissions and forced a key frame!" << std::endl;
-						useLossKeyframe = true;
+						forceKeyFrame = true;
 						
 						// Flush ARQ states
 						unacked_packets.clear();

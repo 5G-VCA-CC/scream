@@ -24,20 +24,7 @@ struct Encoder::Impl {
     bool use_periodic_keyframes = false;
     uint64_t keyframe_interval_us = 2000000; // default 2 seconds
     uint64_t last_keyframe_ts_us = 0;
-
-    // Feedback-timeout key frame control (emulates ringmaster's MAX_UNACKED_US)
-    bool use_feedback_timeout_keyframes = false;
-    uint64_t max_unacked_us = 1000000; // default 1s (matches ringmaster)
-    bool has_triggered = false;
-    uint16_t last_triggered_seq = 0;
-
-    // One-shot forced key frame (set by forceNextKeyframe(), cleared after use)
     bool force_keyframe = false;
-
-    // ScreamV2Tx object to access txPackets data
-    ScreamV2Tx* screamTx;
-    pthread_mutex_t* lock_scream;
-    uint32_t ssrc;
 };
 
 // Helper to get current timestamp in microseconds
@@ -127,21 +114,7 @@ void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
     impl_->keyframe_interval_us = interval_us;
 }
 
-// Configure the encoder to use feedback timeouts to force keyframes
-void Encoder::setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us) {
-    if (!impl_) return;
-    impl_->use_feedback_timeout_keyframes = enable;
-}
-
-// Called by scream_sender to notify the encoder when RTCP feedback is received
-// void Encoder::notifyFeedbackReceived() {
-//     if (!impl_) return;
-//     impl_->last_feedback_ts_us = get_timestamp_us();
-//     impl_->feedback_ever_received = true;
-// }
-
-void Encoder::forceNextKeyframe() {
-    if (!impl_) return;
+void Encoder::requestKeyFrame() {
     impl_->force_keyframe = true;
 }
 
@@ -189,21 +162,10 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
                      << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
         }
     }
-    // Force a keyframe if the last transmitted packet has been unacked for longer than 1s (max_unacked_us)
-    else if (impl_->use_feedback_timeout_keyframes && impl_->screamTx) {
-        uint16_t oldest_unacked_seq = 0;
-        uint32_t oldest_unacked_ts = 0;
-        pthread_mutex_lock(impl_->lock_scream);
-        if (impl_->screamTx->getOldestUnacked(impl_->ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
-            uint32_t us_since_first_send = get_timestamp_us() - oldest_unacked_ts;
-            if (us_since_first_send > impl_->max_unacked_us) {
-                if (impl_->last_triggered_seq != oldest_unacked_seq) {
-                    flags = VPX_EFLAG_FORCE_KF;
-                    impl_->last_triggered_seq = oldest_unacked_seq;
-                }
-            }
-        }
-        pthread_mutex_unlock(impl_->lock_scream);
+
+    if (impl_->force_keyframe) {
+        flags |= VPX_EFLAG_FORCE_KF;
+        impl_->force_keyframe = false;
     }
 
     if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {

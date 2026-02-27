@@ -17,6 +17,7 @@ public:
 
     // Enable periodic key frames (interval in microseconds)
     void setPeriodicKeyframes(bool enable, uint64_t interval_us = 2000000);
+    void requestKeyFrame();
 
 private:
     struct Impl;

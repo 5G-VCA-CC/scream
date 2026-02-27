@@ -21,6 +21,7 @@ struct Encoder::Impl {
     bool use_periodic_keyframes = false;
     uint64_t keyframe_interval_us = 2000000; // default 2 seconds
     uint64_t last_keyframe_ts_us = 0;
+    bool force_keyframe = false;
 };
 
 // Helper to get current timestamp in microseconds
@@ -107,6 +108,10 @@ void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
     impl_->keyframe_interval_us = interval_us;
 }
 
+void Encoder::requestKeyFrame() {
+    impl_->force_keyframe = true;
+}
+
 std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame) {
     if (!impl_) return {};
     const int w = impl_->width;
@@ -131,6 +136,11 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
             std::cerr << "* Periodic key frame forced at frame " << impl_->frame_id 
                      << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
         }
+    }
+
+    if (impl_->force_keyframe) {
+        flags |= VPX_EFLAG_FORCE_KF;
+        impl_->force_keyframe = false;
     }
 
     if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {

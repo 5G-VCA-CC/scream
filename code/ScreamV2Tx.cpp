@@ -1,5 +1,6 @@
 #include "RtpQueue.h"
 #include "ScreamTx.h"
+#include "Encoder.h"
 #ifdef _WIN32
 #define NOMINMAX
 #include <winSock2.h>
@@ -11,6 +12,8 @@
 // === Some good to have features, SCReAM works also
 //     with these disabled
 // Fast start can resume if little or no congestion detected
+
+Encoder encoder(1280, 720, 30, 1000);
 
 // Rate update interval
 static const uint32_t kRateAdjustInterval_ntp = 1311; // 20ms in NTP domain
@@ -1073,6 +1076,7 @@ void ScreamV2Tx::detectLoss(uint32_t time_ntp, struct Transmitted* txPackets, ui
 			if (!tmp->isAcked) {
 				if (time_ntp - lastLossEventT_ntp > sRtt_ntp && lossBeta < 1.0f) {
 					lossEvent = true;
+					encoder.requestKeyFrame();
 				}
 				if (fp_txrxlog) {
 				   fprintf(fp_txrxlog, "%s, %d, %d.%04d, -1.0, -1.0\n", timeString, tmp->seqNr,

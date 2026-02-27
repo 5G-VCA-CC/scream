@@ -139,7 +139,7 @@ def plot_histograms(stats, output_prefix='stats'):
     
     plt.style.use('seaborn-v0_8-darkgrid' if 'seaborn-v0_8-darkgrid' in plt.style.available else 'ggplot')
     
-    def plot_single_hist(data, title, xlabel, color, filename):
+    def plot_single_hist(data, title, xlabel, color, filename, set_xlim=False):
         if not data:
             return
             
@@ -160,7 +160,8 @@ def plot_histograms(stats, output_prefix='stats'):
         ax.legend()
         
         plt.tight_layout()
-        plt.xlim(0, 15)
+        if set_xlim:
+            plt.xlim(0, 15)
         plt.savefig(filename, dpi=150)
         plt.close()
 
@@ -170,7 +171,8 @@ def plot_histograms(stats, output_prefix='stats'):
         'Distribution of Receive Rate',
         'Receive Rate (Mbps)',
         'green',
-        f'{output_prefix}_hist_receive_rate.png'
+        f'{output_prefix}_hist_receive_rate.png',
+        set_xlim=True
     )
 
     # 2. Freeze Duration Histogram
@@ -188,7 +190,7 @@ def plot_histograms(stats, output_prefix='stats'):
         'Distribution of Inter-Frame Delay difference',
         'difference (s)',
         'purple',
-        f'{output_prefix}_hist_difference.png'
+        f'{output_prefix}_hist_interframe_difference.png'
     )
     
     print(f"Histogram plots saved with prefix '{output_prefix}_hist_*.png'")

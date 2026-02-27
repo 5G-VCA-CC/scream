@@ -49,10 +49,14 @@ public:
 
     // Enhanced unacked packet tracking (similar to ringmaster)
     struct UnackedPacket {
-        unsigned int seqNr;
-        float sendTime;      // Initial send time (seconds)
-        float lastSendTime;  // Last transmission time (seconds)
-        int numRetx;         // Number of retransmissions
+        uint16_t seqNr;
+        uint8_t* data;        // pointer to packet buffer (owned by RtpQueue until pop)
+        int size;
+        uint32_t ts;
+        bool isMark;
+        uint64_t sendTimeUs;     // initial send time (microseconds)
+        uint64_t lastSendTimeUs; // last retransmit time (microseconds)
+        int numRetx;
     };
 
     std::map<unsigned int, UnackedPacket> unacked_;  // SeqNr -> UnackedPacket info

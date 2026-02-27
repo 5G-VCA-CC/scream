@@ -10,6 +10,7 @@
 #include <vpx/vp8cx.h>
 #include <cstring>
 #include "Encoder.h"
+#include "VideoEnc.h"
 #include <string.h> /* needed for memset */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -22,6 +23,20 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/timerfd.h>
+#include <map>
+
+// Global unacked packet tracking (for ACK-based retransmission)
+std::map<uint16_t, VideoEnc::UnackedPacket> unacked_packets;
+pthread_mutex_t lock_unacked = PTHREAD_MUTEX_INITIALIZER;
+uint64_t ewma_rtt_us = 0;  // Exponential moving average RTT in microseconds
+
+// Helper to get current time in microseconds
+uint64_t getTimeInUs() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
 struct itimerval timer;
 struct sigaction sa;
 
@@ -52,6 +67,7 @@ float FPS = 50.0f; // Frames per second
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
+bool forceKeyFrame = false;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
@@ -434,6 +450,44 @@ static void waitPeriod(struct periodicInfo* info)
 		info->wakeupsMissed += (missed - 1);
 }
 
+void handle_ack(uint16_t acked_seqNr, uint32_t time_ntp) {
+	uint64_t current_us = getTimeInUs();
+	pthread_mutex_lock(&lock_unacked);
+	
+	auto it = unacked_packets.find(acked_seqNr);
+	if (it != unacked_packets.end()) {
+		// Calculate RTT
+		uint64_t rtt = current_us - it->second.lastSendTimeUs;
+		if (ewma_rtt_us == 0.0) {
+			ewma_rtt_us = rtt;
+		} else {
+			ewma_rtt_us = 0.2 * rtt + 0.8 * ewma_rtt_us;
+		}
+		
+		// Retransmit older unacknowledged packets (Reverse iterate)
+		for (auto rit = unacked_packets.rbegin(); rit != unacked_packets.rend(); ++rit) {
+			auto& lost_pkt = rit->second;
+			
+			if (lost_pkt.numRetx >= MAX_NUM_RTX) continue;
+			
+			// Retransmit if 1st RTX, or if last RTX was more than 1 RTT ago
+			if (lost_pkt.numRetx == 0 || (current_us - lost_pkt.lastSendTimeUs > ewma_rtt_us)) {
+				lost_pkt.numRetx++;
+				lost_pkt.lastSendTimeUs = current_us;
+				
+				// Schedule for immediate retransmission
+				uint8_t* buf_copy = (uint8_t*)malloc(lost_pkt.size);
+				memcpy(buf_copy, lost_pkt.data, lost_pkt.size);
+				rtpQueue->push(buf_copy, lost_pkt.size, SSRC, lost_pkt.seqNr, lost_pkt.isMark, (time_ntp) / 65536.0f, lost_pkt.ts);
+				std::cout << "[ARQ] Retransmitting seq: " << lost_pkt.seqNr << std::endl;
+			}
+		}
+		// Packet is successfully acknowledged, remove from tracker
+		unacked_packets.erase(it);
+	}
+	pthread_mutex_unlock(&lock_unacked);
+}
+
 void* createRtpThread(void* arg) {
 	uint32_t keyFrameInterval_ntp = (uint32_t)(keyFrameInterval * 65536.0f);
 	float rateScale = 1.0f;
@@ -461,6 +515,32 @@ void* createRtpThread(void* arg) {
 
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
+			pthread_mutex_lock(&lock_unacked);
+			if (!unacked_packets.empty()) {
+				uint64_t current_us = getTimeInUs();
+				for (auto const& pair : unacked_packets) {
+					// If any unacked packet has been lost for over 1 second (1000000 us)
+					if (current_us - pair.second.lastSendTimeUs > 1000000) {
+						std::cerr << "* Recovery: Gave up retransmissions and forced a key frame!" << std::endl;
+						forceKeyFrame = true;
+						
+						// Flush ARQ states
+						unacked_packets.clear();
+						rtpQueue->clear();
+						pthread_mutex_unlock(&lock_unacked);
+						
+						// Flush main RTP Queue
+						pthread_mutex_lock(&lock_rtp_queue);
+						rtpQueue->clear();
+						pthread_mutex_unlock(&lock_rtp_queue);
+						
+						pthread_mutex_lock(&lock_unacked); // Re-lock just for symmetry of unlock
+						break; 
+					}
+				}
+			}
+			pthread_mutex_unlock(&lock_unacked);
+		
 			// If encoder initialized, update its bitrate to follow SCReAM target
 			if (useVideo && g_encoder) {
 				unsigned int target_kbps = (unsigned int)(rateTx / 1000.0f + 0.5f);

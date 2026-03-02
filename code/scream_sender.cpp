@@ -637,12 +637,6 @@ void* createRtpThread(void* arg) {
 								if (useLossKeyframe) {
 									cerr << "Encoder configured with loss-triggered keyframes" << endl;
 								}
-								if (useTimekeyKeyframe) {
-									uint64_t timeout_us = (uint64_t)(timekeyTimeout * 1000000);
-									g_encoder->setFeedbackTimeoutKeyframes(true, timeout_us);
-									cerr << "Encoder configured with feedback-timeout keyframes: timeout="
-									     << timekeyTimeout << "s (emulates ringmaster MAX_UNACKED_US)" << endl;
-								}
 							} catch (...) {
 								cerr << "Failed to initialize Encoder\n";
 								useVideo = false;
@@ -1002,15 +996,10 @@ int main(int argc, char* argv[]) {
 		cerr << "     -periodickey val1 val2   Set periodic key frame interval [s] and size multiplier" << endl;
 		cerr << "                               With -video: natural VP9 keyframes (val2 ignored)" << endl;
 		cerr << "                               Without -video: synthetic traffic (val2 applied)" << endl;
-		cerr << "                               Mutually exclusive with -losskey and -timekey" << endl;
 		cerr << "                               example -periodickey 2.0 5.0 " << endl;
 		cerr << "     -losskey                 Force key frames on packet loss (VP9 -video mode only)" << endl;
 		cerr << "                               Uses SCReAM loss detection to trigger key frames" << endl;
-		cerr << "                               Mutually exclusive with -periodickey and -timekey" << endl;
-		cerr << "     -timekey val             Force key frame when RTCP feedback is absent for val seconds" << endl;
-		cerr << "                               Emulates ringmaster's MAX_UNACKED_US timeout-based recovery" << endl;
-		cerr << "                               VP9 -video mode only; mutually exclusive with -periodickey and -losskey" << endl;
-		cerr << "                               example -timekey 1.0 (default timeout matches ringmaster's 1s)" << endl;
+		cerr << "                               Mutually exclusive with -periodickey" << endl;
 		cerr << "     -rand val                Framesizes vary randomly around the nominal " << endl;
 		cerr << "                               example -rand 10 framesize vary +/- 10% " << endl;
 		cerr << "     -initrate val            Set a start bitrate [kbps]" << endl;
@@ -1318,20 +1307,8 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : -periodickey and -losskey are mutually exclusive" << endl;
 		exit(-1);
 	}
-	if (isKeyFrame && useTimekeyKeyframe) {
-		cerr << "Error : -periodickey and -timekey are mutually exclusive" << endl;
-		exit(-1);
-	}
-	if (useLossKeyframe && useTimekeyKeyframe) {
-		cerr << "Error : -losskey and -timekey are mutually exclusive" << endl;
-		exit(-1);
-	}
 	if (useLossKeyframe && !useVideo) {
 		cerr << "Error : -losskey requires -video (VP9 mode only)" << endl;
-		exit(-1);
-	}
-	if (useTimekeyKeyframe && !useVideo) {
-		cerr << "Error : -timekey requires -video (VP9 mode only)" << endl;
 		exit(-1);
 	}
 	if (logFile) {

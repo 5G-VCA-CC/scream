@@ -261,7 +261,7 @@ int txbw_plugin_main(int argc, char* argv[])
 			continue;
 		}
 
-		if (strstr(argv[ix], "-key")) {
+		if (strstr(argv[ix], "-periodickey")) {
 			isKeyFrame = true;
 			keyFrameInterval = atof(argv[ix + 1]);
 			keyFrameSize = atof(argv[ix + 2]);

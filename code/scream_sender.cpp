@@ -513,6 +513,17 @@ void* createRtpThread(void* arg) {
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
 			float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
 
+			// Loss-based keyframe: if SCReAM signals loss (returns negative bitrate), force a keyframe
+			if (useLossKeyframe && rateTx < 0 && g_encoder) {
+				g_encoder->forceNextKeyframe();
+				cerr << "Loss detected by SCReAM, requesting key frame" << endl;
+				// Re-fetch the target bitrate (repairLoss was consumed, next call returns real rate)
+				rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
+			}
+
+			// If rateTx is still negative (no -losskey, or first-call edge case), clamp to 0
+			if (rateTx < 0) rateTx = 0;
+
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
 			pthread_mutex_lock(&lock_unacked);
@@ -589,12 +600,15 @@ void* createRtpThread(void* arg) {
 								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500);
 								cerr << "Encoder initialized with target bitrate: 500 kbps" << endl;
 								
-								// Configure periodic keyframes if -key option was provided
+								// Configure periodic keyframes if -periodickey option was provided
 								if (isKeyFrame) {
 									uint64_t interval_us = (uint64_t)(keyFrameInterval * 1000000);
 									g_encoder->setPeriodicKeyframes(true, interval_us);
 									cerr << "Encoder configured with periodic keyframes: interval=" 
 									     << keyFrameInterval << "s (no artificial size multiplier)" << endl;
+								}
+								if (useLossKeyframe) {
+									cerr << "Encoder configured with loss-triggered keyframes" << endl;
 								}
 							} catch (...) {
 								cerr << "Failed to initialize Encoder\n";
@@ -946,10 +960,13 @@ int main(int argc, char* argv[]) {
 		cerr << "     -fixedrate val           Set a fixed 'coder' bitrate " << endl;
 		cerr << "     -pushtraffic             just pushtraffic at a fixed bitrate, no feedback needed" << endl;
 		cerr << "                                must be used with -fixedrate option" << endl;
-		cerr << "     -key val1 val2           Set periodic key frame interval [s] and size multiplier" << endl;
+		cerr << "     -periodickey val1 val2   Set periodic key frame interval [s] and size multiplier" << endl;
 		cerr << "                               With -video: natural VP9 keyframes (val2 ignored)" << endl;
 		cerr << "                               Without -video: synthetic traffic (val2 applied)" << endl;
-		cerr << "                               example -key 2.0 5.0 " << endl;
+		cerr << "                               example -periodickey 2.0 5.0 " << endl;
+		cerr << "     -losskey                 Force key frames on packet loss (VP9 -video mode only)" << endl;
+		cerr << "                               Uses SCReAM loss detection to trigger key frames" << endl;
+		cerr << "                               Mutually exclusive with -periodickey" << endl;
 		cerr << "     -rand val                Framesizes vary randomly around the nominal " << endl;
 		cerr << "                               example -rand 10 framesize vary +/- 10% " << endl;
 		cerr << "     -initrate val            Set a start bitrate [kbps]" << endl;
@@ -1086,11 +1103,16 @@ int main(int argc, char* argv[]) {
 			ix += 3;
 			continue;
 		}
-		if (strstr(argv[ix], "-key")) {
+		if (strstr(argv[ix], "-periodickey")) {
 			isKeyFrame = true;
 			keyFrameInterval = atof(argv[ix + 1]);
 			keyFrameSize = atof(argv[ix + 2]);
 			ix += 3;
+			continue;
+		}
+		if (strstr(argv[ix], "-losskey")) {
+			useLossKeyframe = true;
+			ix++;
 			continue;
 		}
 		if (strstr(argv[ix], "-maxwindowheadroom")) {
@@ -1234,6 +1256,14 @@ int main(int argc, char* argv[]) {
 
 	if (pushTraffic && fixedRate == 0) {
 		cerr << "Error : pushtraffic can only be used with fixedrate" << endl;
+		exit(-1);
+	}
+	if (isKeyFrame && useLossKeyframe) {
+		cerr << "Error : -periodickey and -losskey are mutually exclusive" << endl;
+		exit(-1);
+	}
+	if (useLossKeyframe && !useVideo) {
+		cerr << "Error : -losskey requires -video (VP9 mode only)" << endl;
 		exit(-1);
 	}
 	if (logFile) {

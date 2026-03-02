@@ -19,6 +19,9 @@ public:
     void setPeriodicKeyframes(bool enable, uint64_t interval_us = 2000000);
     void requestKeyFrame();
 
+    // Force the next encoded frame to be a key frame (resets after use)
+    void forceNextKeyframe();
+
 private:
     struct Impl;
     Impl* impl_;

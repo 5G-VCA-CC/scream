@@ -21,6 +21,8 @@ struct Encoder::Impl {
     bool use_periodic_keyframes = false;
     uint64_t keyframe_interval_us = 2000000; // default 2 seconds
     uint64_t last_keyframe_ts_us = 0;
+
+    // One-shot forced key frame (set by forceNextKeyframe(), cleared after use)
     bool force_keyframe = false;
 };
 
@@ -108,7 +110,8 @@ void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
     impl_->keyframe_interval_us = interval_us;
 }
 
-void Encoder::requestKeyFrame() {
+void Encoder::forceNextKeyframe() {
+    if (!impl_) return;
     impl_->force_keyframe = true;
 }
 
@@ -127,7 +130,16 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
 
     // Check if we need to force a key frame
     vpx_enc_frame_flags_t flags = 0;
-    if (impl_->use_periodic_keyframes) {
+
+    // One-shot forced key frame (e.g. loss-triggered)
+    if (impl_->force_keyframe) {
+        flags = VPX_EFLAG_FORCE_KF;
+        impl_->force_keyframe = false;
+        impl_->last_keyframe_ts_us = get_timestamp_us();
+        std::cerr << "* Loss-triggered key frame forced at frame " << impl_->frame_id << std::endl;
+    }
+    // Periodic key frame timer
+    else if (impl_->use_periodic_keyframes) {
         uint64_t curr_ts = get_timestamp_us();
         if (impl_->last_keyframe_ts_us == 0 || 
             curr_ts - impl_->last_keyframe_ts_us >= impl_->keyframe_interval_us) {

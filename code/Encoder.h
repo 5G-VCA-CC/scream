@@ -30,6 +30,9 @@ public:
     // Force the next encoded frame to be a key frame (resets after use)
     void forceNextKeyframe();
 
+    // Force the next encoded frame to be a key frame (resets after use)
+    void forceNextKeyframe();
+
 private:
     struct Impl;
     Impl* impl_;

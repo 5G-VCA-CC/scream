@@ -68,8 +68,6 @@ uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
 bool useLossKeyframe = false;
-bool useTimekeyKeyframe = false;
-float timekeyTimeout = 1.0f;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
@@ -526,6 +524,17 @@ void* createRtpThread(void* arg) {
 			// If rateTx is still negative (no -losskey, or first-call edge case), clamp to 0
 			if (rateTx < 0) rateTx = 0;
 
+			// Loss-based keyframe: if SCReAM signals loss (returns negative bitrate), force a keyframe
+			if (useLossKeyframe && rateTx < 0 && g_encoder) {
+				g_encoder->forceNextKeyframe();
+				cerr << "Loss detected by SCReAM, requesting key frame" << endl;
+				// Re-fetch the target bitrate (repairLoss was consumed, next call returns real rate)
+				rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
+			}
+
+			// If rateTx is still negative (no -losskey, or first-call edge case), clamp to 0
+			if (rateTx < 0) rateTx = 0;
+
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
 			pthread_mutex_lock(&lock_unacked);
@@ -603,6 +612,7 @@ void* createRtpThread(void* arg) {
 								cerr << "Encoder initialized with target bitrate: 500 kbps" << endl;
 								
 								// Configure periodic keyframes if -periodickey option was provided
+								// Configure periodic keyframes if -periodickey option was provided
 								if (isKeyFrame) {
 									uint64_t interval_us = (uint64_t)(keyFrameInterval * 1000000);
 									g_encoder->setPeriodicKeyframes(true, interval_us);
@@ -611,12 +621,6 @@ void* createRtpThread(void* arg) {
 								}
 								if (useLossKeyframe) {
 									cerr << "Encoder configured with loss-triggered keyframes" << endl;
-								}
-								if (useTimekeyKeyframe) {
-									uint64_t timeout_us = (uint64_t)(timekeyTimeout * 1000000);
-									g_encoder->setFeedbackTimeoutKeyframes(true, timeout_us);
-									cerr << "Encoder configured with feedback-timeout keyframes: timeout="
-									     << timekeyTimeout << "s (emulates ringmaster MAX_UNACKED_US)" << endl;
 								}
 							} catch (...) {
 								cerr << "Failed to initialize Encoder\n";
@@ -974,17 +978,13 @@ int main(int argc, char* argv[]) {
 		cerr << "     -pushtraffic             just pushtraffic at a fixed bitrate, no feedback needed" << endl;
 		cerr << "                                must be used with -fixedrate option" << endl;
 		cerr << "     -periodickey val1 val2   Set periodic key frame interval [s] and size multiplier" << endl;
+		cerr << "     -periodickey val1 val2   Set periodic key frame interval [s] and size multiplier" << endl;
 		cerr << "                               With -video: natural VP9 keyframes (val2 ignored)" << endl;
 		cerr << "                               Without -video: synthetic traffic (val2 applied)" << endl;
-		cerr << "                               Mutually exclusive with -losskey and -timekey" << endl;
 		cerr << "                               example -periodickey 2.0 5.0 " << endl;
 		cerr << "     -losskey                 Force key frames on packet loss (VP9 -video mode only)" << endl;
 		cerr << "                               Uses SCReAM loss detection to trigger key frames" << endl;
-		cerr << "                               Mutually exclusive with -periodickey and -timekey" << endl;
-		cerr << "     -timekey val             Force key frame when RTCP feedback is absent for val seconds" << endl;
-		cerr << "                               Emulates ringmaster's MAX_UNACKED_US timeout-based recovery" << endl;
-		cerr << "                               VP9 -video mode only; mutually exclusive with -periodickey and -losskey" << endl;
-		cerr << "                               example -timekey 1.0 (default timeout matches ringmaster's 1s)" << endl;
+		cerr << "                               Mutually exclusive with -periodickey" << endl;
 		cerr << "     -rand val                Framesizes vary randomly around the nominal " << endl;
 		cerr << "                               example -rand 10 framesize vary +/- 10% " << endl;
 		cerr << "     -initrate val            Set a start bitrate [kbps]" << endl;
@@ -1128,10 +1128,16 @@ int main(int argc, char* argv[]) {
 			continue;
 		}
 		if (strstr(argv[ix], "-periodickey")) {
+		if (strstr(argv[ix], "-periodickey")) {
 			isKeyFrame = true;
 			keyFrameInterval = atof(argv[ix + 1]);
 			keyFrameSize = atof(argv[ix + 2]);
 			ix += 3;
+			continue;
+		}
+		if (strstr(argv[ix], "-losskey")) {
+			useLossKeyframe = true;
+			ix++;
 			continue;
 		}
 		if (strstr(argv[ix], "-losskey")) {
@@ -1286,20 +1292,8 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : -periodickey and -losskey are mutually exclusive" << endl;
 		exit(-1);
 	}
-	if (isKeyFrame && useTimekeyKeyframe) {
-		cerr << "Error : -periodickey and -timekey are mutually exclusive" << endl;
-		exit(-1);
-	}
-	if (useLossKeyframe && useTimekeyKeyframe) {
-		cerr << "Error : -losskey and -timekey are mutually exclusive" << endl;
-		exit(-1);
-	}
 	if (useLossKeyframe && !useVideo) {
 		cerr << "Error : -losskey requires -video (VP9 mode only)" << endl;
-		exit(-1);
-	}
-	if (useTimekeyKeyframe && !useVideo) {
-		cerr << "Error : -timekey requires -video (VP9 mode only)" << endl;
 		exit(-1);
 	}
 	if (logFile) {

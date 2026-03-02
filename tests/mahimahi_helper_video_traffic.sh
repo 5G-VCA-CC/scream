@@ -41,7 +41,7 @@ timeout 10 bash -c "while [ ! -f '$SIGNAL_RX_READY' ]; do sleep 0.1; done" || {
 }
 
 echo "Receiver is ready, starting sender..."
-$SCREAM_TX -ect "$L4S_ENABLED" -video "$VIDEO_FILE" -fps 30 -time "$TEST_DURATION" -key 1.0 5.0 -mtu 1388 "$TX_IP" "$PORT" \
+$SCREAM_TX -ect "$L4S_ENABLED" -video "$VIDEO_FILE" -fps 30 -time "$TEST_DURATION" -losskey -mtu 1388 "$TX_IP" "$PORT" \
     > "${LOG_PREFIX}_tx.log" 2>&1
 
 echo "Sender completed."

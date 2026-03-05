@@ -21,6 +21,14 @@ public:
     void setPeriodicKeyframes(bool enable, uint64_t interval_us = 2000000);
     void requestKeyFrame();
 
+    // Enable feedback-timeout key frames (emulates ringmaster's MAX_UNACKED_US).
+    // Forces a key frame when RTCP feedback has been absent for timeout_us microseconds.
+    void setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us = 1000000);
+
+    // Notify the encoder that RTCP feedback was just received (resets the timeout clock).
+    // Called from the RTCP receive path.
+    void notifyFeedbackReceived();
+
     // Force the next encoded frame to be a key frame (resets after use)
     void forceNextKeyframe();
 

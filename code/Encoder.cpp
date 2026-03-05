@@ -22,6 +22,12 @@ struct Encoder::Impl {
     uint64_t keyframe_interval_us = 2000000; // default 2 seconds
     uint64_t last_keyframe_ts_us = 0;
 
+    // Feedback-timeout key frame control (emulates ringmaster's MAX_UNACKED_US)
+    bool use_feedback_timeout_keyframes = false;
+    uint64_t feedback_timeout_us = 1000000; // default 1s (matches ringmaster)
+    uint64_t last_feedback_ts_us = 0;       // 0 = no feedback received yet
+    bool feedback_ever_received = false;
+
     // One-shot forced key frame (set by forceNextKeyframe(), cleared after use)
     bool force_keyframe = false;
 };
@@ -110,6 +116,22 @@ void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
     impl_->keyframe_interval_us = interval_us;
 }
 
+// Configure the encoder to use feedback timeouts to force keyframes
+void Encoder::setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us) {
+    if (!impl_) return;
+    impl_->use_feedback_timeout_keyframes = enable;
+    impl_->feedback_timeout_us = timeout_us;
+    impl_->feedback_ever_received = false;
+    impl_->last_feedback_ts_us = 0;
+}
+
+// Called by scream_sender to notify the encoder when RTCP feedback is received
+void Encoder::notifyFeedbackReceived() {
+    if (!impl_) return;
+    impl_->last_feedback_ts_us = get_timestamp_us();
+    impl_->feedback_ever_received = true;
+}
+
 void Encoder::forceNextKeyframe() {
     if (!impl_) return;
     impl_->force_keyframe = true;
@@ -147,6 +169,19 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
             impl_->last_keyframe_ts_us = curr_ts;
             std::cerr << "* Periodic key frame forced at frame " << impl_->frame_id 
                      << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
+        }
+    }
+    // Force a keyframe if RTCP feedback was previously received but has been absent for longer than the timeout value
+    else if (impl_->use_feedback_timeout_keyframes && impl_->feedback_ever_received) {
+        uint64_t curr_ts = get_timestamp_us();
+        if (curr_ts - impl_->last_feedback_ts_us >= impl_->feedback_timeout_us) {
+            flags = VPX_EFLAG_FORCE_KF;
+            // Resest timestamp so keyframes aren't forced on every subsequent frame during an extended feedback gap
+            // Analagous to ringmaster clearing unacked_ after forcing a keyframe 
+            impl_->last_feedback_ts_us = curr_ts;
+            std::cerr << "* Feedback timeout key frame forced at frame " << impl_->frame_id
+                     << " (no RTCP feedback for " << impl_->feedback_timeout_us / 1000
+                     << " ms)" << std::endl;
         }
     }
 

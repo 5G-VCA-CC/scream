@@ -480,7 +480,7 @@ void handle_ack(uint16_t acked_seqNr, uint32_t time_ntp) {
 				// Schedule for immediate retransmission
 				uint8_t* buf_copy = (uint8_t*)malloc(lost_pkt.size);
 				memcpy(buf_copy, lost_pkt.data, lost_pkt.size);
-				rtpQueue->push(buf_copy, lost_pkt.size, SSRC, lost_pkt.seqNr, lost_pkt.isMark, (time_ntp) / 65536.0f, lost_pkt.ts);
+				rtpQueue->push_front(buf_copy, lost_pkt.size, SSRC, lost_pkt.seqNr, lost_pkt.isMark, (time_ntp) / 65536.0f, lost_pkt.ts);
 				std::cout << "[ARQ] Retransmitting seq: " << lost_pkt.seqNr << std::endl;
 			}
 		}

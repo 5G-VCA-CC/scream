@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <deque>
 /*
 * Implements a simple RTP packet queue, one RTP queue
 * per stream {SSRC,PT}
@@ -40,6 +41,7 @@ public:
 
 	bool push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
 	bool pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp);
+	bool push_front(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
 	int sizeOfNextRtp();
 	int seqNrOfNextRtp();
 	int seqNrOfLastRtp();

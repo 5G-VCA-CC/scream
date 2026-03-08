@@ -53,6 +53,40 @@ bool RtpQueue::push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seq
 	computeSizeOfNextRtp();
 	return (true);
 }
+bool RtpQueue::push_front(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp) {
+    std::unique_lock<std::mutex> lock(queue_operation_mutex_);
+    // Calculate the slot one step before current tail
+    int ix = tail - 1;
+    if (ix < 0) ix = kRtpQueueSize - 1;
+
+    // If slot is occupied, queue is full
+    if (items[ix]->used) {
+        return false;
+    }
+
+    // Move tail backward to the new slot
+    tail = ix;
+    items[tail]->seqNr = seqNr;
+    items[tail]->timeStamp = timeStamp;
+    items[tail]->ssrc = ssrc;
+    items[tail]->size = size;
+    items[tail]->ts = ts;
+    items[tail]->isMark = isMark;
+    items[tail]->used = true;
+#ifndef IGNORE_PACKET
+    items[tail]->packet = rtpPacket;
+#endif
+    bytesInQueue_ += size;
+    sizeOfQueue_ += 1;
+
+    // initial state
+    if (head < 0) {
+        head = tail;
+    }
+
+    computeSizeOfNextRtp();
+    return true;
+}
 bool RtpQueue::pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp)
 {
 	std::unique_lock<std::mutex> lock(queue_operation_mutex_);

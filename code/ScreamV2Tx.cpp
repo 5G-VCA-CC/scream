@@ -1076,7 +1076,7 @@ void ScreamV2Tx::detectLoss(uint32_t time_ntp, struct Transmitted* txPackets, ui
 			if (!tmp->isAcked) {
 				if (time_ntp - lastLossEventT_ntp > sRtt_ntp && lossBeta < 1.0f) {
 					lossEvent = true;
-					encoder.requestKeyFrame();
+					encoder.forceNextKeyframe();
 				}
 				if (fp_txrxlog) {
 				   fprintf(fp_txrxlog, "%s, %d, %d.%04d, -1.0, -1.0\n", timeString, tmp->seqNr,

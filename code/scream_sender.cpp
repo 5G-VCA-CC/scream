@@ -535,7 +535,7 @@ void* createRtpThread(void* arg) {
 					// If any unacked packet has been lost for over 1 second (1000000 us)
 					if (current_us - pair.second.lastSendTimeUs > 1000000) {
 						std::cerr << "* Recovery: Gave up retransmissions and forced a key frame!" << std::endl;
-						forceKeyFrame = true;
+						useLossKeyframe = true;
 						
 						// Flush ARQ states
 						unacked_packets.clear();

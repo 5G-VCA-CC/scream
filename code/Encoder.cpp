@@ -7,6 +7,9 @@
 #include <limits>
 #include <sys/time.h>
 #include <iostream>
+#include <pthread.h>
+
+#include "ScreamV2Tx.h"
 
 struct Encoder::Impl {
     vpx_codec_ctx_t ctx{};
@@ -24,12 +27,16 @@ struct Encoder::Impl {
 
     // Feedback-timeout key frame control (emulates ringmaster's MAX_UNACKED_US)
     bool use_feedback_timeout_keyframes = false;
-    uint64_t feedback_timeout_us = 1000000; // default 1s (matches ringmaster)
-    uint64_t last_feedback_ts_us = 0;       // 0 = no feedback received yet
-    bool feedback_ever_received = false;
+    uint64_t max_unacked_us = 1000000; // default 1s (matches ringmaster)
+    bool has_triggered = false;
+    uint16_t last_triggered_seq = 0;
 
     // One-shot forced key frame (set by forceNextKeyframe(), cleared after use)
     bool force_keyframe = false;
+
+    // ScreamV2Tx object to access txPackets data
+    ScreamV2Tx* screamTx;
+    uint32_t ssrc;
 };
 
 // Helper to get current timestamp in microseconds
@@ -39,12 +46,14 @@ static uint64_t get_timestamp_us() {
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
-Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps)
+Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, uint32_t ssrc)
     : impl_(new Impl()) {
     impl_->width = width;
     impl_->height = height;
     impl_->framerate = framerate;
     impl_->bitrate_kbps = bitrate_kbps;
+    impl_->screamTx = screamTx;
+    impl_->ssrc = ssrc;
 
     if (vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &impl_->cfg, 0) != VPX_CODEC_OK)
         throw std::runtime_error("vpx_codec_enc_config_default failed");
@@ -172,16 +181,20 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
         }
     }
     // Force a keyframe if RTCP feedback was previously received but has been absent for longer than the timeout value
-    else if (impl_->use_feedback_timeout_keyframes && impl_->feedback_ever_received) {
-        uint64_t curr_ts = get_timestamp_us();
-        if (curr_ts - impl_->last_feedback_ts_us >= impl_->feedback_timeout_us) {
-            flags = VPX_EFLAG_FORCE_KF;
-            // Resest timestamp so keyframes aren't forced on every subsequent frame during an extended feedback gap
-            // Analagous to ringmaster clearing unacked_ after forcing a keyframe 
-            impl_->last_feedback_ts_us = curr_ts;
-            std::cerr << "* Feedback timeout key frame forced at frame " << impl_->frame_id
-                     << " (no RTCP feedback for " << impl_->feedback_timeout_us / 1000
-                     << " ms)" << std::endl;
+    else if (impl_->use_feedback_timeout_keyframes && impl_->screamTx) {
+        uint16_t oldest_unacked_seq = 0;
+        uint32_t oldest_unacked_ts = 0;
+        int streamId;
+        ScreamV2Tx::Stream* stream = screamTx->getStream(impl_->ssrc, streamId);
+        if (stream->getOldestUnacked(ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
+            uint32_t us_since_first_send = get_timestamp_us() - oldest_unacked_ts;
+            if (us_since_first_send > impl_->max_unacked_us) {
+                if(!impl_->has_triggered || impl_->last_triggered_seq != oldest_seq) {
+                    flags = VPX_EFLAG_FORCE_KF;
+                    impl_->has_triggered = true;
+                    impl_->last_triggered_seq = oldest_seq;
+                }
+            }
         }
     }
 

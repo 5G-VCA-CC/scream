@@ -609,6 +609,8 @@ extern "C" {
 				return relFrameSizeHigh;
 			}
 
+			bool getOldestUnacked(uint16_t& seqNr, uint32_t& txTime_ntp);
+
 			ScreamV2Tx* parent;
 			RtpQueueIface* rtpQueue;      // RTP Packet queue
 			uint32_t ssrc;            // SSRC of stream

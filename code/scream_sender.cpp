@@ -610,7 +610,7 @@ void* createRtpThread(void* arg) {
 							g_enc_height = y4m.height;
 							try {
 								// Initialize encoder with 500 kbps starting bitrate
-								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500, screamTx, SSRC);
+								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500, screamTx, &lock_scream, SSRC);
 								cerr << "Encoder initialized with target bitrate: 500 kbps" << endl;
 								
 								// Configure periodic keyframes if -periodickey option was provided

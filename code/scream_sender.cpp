@@ -684,9 +684,9 @@ void* readRtcpThread(void* arg) {
 			rtcp_rx_time_ntp = time_ntp;
 
 			// Notify the encoder that RTCP feedback was received (resets feedback timeout clock)
-			if (useTimekeyKeyframe && g_encoder) {
-				g_encoder->notifyFeedbackReceived();
-			}
+			// if (useTimekeyKeyframe && g_encoder) {
+			// 	g_encoder->notifyFeedbackReceived();
+			// }
 		}
 		usleep(10);
 	}

@@ -9,7 +9,7 @@
 #include <iostream>
 #include <pthread.h>
 
-#include "ScreamV2Tx.h"
+#include "ScreamTx.h"
 
 struct Encoder::Impl {
     vpx_codec_ctx_t ctx{};
@@ -129,17 +129,14 @@ void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
 void Encoder::setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us) {
     if (!impl_) return;
     impl_->use_feedback_timeout_keyframes = enable;
-    impl_->feedback_timeout_us = timeout_us;
-    impl_->feedback_ever_received = false;
-    impl_->last_feedback_ts_us = 0;
 }
 
 // Called by scream_sender to notify the encoder when RTCP feedback is received
-void Encoder::notifyFeedbackReceived() {
-    if (!impl_) return;
-    impl_->last_feedback_ts_us = get_timestamp_us();
-    impl_->feedback_ever_received = true;
-}
+// void Encoder::notifyFeedbackReceived() {
+//     if (!impl_) return;
+//     impl_->last_feedback_ts_us = get_timestamp_us();
+//     impl_->feedback_ever_received = true;
+// }
 
 void Encoder::forceNextKeyframe() {
     if (!impl_) return;
@@ -180,19 +177,16 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
                      << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
         }
     }
-    // Force a keyframe if RTCP feedback was previously received but has been absent for longer than the timeout value
+    // Force a keyframe if the last transmitted packet has been unacked for longer than 1s (max_unacked_us)
     else if (impl_->use_feedback_timeout_keyframes && impl_->screamTx) {
         uint16_t oldest_unacked_seq = 0;
         uint32_t oldest_unacked_ts = 0;
-        int streamId;
-        ScreamV2Tx::Stream* stream = screamTx->getStream(impl_->ssrc, streamId);
-        if (stream->getOldestUnacked(ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
+        if (impl_->screamTx->getOldestUnacked(impl_->ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
             uint32_t us_since_first_send = get_timestamp_us() - oldest_unacked_ts;
             if (us_since_first_send > impl_->max_unacked_us) {
-                if(!impl_->has_triggered || impl_->last_triggered_seq != oldest_seq) {
+                if (impl_->last_triggered_seq != oldest_unacked_seq) {
                     flags = VPX_EFLAG_FORCE_KF;
-                    impl_->has_triggered = true;
-                    impl_->last_triggered_seq = oldest_seq;
+                    impl_->last_triggered_seq = oldest_unacked_seq;
                 }
             }
         }

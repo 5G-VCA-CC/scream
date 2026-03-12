@@ -533,6 +533,7 @@ extern "C" {
 		void isCwndGrowthRestrictionWhenCongested(bool val) {
 			cwndGrowthRestrictionWhenCongested = val;
 		}
+		bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& timeTx_ntp);
 	private:
 		/*
 		* Struct for list of RTP packets in flight

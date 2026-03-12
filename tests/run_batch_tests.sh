@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 SCREAM_RX="${SCRIPT_DIR}/../bin/scream_bw_test_rx"
 SCREAM_TX="${SCRIPT_DIR}/../bin/scream_bw_test_tx"
-MM_DIR="$HOME/UCSB/mahimahi"
+MM_DIR="$HOME/UCSB/mahimahi-dualpi2"
 MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
 
 usage() {

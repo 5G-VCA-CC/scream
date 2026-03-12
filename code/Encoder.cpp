@@ -36,6 +36,7 @@ struct Encoder::Impl {
 
     // ScreamV2Tx object to access txPackets data
     ScreamV2Tx* screamTx;
+    pthread_mutex_t* lock_scream;
     uint32_t ssrc;
 };
 
@@ -46,13 +47,14 @@ static uint64_t get_timestamp_us() {
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
-Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, uint32_t ssrc)
+Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc)
     : impl_(new Impl()) {
     impl_->width = width;
     impl_->height = height;
     impl_->framerate = framerate;
     impl_->bitrate_kbps = bitrate_kbps;
     impl_->screamTx = screamTx;
+    impl_->lock_scream = lock_scream;
     impl_->ssrc = ssrc;
 
     if (vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &impl_->cfg, 0) != VPX_CODEC_OK)
@@ -181,6 +183,7 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
     else if (impl_->use_feedback_timeout_keyframes && impl_->screamTx) {
         uint16_t oldest_unacked_seq = 0;
         uint32_t oldest_unacked_ts = 0;
+        pthread_mutex_lock(impl_->lock_scream);
         if (impl_->screamTx->getOldestUnacked(impl_->ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
             uint32_t us_since_first_send = get_timestamp_us() - oldest_unacked_ts;
             if (us_since_first_send > impl_->max_unacked_us) {
@@ -190,6 +193,7 @@ std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame)
                 }
             }
         }
+        pthread_mutex_unlock(impl_->lock_scream);
     }
 
     if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {

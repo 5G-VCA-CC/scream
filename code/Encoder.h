@@ -3,11 +3,12 @@
 
 #include <vector>
 #include <cstdint>
+#include <pthread.h>
 #include "ScreamTx.h"
 
 class Encoder {
 public:
-    Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, uint32_t ssrc);
+    Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc);
     ~Encoder();
 
     // Encode a single YUV420p frame (Y plane then U then V). Returns encoded bytes (VP9 bitstream)

@@ -11,78 +11,68 @@ RtpQueueItem::RtpQueueItem() {
 	size = 0;
 	seqNr = 0;
 	timeStamp = 0;
+	packet = nullptr;
 }
 
 
 RtpQueue::RtpQueue() {
-	for (int n = 0; n < kRtpQueueSize; n++) {
-		items[n] = new RtpQueueItem();
-	}
-	head = -1;
-	tail = 0;
-	nItems = 0;
 	sizeOfLastFrame = 0;
 	bytesInQueue_ = 0;
-	sizeOfQueue_ = 0;
+	// sizeOfQueue_ = 0;
 	sizeOfNextRtp_ = -1;
+}
+
+RtpQueue::~RtpQueue(){
+	clear();
 }
 
 bool RtpQueue::push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp) {
 	std::unique_lock<std::mutex> lock(queue_operation_mutex_);
-	int ix = head + 1;
-	if (ix == kRtpQueueSize) ix = 0;
-	if (items[ix]->used) {
+	if (queue_.size() >= kRtpQueueSize) {
 		/*
 		* RTP queue is full, do a drop tail i.e ignore new RTP packets
 		*/
 		return (false);
 	}
-	head = ix;
-	items[head]->seqNr = seqNr;
-	items[head]->timeStamp = timeStamp;
-	items[head]->ssrc = ssrc;
-	items[head]->size = size;
-	items[head]->ts = ts;
-	items[head]->isMark = isMark;
-	items[head]->used = true;
-	bytesInQueue_ += size;
-	sizeOfQueue_ += 1;
+	RtpQueueItem item;
+	item.seqNr = seqNr;
+	item.timeStamp = timeStamp;
+	item.ssrc = ssrc;
+	item.size = size;
+	item.ts = ts;
+	item.isMark = isMark;
+	item.used = true;
+	// sizeOfQueue_ += 1;
 #ifndef IGNORE_PACKET
-	items[head]->packet = rtpPacket;
+	item.packet = rtpPacket;
 #endif
+	queue_.push_back(item);
+	bytesInQueue_ += size;
 	computeSizeOfNextRtp();
 	return (true);
 }
 bool RtpQueue::push_front(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp) {
     std::unique_lock<std::mutex> lock(queue_operation_mutex_);
-    // Calculate the slot one step before current tail
-    int ix = tail - 1;
-    if (ix < 0) ix = kRtpQueueSize - 1;
-
     // If slot is occupied, queue is full
-    if (items[ix]->used) {
+    if (queue_.size() >= kRtpQueueSize) {
         return false;
     }
 
     // Move tail backward to the new slot
-    tail = ix;
-    items[tail]->seqNr = seqNr;
-    items[tail]->timeStamp = timeStamp;
-    items[tail]->ssrc = ssrc;
-    items[tail]->size = size;
-    items[tail]->ts = ts;
-    items[tail]->isMark = isMark;
-    items[tail]->used = true;
+    RtpQueueItem item;
+	item.seqNr = seqNr;
+	item.timeStamp = timeStamp;
+	item.ssrc = ssrc;
+	item.size = size;
+	item.ts = ts;
+	item.isMark = isMark;
+	item.used = true;
 #ifndef IGNORE_PACKET
-    items[tail]->packet = rtpPacket;
+    item.packet = rtpPacket;
 #endif
+	queue_.push_front(item);
     bytesInQueue_ += size;
-    sizeOfQueue_ += 1;
-
-    // initial state
-    if (head < 0) {
-        head = tail;
-    }
+    // sizeOfQueue_ += 1;
 
     computeSizeOfNextRtp();
     return true;
@@ -90,22 +80,20 @@ bool RtpQueue::push_front(void* rtpPacket, int size, uint32_t ssrc, unsigned sho
 bool RtpQueue::pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp)
 {
 	std::unique_lock<std::mutex> lock(queue_operation_mutex_);
-	if (items[tail]->used == false) {
+	if (queue_.empty()) {
 		*rtpPacket = NULL;
 		sizeOfNextRtp_ = -1;
 		return false;
 	}
-	else {
-		size = items[tail]->size;
-
+	RtpQueueItem &item = queue_.front();
+	size = item.size;
 #ifndef IGNORE_PACKET
-		* rtpPacket = items[tail]->packet;
+		* rtpPacket = item.packet;
 #endif
-		seqNr = items[tail]->seqNr;
-		timeStamp = items[tail]->timeStamp;
-		ssrc = items[tail]->ssrc;
-		isMark = items[tail]->isMark;
-		items[tail]->used = false;
+		seqNr = item.seqNr;
+		timeStamp = item.timeStamp;
+		ssrc = item.ssrc;
+		isMark = item.isMark;
 		/*
 		* Thread safe update of tail to avoid that tail points outside
 		*  array, which can cause e.g RtpQueue::getDelay to give a
@@ -113,23 +101,18 @@ bool RtpQueue::pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& 
 		* This should not really be needed because
 		*  we use mutex to make the pop function atomic
 		*/
-		if (tail == kRtpQueueSize - 1)
-			tail = 0;
-		else
-			tail++;
 		bytesInQueue_ -= size;
-		sizeOfQueue_ -= 1;
+		queue_.pop_front();
 		computeSizeOfNextRtp();
 		return true;
-	}
 }
 
 void RtpQueue::computeSizeOfNextRtp() {
-	if (!items[tail]->used) {
+	if (queue_.empty()) {
 		sizeOfNextRtp_ = -1;
 	}
 	else {
-		sizeOfNextRtp_ = items[tail]->size;
+		sizeOfNextRtp_ = queue_.front().size;
 	}
 }
 
@@ -138,20 +121,20 @@ int RtpQueue::sizeOfNextRtp() {
 }
 
 int RtpQueue::seqNrOfNextRtp() {
-	if (!items[tail]->used) {
+	if (queue_.empty()) {
 		return -1;
 	}
 	else {
-		return items[tail]->seqNr;
+		return queue_.front().seqNr;
 	}
 }
 
 int RtpQueue::seqNrOfLastRtp() {
-	if (!items[head]->used) {
+	if (queue_.empty()) {
 		return -1;
 	}
 	else {
-		return items[head]->seqNr;
+		return queue_.back().seqNr;
 	}
 }
 
@@ -160,15 +143,15 @@ int RtpQueue::bytesInQueue() {
 }
 
 int RtpQueue::sizeOfQueue() {
-	return sizeOfQueue_;
+	return queue_.size();
 }
 
 float RtpQueue::getDelay(float currTs) {
-	if (items[tail]->used == false) {
+	if (queue_.empty()) {
 		return 0;
 	}
 	else {
-		return currTs - items[tail]->ts;
+		return currTs - queue_.front().ts;
 	}
 }
 

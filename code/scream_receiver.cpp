@@ -291,6 +291,18 @@ void print_periodic_stats(uint32_t current_time_ntp){
             if(var < 0.0 && var > -reduce_noise){var = 0.0;}
             inter_frame_delay_difference = std::max(0.0, var);
         }
+
+		if (screamRx && screamRx->getStatistics()) {
+            screamRx->getStatistics()->addInterval(
+                current_time_ntp,
+                receive_rate_mbps,
+                inter_frame_delay_difference,
+                stats_frames_completed,    // interval count (reset below)
+                frames_rendered,           // cumulative total
+                freeze_count,              // cumulative total
+                total_freezes_duration     // cumulative total
+            );
+		}
         
         // print statistics
         cout << "=== RECEIVER STATS (last " << elapsed_sec << "s) ===" << endl;
@@ -620,6 +632,10 @@ int main(int argc, char* argv[])
 				receivedRtp++;
 				total_datagrams_received++;
             	total_bytes_received += recvlen;
+
+				if (screamRx && screamRx->getStatistics()) {
+					screamRx->getStatistics()->addPacket(recvlen);
+				}
 				/*
 				* Parse RTP header
 				*/

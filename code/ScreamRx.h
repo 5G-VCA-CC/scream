@@ -33,6 +33,50 @@ public:
 	ScreamRx(uint32_t ssrc, int ackDiff = -1, int nReportedRtpPackets = kReportedRtpPackets); // SSRC of this RTCP session
 	~ScreamRx();
 
+	class Statistics {
+	public:
+		Statistics();
+
+        void addInterval(uint32_t time_ntp,
+                         double receive_rate_mbps,
+                         double inter_frame_delay_difference_s,
+                         uint64_t frames_completed_interval,
+                         uint64_t frames_rendered_total,
+                         uint64_t freeze_count_total,
+                         double freeze_duration_total_s);
+
+		void addPacket(int size_bytes);
+
+		void printFinalSummary() const;
+
+	private:
+        uint64_t nIntervals_;
+
+        double rateMinMbps_;
+        double rateMaxMbps_;
+        double rateSumMbps_;
+
+        double ifddMinS_;
+        double ifddMaxS_;
+        double ifddSumS_;
+
+        uint64_t datagramsTotal_;
+        uint64_t bytesTotal_;
+
+        uint64_t lastFramesRenderedTotal_;
+        uint64_t lastFreezeCountTotal_;
+        double   lastFreezeDurationTotalS_;
+
+        uint64_t framesCompletedTotal_;
+        uint64_t framesRenderedTotal_;
+        uint64_t freezeCountTotal_;
+        double   freezeDurationTotalS_;
+
+	};
+
+	Statistics* getStatistics() { return statistics_; }
+	void printFinalSummary();
+
 	/*
 	* One instance is created for each source SSRC
 	*/
@@ -175,6 +219,9 @@ public:
 	* Variables for multiple steams handling
 	*/
 	std::list<Stream*> streams;
+
+private:
+		Statistics* statistics_;
 };
 
 #endif

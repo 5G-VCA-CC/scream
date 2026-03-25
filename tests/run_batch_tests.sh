@@ -196,7 +196,7 @@ run_test() {
     else
         mm-delay "$DELAY_MS" \
             mm-loss uplink "$LOSS_PCT" \
-            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100" \
+            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]" \
             "$TRACE_FILE" "$TRACE_FILE" \
             -- bash "$HELPER_SCRIPT" \
                 "$RX_IP" "$TX_IP" "$PORT" \

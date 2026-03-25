@@ -3,6 +3,8 @@
 
 #include <cstdint>
 #include <mutex>
+#include <deque>
+
 /*
 * Implements a simple RTP packet queue, one RTP queue
 * per stream {SSRC,PT}
@@ -37,8 +39,10 @@ const int kRtpQueueSize = 1024;
 class RtpQueue : public RtpQueueIface {
 public:
 	RtpQueue();
+	~RtpQueue();
 
 	bool push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
+	bool push_front(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
 	bool pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp);
 	int sizeOfNextRtp();
 	int seqNrOfNextRtp();
@@ -50,16 +54,14 @@ public:
 	int clear();
 	int getSizeOfLastFrame() { return sizeOfLastFrame; };
 	void setSizeOfLastFrame(int sz) { sizeOfLastFrame = sz; };
+
+private:
 	void computeSizeOfNextRtp();
 
-	RtpQueueItem* items[kRtpQueueSize];
-	int head; // Pointer to last inserted item
-	int tail; // Pointer to the oldest item
-	int nItems;
+	std::deque<RtpQueueItem> queue_;
 	int sizeOfLastFrame;
-
 	int bytesInQueue_;
-	int sizeOfQueue_;
+	// int sizeOfQueue_;
 	int sizeOfNextRtp_;
 	std::mutex queue_operation_mutex_;
 };

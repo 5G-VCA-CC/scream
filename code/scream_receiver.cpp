@@ -19,6 +19,8 @@
 #include <vpx/vp8dx.h>
 #include <cstring>
 #include "Decoder.h"
+#include <deque>
+#include <cmath>
 using namespace std;
 
 #define BUFSIZE 2048
@@ -82,6 +84,20 @@ static bool assembling_frame = false;
 static uint16_t expected_seq_for_assembly = 0;
 static bool discard_until_marker = false;
 static bool waiting_for_keyframe = false;
+static unsigned long freeze_count = 0;
+static double total_freezes_duration = 0.0;           // seconds
+static double total_inter_frame_delay = 0.0;           // seconds
+static double total_squared_inter_frame_delay = 0.0;    // seconds^2
+static unsigned long frames_rendered = 0;
+static std::deque<double> last_frame_duration_ms;    // keep last 30 frame durations in ms
+static uint32_t last_frame_render_time_ntp = 0;
+static constexpr double NTP_TO_SEC = 1.0 / 65536.0;
+// Periodic statistics
+static uint64_t total_datagrams_received = 0;
+static uint64_t total_bytes_received = 0;
+static uint32_t last_stats_time_ntp = 0;
+static uint64_t stats_frames_completed = 0;
+static const uint32_t STATS_INTERVAL_NTP = 65536; // 1 second
 
 // Decoder wrapper
 static Decoder* g_decoder = nullptr;
@@ -213,6 +229,87 @@ void* rtcpPeriodicThread(void* arg) {
 		}
 		usleep(500);
 	}
+}
+
+static void update_inter_frame_stats(uint32_t render_time_ntp)
+{
+    if (last_frame_render_time_ntp != 0) {
+        // compute duration between consecutively rendered frames in ms
+        uint32_t diff_ntp = render_time_ntp - last_frame_render_time_ntp;
+        double duration_s = diff_ntp * NTP_TO_SEC;
+        double duration_ms = duration_s * 1000.0;
+
+        // update rolling history (last 30)
+        last_frame_duration_ms.push_back(duration_ms);
+        if(last_frame_duration_ms.size() > 30){
+			last_frame_duration_ms.pop_front();
+		}
+
+        // average of durations of last 30 (or fewer) frames
+        double sum_ms = 0.0;
+        for(double v : last_frame_duration_ms){
+			sum_ms += v;
+		}
+        double avg_frame_duration_ms = sum_ms / double(last_frame_duration_ms.size());
+
+        // freeze threshold: Max(3 * avg_frame_duration_ms, avg_frame_duration_ms + 150)
+        double threshold = std::max(3.0 * avg_frame_duration_ms, avg_frame_duration_ms + 150.0);
+
+        if(duration_ms >= threshold) {
+            freeze_count++;
+            total_freezes_duration += duration_s;
+        }
+
+        // update inter-frame sums for difference computation
+        total_inter_frame_delay += duration_s;
+        total_squared_inter_frame_delay += duration_s * duration_s;
+        frames_rendered++;
+    }
+
+    // store last render time for next interval
+    last_frame_render_time_ntp = render_time_ntp;
+}
+
+void print_periodic_stats(uint32_t current_time_ntp){
+    if(last_stats_time_ntp == 0){
+    	last_stats_time_ntp = current_time_ntp;
+        return;
+    }
+    uint32_t elapsed_ntp = current_time_ntp - last_stats_time_ntp;
+
+    if(elapsed_ntp >= STATS_INTERVAL_NTP){
+        double elapsed_sec = elapsed_ntp * NTP_TO_SEC; // convert elapsed time to seconds
+        double receive_rate_mbps = (total_bytes_received * 8.0) / (elapsed_sec * 1e6); // calculate receive rate(Mbps)
+
+        // calculate inter-frame delay difference
+        double inter_frame_delay_difference = 0.0;
+        if(frames_rendered > 0){
+            double mean = total_inter_frame_delay / static_cast<double>(frames_rendered);
+            double ex2 = total_squared_inter_frame_delay / static_cast<double>(frames_rendered);
+            double var = ex2 - mean * mean;
+            const double reduce_noise = 1e-12; // numerical noise reduction
+            if(var < 0.0 && var > -reduce_noise){var = 0.0;}
+            inter_frame_delay_difference = std::max(0.0, var);
+        }
+        
+        // print statistics
+        cout << "=== RECEIVER STATS (last " << elapsed_sec << "s) ===" << endl;
+        cout << "Datagrams received: " << total_datagrams_received << endl;
+        cout << "Bytes received: " << total_bytes_received << endl;
+        cout << "Receive rate: " << receive_rate_mbps << " Mbps" << endl;
+        cout << "Frames completed: " << stats_frames_completed << endl;
+        cout << "Total frames rendered: " << frames_rendered << endl;
+        cout << "Freeze count: " << freeze_count << ", total freeze duration: " << total_freezes_duration << " s" << endl;
+        cout << "Total Inter-Frame Delay: " << total_inter_frame_delay << " s" << endl;
+        cout << "Inter-Frame Delay difference: " << inter_frame_delay_difference << " s" << endl;
+        cout << "=================================================" << endl;
+        
+        // reset per-interval counters
+        total_datagrams_received = 0;
+        total_bytes_received = 0;
+        stats_frames_completed = 0;
+        last_stats_time_ntp = current_time_ntp;
+    }
 }
 
 int main(int argc, char* argv[])
@@ -521,6 +618,8 @@ int main(int argc, char* argv[])
 				}
 				last_received_time_ntp = time_ntp;
 				receivedRtp++;
+				total_datagrams_received++;
+            	total_bytes_received += recvlen;
 				/*
 				* Parse RTP header
 				*/
@@ -622,7 +721,9 @@ int main(int argc, char* argv[])
 							        seqNr, recv_frame_buf.size(), decoded ? 1 : 0, is_key_frame ? 1 : 0);
 
 							if (decoded) {
+								stats_frames_completed++;
 								waiting_for_keyframe = false;
+								update_inter_frame_stats(getTimeInNtp()); // update inter-frame/freezes stats
 							} else {
 								waiting_for_keyframe = true;
 								Decoder* cur = g_decoder;
@@ -695,5 +796,6 @@ int main(int argc, char* argv[])
 				}
 			}
 		}
+		print_periodic_stats(time_ntp);
 	}
 }

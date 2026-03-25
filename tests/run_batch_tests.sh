@@ -262,6 +262,31 @@ echo "Log files:"
 ls -lh "$OUTPUT_DIR"/*.log
 
 echo ""
+echo "====================================================="
+echo "Plotting Results!"
+echo "====================================================="
+echo "Results saved in: $OUTPUT_DIR"
+
+PLOTS_DIR="${OUTPUT_DIR}/plots"
+mkdir -p "$PLOTS_DIR"
+
+HIST_CMD=(python3 "${SCRIPT_DIR}/plot_scream_histogram.py" \
+    "$L4S_ENABLED" "$DELAY_MS" "$LOSS_PCT" "$TRACE_FILE" \
+    "$OUTPUT_DIR" "$PLOTS_DIR/sender" \
+    --no-show)
+
+if [ "$MODE" = "video" ]; then
+    HIST_CMD+=(--video "$VIDEO_FILE")
+fi
+
+"${HIST_CMD[@]}"
+
+python3 "${SCRIPT_DIR}/plot_scream_receiver_stats.py" \
+    "$OUTPUT_DIR" \
+    -o "${PLOTS_DIR}/receiver" \
+    -c
+
+echo ""
 echo "To analyze CWND data from all tests:"
 echo "  for log in $OUTPUT_DIR/*_tx.log; do"
 echo "    python3 tests/plot_scream_cwnd.py \"\$log\""

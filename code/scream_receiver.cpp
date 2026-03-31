@@ -12,6 +12,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <cstdio>
+#include <cstdlib>
+#include <stdexcept>
+#include "Decoder.h"
 using namespace std;
 
 #define BUFSIZE 2048
@@ -38,6 +42,7 @@ int fd_incoming_rtp;
 
 int fd_outgoing_rtcp;
 ScreamRx* screamRx = 0;
+bwvideo::Decoder* videoDecoder = 0;
 
 //int fd_local_rtp;
 
@@ -62,6 +67,9 @@ pthread_mutex_t lock_scream;
 double t0 = 0;
 
 bool ipv6 = false;
+bool videoMode = false;
+int videoWidth = 0;
+int videoHeight = 0;
 
 /*
 * Time in 32 bit NTP format
@@ -156,6 +164,7 @@ int main(int argc, char* argv[])
 		cerr << "SCReAM BW test tool, receiver. Ericsson AB. Version 2026-01-21 " << endl;
 		cerr << "Usage :" << endl << " > scream_bw_test_rx <options> sender_ip sender_port" << endl;
 		cerr << "     -ipv6               IPv6" << endl;
+		cerr << "     -video WxH          Enable VP9 decode and write received.y4m" << endl;
 		cerr << "     -ackdiff            set the max distance in received RTPs to send an ACK " << endl;
 		cerr << "     -nreported          set the number of reported RTP packets per ACK " << endl;
 		cerr << "     -if name            bind to specific interface" << endl;
@@ -168,6 +177,16 @@ int main(int argc, char* argv[])
 		if (strstr(argv[ix], "-ipv6")) {
 			ipv6 = true;
 			ix++;
+			continue;
+		}
+		if (argc > (ix + 1) && strstr(argv[ix], "-video")) {
+			videoMode = true;
+			if (sscanf(argv[ix + 1], "%dx%d", &videoWidth, &videoHeight) != 2 ||
+				videoWidth <= 0 || videoHeight <= 0) {
+				cerr << "Invalid -video format, expected WxH" << endl;
+				exit(-1);
+			}
+			ix += 2;
 			continue;
 		}
 
@@ -202,6 +221,16 @@ int main(int argc, char* argv[])
 	t0 = (tp.tv_sec + tp.tv_usec * 1e-6) - 1e-3;
 
 	screamRx = new ScreamRx(10, ackDiff, nReportedRtpPackets);
+	if (videoMode) {
+		try {
+			videoDecoder = new bwvideo::Decoder((uint16_t)videoWidth, (uint16_t)videoHeight, true);
+			cerr << "Video decode mode enabled: " << videoWidth << "x" << videoHeight << endl;
+		}
+		catch (const std::exception& e) {
+			cerr << "Failed to initialize VP9 decoder: " << e.what() << endl;
+			return -1;
+		}
+	}
 
 	if (ipv6) {
 		incoming_rtp_addr6.sin6_family = AF_INET6;
@@ -348,13 +377,14 @@ int main(int argc, char* argv[])
 	struct iovec rcv_iov[1];
 	char rcv_ctrl_data[MAX_CTRL_SIZE];
 	char rcv_buf[MAX_BUF_SIZE];
+	struct sockaddr_storage peer_addr;
 
 	/* Prepare message for receiving */
 	rcv_iov[0].iov_base = rcv_buf;
 	rcv_iov[0].iov_len = MAX_BUF_SIZE;
 
-	rcv_msg.msg_name = NULL;	// Socket is connected
-	rcv_msg.msg_namelen = 0;
+	rcv_msg.msg_name = &peer_addr;
+	rcv_msg.msg_namelen = sizeof(peer_addr);
 	rcv_msg.msg_iov = rcv_iov;
 	rcv_msg.msg_iovlen = 1;
 	rcv_msg.msg_control = rcv_ctrl_data;
@@ -369,8 +399,10 @@ int main(int argc, char* argv[])
 		/*
 		* Extract ECN bits
 		*/
-		unsigned char received_ecn;
+		unsigned char received_ecn = 0;
 #ifdef ECN_CAPABLE
+		rcv_msg.msg_namelen = sizeof(peer_addr);
+		rcv_msg.msg_controllen = MAX_CTRL_SIZE;
 		int recvlen = recvmsg(fd_incoming_rtp, &rcv_msg, 0);
 		if (recvlen == -1) {
 			perror("recvmsg()");
@@ -378,6 +410,18 @@ int main(int argc, char* argv[])
 			return EXIT_FAILURE;
 		}
 		else {
+			if (rcv_msg.msg_namelen > 0) {
+				if (ipv6 && peer_addr.ss_family == AF_INET6) {
+					struct sockaddr_in6* src = reinterpret_cast<struct sockaddr_in6*>(&peer_addr);
+					outgoing_rtcp_addr6.sin6_addr = src->sin6_addr;
+					outgoing_rtcp_addr6.sin6_port = src->sin6_port;
+				}
+				else if (!ipv6 && peer_addr.ss_family == AF_INET) {
+					struct sockaddr_in* src = reinterpret_cast<struct sockaddr_in*>(&peer_addr);
+					outgoing_rtcp_addr.sin_addr = src->sin_addr;
+					outgoing_rtcp_addr.sin_port = src->sin_port;
+				}
+			}
 			struct cmsghdr* cmptr;
 			int* ecnptr;
 			for (cmptr = CMSG_FIRSTHDR(&rcv_msg);
@@ -436,6 +480,9 @@ int main(int argc, char* argv[])
 				uint32_t ts;
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
+				if (videoMode && recvlen > 12 && videoDecoder) {
+					videoDecoder->add_rtp_payload(seqNr, ts, buf + 12, recvlen - 12, isMark);
+				}
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {
 					fprintf(stderr, "Packet(s) lost or reordered : %5d was received, previous rcvd is %5d \n", seqNr, lastSn);

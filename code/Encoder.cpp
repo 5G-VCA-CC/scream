@@ -139,7 +139,8 @@ void Encoder::set_target_bitrate_kbps(uint32_t bitrate_kbps)
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
                                 std::vector<std::vector<uint8_t>>& payloads,
-                                bool* is_key_frame)
+                                bool* is_key_frame,
+                                bool force_key_frame)
 {
   payloads.clear();
   if (is_key_frame) {
@@ -170,6 +171,9 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   vpx_enc_frame_flags_t encode_flags = 0;
   if (frame_id_ == 0 || (frame_id_ % keyframe_interval_frames_ == 0)) {
+    encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  if (force_key_frame) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
 

@@ -343,6 +343,7 @@ void* createRtpThread(void* arg) {
 	struct periodicInfo info;
 	std::vector<std::vector<uint8_t>> encodedPayloads;
 	bwvideo::Encoder* videoEncoder = nullptr;
+	float lastVideoRateTx = initRate * 1000.0f;
 
 	if (videoMode) {
 		try {
@@ -369,7 +370,17 @@ void* createRtpThread(void* arg) {
 		uint32_t time_ntp = getTimeInNtp();
 
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
-		float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
+		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
+		float rateTx = targetRate * rateScale;
+		bool requestKeyFrame = videoMode && targetRate < 0.0f;
+		if (videoMode) {
+			if (targetRate > 0.0f) {
+				lastVideoRateTx = rateTx;
+			}
+			else {
+				rateTx = lastVideoRateTx;
+			}
+		}
 
 		mtu = screamTx->getRecommendedMss(time_ntp);
 
@@ -407,7 +418,7 @@ void* createRtpThread(void* arg) {
 		if (videoMode) {
 			bool encodedKeyFrame = false;
 			if (videoEncoder &&
-				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame)) {
+				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame, requestKeyFrame)) {
 				if (encodedKeyFrame) {
 					lastKeyFrameT_ntp = time_ntp;
 				}

@@ -281,10 +281,10 @@ fi
 
 "${HIST_CMD[@]}"
 
-python3 "${SCRIPT_DIR}/plot_scream_receiver_stats.py" \
-    "$OUTPUT_DIR" \
-    -o "${PLOTS_DIR}/receiver" \
-    -c
+# python3 "${SCRIPT_DIR}/plot_scream_receiver_stats.py" \
+#     "$OUTPUT_DIR" \
+#     -o "${PLOTS_DIR}/receiver" \
+#     -c
 
 echo ""
 echo "To analyze CWND data from all tests:"

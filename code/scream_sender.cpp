@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/timerfd.h>
+#include <algorithm>
+#include <cstdint>
+#include <vector>
+#include "Encoder.h"
 struct itimerval timer;
 struct sigaction sa;
 
@@ -43,6 +47,8 @@ int minPaceIntervalUs = 500;
 int ect = -1;
 
 float FPS = 50.0f; // Frames per second
+bool videoMode = false;
+const char* videoPath = nullptr;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -335,6 +341,20 @@ void* createRtpThread(void* arg) {
 	uint32_t dT_us = (uint32_t)(1e6 / FPS);
 	unsigned char PT = 98;
 	struct periodicInfo info;
+	std::vector<std::vector<uint8_t>> encodedPayloads;
+	bwvideo::Encoder* videoEncoder = nullptr;
+
+	if (videoMode) {
+		try {
+			videoEncoder = new bwvideo::Encoder(videoPath, (uint16_t)std::max(1.0f, FPS));
+			cerr << "Video mode enabled: " << videoEncoder->width() << "x" << videoEncoder->height() << " @ " << FPS << "fps" << endl;
+		}
+		catch (const std::exception& e) {
+			cerr << "Failed to initialize video encoder: " << e.what() << endl;
+			stopThread = true;
+			return NULL;
+		}
+	}
 
 	makePeriodic(dT_us, &info);
 
@@ -343,6 +363,7 @@ void* createRtpThread(void* arg) {
 	*/
 	for (;;) {
 		if (stopThread) {
+			delete videoEncoder;
 			return NULL;
 		}
 		uint32_t time_ntp = getTimeInNtp();
@@ -383,7 +404,39 @@ void* createRtpThread(void* arg) {
 				bytes = 0;
 		}
 
-		while (bytes > 0) {
+		if (videoMode) {
+			if (videoEncoder &&
+				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads)) {
+				for (size_t i = 0; i < encodedPayloads.size(); i++) {
+					const bool isMark = (i + 1 == encodedPayloads.size());
+					const int recvlen = (int)encodedPayloads[i].size() + 12;
+					unsigned char pt = PT;
+					if (isMark) {
+						pt |= 0x80;
+					}
+					uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
+					writeRtp(buf_rtp, seqNr, ts, pt);
+					memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
+
+					if (pushTraffic) {
+						sendPacket(buf_rtp, recvlen);
+						packet_free(buf_rtp, SSRC);
+					}
+					else {
+						pthread_mutex_lock(&lock_rtp_queue);
+						rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
+						pthread_mutex_unlock(&lock_rtp_queue);
+
+						pthread_mutex_lock(&lock_scream);
+						time_ntp = getTimeInNtp();
+						screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+						pthread_mutex_unlock(&lock_scream);
+					}
+					seqNr++;
+				}
+			}
+		}
+		else while (bytes > 0) {
 			int pl_size = min(bytes, mtu);
 			int recvlen = pl_size + 12;
 
@@ -687,6 +740,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -inflightheadroom val    Set a bytes in flight headroom (default = 2.0) " << endl;
 		cerr << "     -mulincrease val         Multiplicative increase factor for (default 0.05)" << endl;
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
+		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -833,6 +887,12 @@ int main(int argc, char* argv[]) {
 			ix += 2;
 			continue;
 		}
+		if (strstr(argv[ix], "-video")) {
+			videoMode = true;
+			videoPath = argv[ix + 1];
+			ix += 2;
+			continue;
+		}
 		if (strstr(argv[ix], "-rand")) {
 			randRate = atof(argv[ix + 1]) / 100.0;
 			ix += 2;
@@ -941,6 +1001,10 @@ int main(int argc, char* argv[]) {
 
 	if (pushTraffic && fixedRate == 0) {
 		cerr << "Error : pushtraffic can only be used with fixedrate" << endl;
+		exit(-1);
+	}
+	if (videoMode && videoPath == nullptr) {
+		cerr << "Error : -video requires a Y4M file path" << endl;
 		exit(-1);
 	}
 	if (logFile) {

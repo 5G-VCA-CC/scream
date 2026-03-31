@@ -138,9 +138,13 @@ void Encoder::set_target_bitrate_kbps(uint32_t bitrate_kbps)
 
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
-                                std::vector<std::vector<uint8_t>>& payloads)
+                                std::vector<std::vector<uint8_t>>& payloads,
+                                bool* is_key_frame)
 {
   payloads.clear();
+  if (is_key_frame) {
+    *is_key_frame = false;
+  }
   if (mtu <= 0) {
     return false;
   }
@@ -178,6 +182,9 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   while ((pkt = vpx_codec_get_cx_data(&ctx_, &iter))) {
     if (pkt->kind != VPX_CODEC_CX_FRAME_PKT) {
       continue;
+    }
+    if (is_key_frame && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)) {
+      *is_key_frame = true;
     }
     const uint8_t* ptr = static_cast<const uint8_t*>(pkt->data.frame.buf);
     size_t left = pkt->data.frame.sz;

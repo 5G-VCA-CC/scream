@@ -378,7 +378,7 @@ void* createRtpThread(void* arg) {
 		float randVal = float(rand()) / RAND_MAX - 0.5;
 		int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
 
-		if (isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
+		if (!videoMode && isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
 			/*
 			* Fake a key frame
 			*/
@@ -405,8 +405,12 @@ void* createRtpThread(void* arg) {
 		}
 
 		if (videoMode) {
+			bool encodedKeyFrame = false;
 			if (videoEncoder &&
-				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads)) {
+				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame)) {
+				if (encodedKeyFrame) {
+					lastKeyFrameT_ntp = time_ntp;
+				}
 				for (size_t i = 0; i < encodedPayloads.size(); i++) {
 					const bool isMark = (i + 1 == encodedPayloads.size());
 					const int recvlen = (int)encodedPayloads[i].size() + 12;

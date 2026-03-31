@@ -21,7 +21,8 @@ public:
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
                          int mtu,
-                         std::vector<std::vector<uint8_t>>& payloads);
+                         std::vector<std::vector<uint8_t>>& payloads,
+                         bool* is_key_frame = nullptr);
 
   uint16_t width() const { return width_; }
   uint16_t height() const { return height_; }

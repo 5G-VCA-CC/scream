@@ -49,6 +49,7 @@ int ect = -1;
 float FPS = 50.0f; // Frames per second
 bool videoMode = false;
 const char* videoPath = nullptr;
+bool keyframeOnLossEpoch = false;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -344,6 +345,7 @@ void* createRtpThread(void* arg) {
 	std::vector<std::vector<uint8_t>> encodedPayloads;
 	bwvideo::Encoder* videoEncoder = nullptr;
 	float lastVideoRateTx = initRate * 1000.0f;
+	float lastLossEpochTime = -1.0f;
 
 	if (videoMode) {
 		try {
@@ -374,6 +376,16 @@ void* createRtpThread(void* arg) {
 		float rateTx = targetRate * rateScale;
 		bool requestKeyFrame = videoMode && targetRate < 0.0f;
 		if (videoMode) {
+			float time_s = time_ntp / 65536.0f;
+			if (keyframeOnLossEpoch) {
+				if (screamTx->isLossEpoch(SSRC)) {
+					lastLossEpochTime = time_s;
+				}
+				if (lastLossEpochTime > 0.0f && time_s - lastLossEpochTime > 0.1f) {
+					requestKeyFrame = true;
+					lastLossEpochTime = -1.0f;
+				}
+			}
 			if (targetRate > 0.0f) {
 				lastVideoRateTx = rateTx;
 			}
@@ -756,6 +768,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -mulincrease val         Multiplicative increase factor for (default 0.05)" << endl;
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
+		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -908,6 +921,11 @@ int main(int argc, char* argv[]) {
 			ix += 2;
 			continue;
 		}
+		if (strstr(argv[ix], "-keyframe-on-loss")) {
+			keyframeOnLossEpoch = true;
+			ix++;
+			continue;
+		}
 		if (strstr(argv[ix], "-rand")) {
 			randRate = atof(argv[ix + 1]) / 100.0;
 			ix += 2;
@@ -1020,6 +1038,10 @@ int main(int argc, char* argv[]) {
 	}
 	if (videoMode && videoPath == nullptr) {
 		cerr << "Error : -video requires a Y4M file path" << endl;
+		exit(-1);
+	}
+	if (keyframeOnLossEpoch && !videoMode) {
+		cerr << "Error : -keyframe-on-loss requires -video" << endl;
 		exit(-1);
 	}
 	if (logFile) {

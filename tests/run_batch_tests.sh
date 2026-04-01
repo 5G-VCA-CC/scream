@@ -233,8 +233,12 @@ run_test() {
     wait "$MAHIMAHI_PID" || true
 
     echo "Mahimahi shell exited, stopping receiver..."
-    kill "$RX_PID" 2>/dev/null || true
-    wait "$RX_PID" 2>/dev/null || true
+    kill -TERM "$RX_PID" 2>/dev/null || true
+    timeout 3 bash -c "wait $RX_PID" 2>/dev/null || {
+        echo "Receiver did not exit in time, forcing kill"
+        kill -KILL "$RX_PID" 2>/dev/null || true
+        wait "$RX_PID" 2>/dev/null || true
+    }
 
     cleanup_scream
     rm -f "$signal_start" "$signal_rx_ready" "$signal_done"
@@ -269,6 +273,7 @@ echo "Results saved in: $OUTPUT_DIR"
 
 PLOTS_DIR="${OUTPUT_DIR}/plots"
 mkdir -p "$PLOTS_DIR"
+export MPLBACKEND=Agg
 
 HIST_CMD=(python3 "${SCRIPT_DIR}/plot_scream_histogram.py" \
     "$L4S_ENABLED" "$DELAY_MS" "$LOSS_PCT" "$TRACE_FILE" \
@@ -280,6 +285,11 @@ if [ "$MODE" = "video" ]; then
 fi
 
 "${HIST_CMD[@]}"
+
+python3 "${SCRIPT_DIR}/plot_receiver_histogram.py" \
+    "$OUTPUT_DIR" \
+    "${PLOTS_DIR}/receiver_summary" \
+    --no-show
 
 python3 "${SCRIPT_DIR}/plot_scream_receiver_stats.py" \
     "$OUTPUT_DIR" \

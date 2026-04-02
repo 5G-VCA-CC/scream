@@ -17,7 +17,11 @@
 #include <signal.h>
 #include <sys/timerfd.h>
 #include <algorithm>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
 #include <cstdint>
+#include <sstream>
 #include <vector>
 #include "Encoder.h"
 struct itimerval timer;
@@ -139,6 +143,55 @@ bool itemlist = false;
 bool detailed = false;
 float randRate = 0.0f;
 bool ipv6 = false;
+
+static bool parseIntStrict(const char* s, int& out) {
+	if (s == nullptr || *s == '\0') {
+		return false;
+	}
+	errno = 0;
+	char* end = nullptr;
+	long v = strtol(s, &end, 10);
+	if (errno != 0 || end == s || *end != '\0' || v < INT_MIN || v > INT_MAX) {
+		return false;
+	}
+	out = static_cast<int>(v);
+	return true;
+}
+
+static bool parseFloatStrict(const char* s, float& out) {
+	if (s == nullptr || *s == '\0') {
+		return false;
+	}
+	errno = 0;
+	char* end = nullptr;
+	float v = strtof(s, &end);
+	if (errno != 0 || end == s || *end != '\0') {
+		return false;
+	}
+	out = v;
+	return true;
+}
+
+static void requireArgsOrExit(int argc, int ix, int nArgs, const char* opt) {
+	if (ix + nArgs >= argc) {
+		cerr << "Error : " << opt << " requires " << nArgs << " argument(s)" << endl;
+		exit(-1);
+	}
+}
+
+static void parseIntOrExit(const char* s, int& out, const char* opt) {
+	if (!parseIntStrict(s, out)) {
+		cerr << "Error : " << opt << " expects an integer value, got '" << s << "'" << endl;
+		exit(-1);
+	}
+}
+
+static void parseFloatOrExit(const char* s, float& out, const char* opt) {
+	if (!parseFloatStrict(s, out)) {
+		cerr << "Error : " << opt << " expects a float value, got '" << s << "'" << endl;
+		exit(-1);
+	}
+}
 
 double t0 = 0;
 /*
@@ -794,241 +847,267 @@ int main(int argc, char* argv[]) {
 	char* logFile = 0;
 	char* txRxLogFile = 0;
 	/* First find options */
-	while (strstr(argv[ix], "-")) {
-		if (strstr(argv[ix], "-ect")) {
-			ect = atoi(argv[ix + 1]);
+	while (ix < argc && argv[ix][0] == '-') {
+		const char* opt = argv[ix];
+		if (strcmp(opt, "-ect") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], ect, opt);
 			ix += 2;
 			if (!(ect == -1 || ect == 0 || ect == 1 || ect == 3)) {
 				cerr << "ect must be -1, 0, 1 or 3 " << endl;
-				exit(0);
-
+				exit(-1);
 			}
 			continue;
 		}
-		if (strstr(argv[ix], "-ipv6")) {
+		if (strcmp(opt, "-ipv6") == 0) {
 			ipv6 = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-time")) {
-			runTime = atof(argv[ix + 1]);
+		if (strcmp(opt, "-time") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], runTime, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-scale")) {
-			scaleFactor = atof(argv[ix + 1]);
+		if (strcmp(opt, "-scale") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], scaleFactor, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-delaytarget")) {
-			delayTarget = atof(argv[ix + 1]);
+		if (strcmp(opt, "-delaytarget") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], delayTarget, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-paceheadroom")) {
-			packetPacingHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-paceheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], packetPacingHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-adaptivepaceheadroom")) {
-			adaptivePaceHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-adaptivepaceheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], adaptivePaceHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-inflightheadroom")) {
-			bytesInFlightHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-inflightheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], bytesInFlightHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-mtu")) {
-			char s[100];
-			strcpy(s,argv[ix + 1]);
-            char *t = strtok(s,",");
-            nMtuListItems = 0;
-            cerr << t << endl;
-            mtuList[nMtuListItems++] = atoi(t);
-            while (t != 0) {
-            	t = strtok(0,",");
-            	if (t != 0) {
-                   mtuList[nMtuListItems++] = atoi(t);
-            	}
-            }
-
-            mtu = mtuList[0];
-
+		if (strcmp(opt, "-mtu") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			nMtuListItems = 0;
+			string s = argv[ix + 1];
+			stringstream ss(s);
+			string item;
+			while (getline(ss, item, ',')) {
+				int parsedMtu = 0;
+				if (!parseIntStrict(item.c_str(), parsedMtu)) {
+					cerr << "Error : -mtu expects comma separated integers, got '" << item << "'" << endl;
+					exit(-1);
+				}
+				if (nMtuListItems >= 10) {
+					cerr << "Error : -mtu supports at most 10 values" << endl;
+					exit(-1);
+				}
+				mtuList[nMtuListItems++] = parsedMtu;
+			}
+			if (nMtuListItems == 0) {
+				cerr << "Error : -mtu requires at least one value" << endl;
+				exit(-1);
+			}
+			mtu = mtuList[0];
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-minpktsinflight")) {
-			minPktsInFlight = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-minpktsinflight") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], minPktsInFlight, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-fixedrate")) {
-			fixedRate = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-fixedrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], fixedRate, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-burst")) {
-			burstTime = atof(argv[ix + 1]);
-			burstSleep = atof(argv[ix + 2]);
+		if (strcmp(opt, "-burst") == 0) {
+			requireArgsOrExit(argc, ix, 2, opt);
+			parseFloatOrExit(argv[ix + 1], burstTime, opt);
+			parseFloatOrExit(argv[ix + 2], burstSleep, opt);
 			ix += 3;
 			continue;
 		}
-		if (strstr(argv[ix], "-key")) {
+		if (strcmp(opt, "-key") == 0) {
+			requireArgsOrExit(argc, ix, 2, opt);
 			isKeyFrame = true;
-			keyFrameInterval = atof(argv[ix + 1]);
-			keyFrameSize = atof(argv[ix + 2]);
+			parseFloatOrExit(argv[ix + 1], keyFrameInterval, opt);
+			parseFloatOrExit(argv[ix + 2], keyFrameSize, opt);
 			ix += 3;
 			continue;
 		}
-		if (strstr(argv[ix], "-maxwindowheadroom")) {
-			maxWindowHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-maxwindowheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], maxWindowHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-nopace")) {
+		if (strcmp(opt, "-nopace") == 0) {
 			disablePacing = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-relaxedpacing")) {
+		if (strcmp(opt, "-relaxedpacing") == 0) {
 			relaxedPacing = true;
 			ix++;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-reordertime")) {
-			reorderTime = atof(argv[ix + 1]);;
-			ix+=2;
-			continue;
-		}
-
-		if (strstr(argv[ix], "-fps")) {
-			FPS = atof(argv[ix + 1]);
+		if (strcmp(opt, "-reordertime") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], reorderTime, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-video")) {
+		if (strcmp(opt, "-fps") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], FPS, opt);
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-video") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
 			videoMode = true;
 			videoPath = argv[ix + 1];
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-keyframe-on-loss")) {
+		if (strcmp(opt, "-keyframe-on-loss") == 0) {
 			keyframeOnLossEpoch = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-rand")) {
-			randRate = atof(argv[ix + 1]) / 100.0;
+		if (strcmp(opt, "-rand") == 0) {
+			float randPct = 0.0f;
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], randPct, opt);
+			randRate = randPct / 100.0f;
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-initrate")) {
-			initRate = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-initrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], initRate, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-minrate")) {
-			minRate = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-minrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], minRate, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-maxrate")) {
-			maxRate = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-maxrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], maxRate, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-verbose")) {
+		if (strcmp(opt, "-verbose") == 0) {
 			verbose = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-nosummary")) {
+		if (strcmp(opt, "-nosummary") == 0) {
 			printSummary = false;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-log")) {
+		if (strcmp(opt, "-log") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
 			logFile = argv[ix + 1];
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-txrxlog")) {
+		if (strcmp(opt, "-txrxlog") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
 			txRxLogFile = argv[ix + 1];
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-ntp")) {
+		if (strcmp(opt, "-ntp") == 0) {
 			ntp = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-append")) {
+		if (strcmp(opt, "-append") == 0) {
 			append = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-itemlist")) {
+		if (strcmp(opt, "-itemlist") == 0) {
 			itemlist = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-detailed")) {
+		if (strcmp(opt, "-detailed") == 0) {
 			detailed = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-pushtraffic")) {
+		if (strcmp(opt, "-pushtraffic") == 0) {
 			pushTraffic = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-clockdrift")) {
+		if (strcmp(opt, "-clockdrift") == 0) {
 			enableClockDriftCompensation = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-if")) {
+		if (strcmp(opt, "-if") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
 			ifname = argv[ix + 1];
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-microburstinterval")) {
-			minPaceInterval = 0.001 * (atof(argv[ix + 1]));
+		if (strcmp(opt, "-microburstinterval") == 0) {
+			float valMs = 0.0f;
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], valMs, opt);
+			minPaceInterval = 0.001f * valMs;
 			minPaceIntervalUs = (int)(minPaceInterval * 1e6f);
 			ix += 2;
 			if (minPaceInterval < 0.0002f || minPaceInterval > 0.020f) {
 				cerr << "microburstinterval must be in range 0.2..20ms" << endl;
-				exit(0);
+				exit(-1);
 			}
 			continue;
 		}
-		if (strstr(argv[ix], "-hysteresis")) {
-			hysteresis = atof(argv[ix + 1]);
+		if (strcmp(opt, "-hysteresis") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], hysteresis, opt);
 			ix += 2;
 			if (hysteresis < 0.0f || hysteresis > 0.2f) {
 				cerr << "hysteresis must be in range 0.0...0.2" << endl;
-				exit(0);
+				exit(-1);
 			}
 			continue;
 		}
-		
-		if (strstr(argv[ix], "-mulincrease")) {
-			multiplicativeIncreaseFactor = atof(argv[ix + 1]);
+		if (strcmp(opt, "-mulincrease") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], multiplicativeIncreaseFactor, opt);
 			ix += 2;
 			continue;
 		}
 		cerr << "unexpected arg " << argv[ix] << endl;
-		exit(0);
+		exit(-1);
 	}
 
 
@@ -1058,8 +1137,12 @@ int main(int argc, char* argv[]) {
 	}
 	if (minRate > initRate)
 		initRate = minRate;
-	DECODER_IP = argv[ix];ix++;
-	DECODER_PORT = atoi(argv[ix]);ix++;
+	if (ix + 1 >= argc) {
+		cerr << "Error : missing decoder_ip and decoder_port" << endl;
+		exit(-1);
+	}
+	DECODER_IP = argv[ix]; ix++;
+	parseIntOrExit(argv[ix], DECODER_PORT, "decoder_port"); ix++;
 
 	if (setup() == 0)
 		return 0;

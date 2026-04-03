@@ -9,6 +9,12 @@
 using namespace std;
 
 namespace bwvideo {
+namespace {
+bool frame_id_ahead(uint16_t frame_id, uint16_t reference)
+{
+  return static_cast<int16_t>(frame_id - reference) > 0;
+}
+} // namespace
 
 Decoder::Decoder(uint16_t width,
                  uint16_t height,
@@ -51,27 +57,40 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
                               uint32_t timestamp,
                               const uint8_t* payload,
                               size_t payload_size,
-                              bool marker)
+                              bool marker,
+                              const RtpVideoExtension* ext)
 {
-  auto& frame = frame_by_ts_[timestamp];
-  frame.payloads[seq_nr] = vector<uint8_t>(payload, payload + payload_size);
-  if (marker) {
-    frame.marker_seen = true;
-    frame.marker_seq = seq_nr;
+  if (ext != nullptr && ext->frag_cnt > 0 && ext->frag_id < ext->frag_cnt) {
+    auto& frame = frame_by_id_[ext->frame_id];
+    if (frame.frag_cnt == 0) {
+      frame.frag_cnt = ext->frag_cnt;
+      frame.is_keyframe = ext->frame_is_keyframe;
+    } else if (frame.frag_cnt != ext->frag_cnt) {
+      frame_by_id_.erase(ext->frame_id);
+      return;
+    }
+    frame.fragments[ext->frag_id] = vector<uint8_t>(payload, payload + payload_size);
+    try_decode_with_metadata(ext->frame_id);
+  } else {
+    auto& frame = frame_by_ts_[timestamp];
+    frame.payloads[seq_nr] = vector<uint8_t>(payload, payload + payload_size);
+    if (marker) {
+      frame.marker_seen = true;
+      frame.marker_seq = seq_nr;
+    }
+    try_decode_legacy(timestamp);
   }
-
-  try_decode(timestamp);
   cleanup_old_frames();
 }
 
-void Decoder::try_decode(uint32_t timestamp)
+void Decoder::try_decode_legacy(uint32_t timestamp)
 {
   auto it = frame_by_ts_.find(timestamp);
   if (it == frame_by_ts_.end()) {
     return;
   }
 
-  FrameAssembly& frame = it->second;
+  LegacyFrameAssembly& frame = it->second;
   if (!frame.marker_seen || frame.payloads.empty()) {
     return;
   }
@@ -102,6 +121,63 @@ void Decoder::try_decode(uint32_t timestamp)
   }
 
   frame_by_ts_.erase(it);
+}
+
+void Decoder::try_decode_with_metadata(uint16_t frame_id)
+{
+  auto it = frame_by_id_.find(frame_id);
+  if (it == frame_by_id_.end()) {
+    return;
+  }
+  FrameAssembly& frame = it->second;
+  if (frame.frag_cnt == 0 || frame.fragments.size() < frame.frag_cnt) {
+    return;
+  }
+  for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
+    if (frame.fragments.find(frag_id) == frame.fragments.end()) {
+      return;
+    }
+  }
+
+  if (next_expected_frame_valid_) {
+    if (frame_id == next_expected_frame_id_) {
+      // expected frame
+    } else if (frame_id_ahead(frame_id, next_expected_frame_id_)) {
+      wait_for_keyframe_ = true;
+    } else {
+      frame_by_id_.erase(it);
+      return; // stale frame
+    }
+  }
+
+  if (wait_for_keyframe_ && !frame.is_keyframe) {
+    frame_by_id_.erase(it);
+    return;
+  }
+
+  vector<uint8_t> bitstream;
+  for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
+    const auto frag_it = frame.fragments.find(frag_id);
+    bitstream.insert(bitstream.end(), frag_it->second.begin(), frag_it->second.end());
+  }
+  if (bitstream.empty()) {
+    frame_by_id_.erase(it);
+    return;
+  }
+
+  if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
+    write_decoded_frames();
+    if (frame.is_keyframe) {
+      wait_for_keyframe_ = false;
+    }
+    next_expected_frame_valid_ = true;
+    next_expected_frame_id_ = static_cast<uint16_t>(frame_id + 1);
+  } else {
+    wait_for_keyframe_ = true;
+    cerr << "VP9 decode failed for frame_id " << frame_id << endl;
+  }
+
+  frame_by_id_.erase(it);
 }
 
 void Decoder::write_decoded_frames()
@@ -137,6 +213,9 @@ void Decoder::cleanup_old_frames()
 {
   while (frame_by_ts_.size() > 24) {
     frame_by_ts_.erase(frame_by_ts_.begin());
+  }
+  while (frame_by_id_.size() > 64) {
+    frame_by_id_.erase(frame_by_id_.begin());
   }
 }
 

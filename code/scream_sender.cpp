@@ -24,6 +24,7 @@
 #include <sstream>
 #include <vector>
 #include "Encoder.h"
+#include "rtp_video_extension.h"
 struct itimerval timer;
 struct sigaction sa;
 
@@ -401,6 +402,7 @@ void* createRtpThread(void* arg) {
 	bwvideo::Encoder* videoEncoder = nullptr;
 	float lastVideoRateTx = initRate * 1000.0f;
 	float lastLossEpochTime = -1.0f;
+	uint16_t videoFrameId = 0;
 
 	if (videoMode) {
 		try {
@@ -495,16 +497,33 @@ void* createRtpThread(void* arg) {
 				if (encodedKeyFrame) {
 					lastKeyFrameT_ntp = time_ntp;
 				}
+				if (encodedPayloads.size() > 0xFFFFu) {
+					cerr << "Encoded frame fragmented into too many packets, dropping frame" << endl;
+					waitPeriod(&info);
+					continue;
+				}
+				const uint16_t frameId = videoFrameId++;
+				const uint16_t fragCnt = static_cast<uint16_t>(encodedPayloads.size());
 				for (size_t i = 0; i < encodedPayloads.size(); i++) {
 					const bool isMark = (i + 1 == encodedPayloads.size());
-					const int recvlen = (int)encodedPayloads[i].size() + 12;
+					const int recvlen = (int)encodedPayloads[i].size() + 12 + (int)bwvideo::kRtpVideoExtensionTotalBytes;
 					unsigned char pt = PT;
 					if (isMark) {
 						pt |= 0x80;
 					}
 					uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
 					writeRtp(buf_rtp, seqNr, ts, pt);
-					memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
+					bwvideo::RtpVideoExtension ext;
+					ext.frame_is_keyframe = encodedKeyFrame;
+					ext.frame_id = frameId;
+					ext.frag_id = static_cast<uint16_t>(i);
+					ext.frag_cnt = fragCnt;
+					if (!bwvideo::write_rtp_video_extension(buf_rtp, recvlen, ext)) {
+						packet_free(buf_rtp, SSRC);
+						cerr << "Failed to write RTP video extension, dropping packet" << endl;
+						continue;
+					}
+					memcpy(buf_rtp + 12 + bwvideo::kRtpVideoExtensionTotalBytes, encodedPayloads[i].data(), encodedPayloads[i].size());
 
 					if (pushTraffic) {
 						sendPacket(buf_rtp, recvlen);

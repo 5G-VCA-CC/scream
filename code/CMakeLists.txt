@@ -12,6 +12,7 @@ ScreamV2Tx.cpp
 ScreamV2TxStream.cpp
 RtpQueue.cpp
 Encoder.cpp
+rtp_video_extension.cpp
 scream_sender.cpp
 )
 
@@ -20,6 +21,7 @@ ScreamRx.cpp
 Decoder.cpp
 image.cc
 sdl.cc
+rtp_video_extension.cpp
 scream_receiver.cpp
 )
 

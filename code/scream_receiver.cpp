@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include "Decoder.h"
+#include "rtp_video_extension.h"
 using namespace std;
 
 #define BUFSIZE 2048
@@ -481,7 +482,25 @@ int main(int argc, char* argv[])
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
 				if (videoMode && recvlen > 12 && videoDecoder) {
-					videoDecoder->add_rtp_payload(seqNr, ts, buf + 12, recvlen - 12, isMark);
+					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
+					bwvideo::RtpVideoExtension ext;
+					bwvideo::RtpVideoExtension* extPtr = nullptr;
+					if (!bwvideo::parse_rtp_video_extension(buf, recvlen, &ext, &payloadOffset)) {
+						cerr << "Malformed RTP header extension, dropping packet seq=" << seqNr << endl;
+						continue;
+					}
+					if (ext.frag_cnt != 0) {
+						extPtr = &ext;
+					}
+					if (payloadOffset > static_cast<std::size_t>(recvlen)) {
+						continue;
+					}
+					videoDecoder->add_rtp_payload(seqNr,
+						ts,
+						buf + payloadOffset,
+						recvlen - payloadOffset,
+						isMark,
+						extPtr);
 				}
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {

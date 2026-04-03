@@ -1,6 +1,7 @@
 #include "Encoder.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <stdexcept>
 
@@ -16,7 +17,6 @@ Encoder::Encoder(const std::string& y4m_path, uint16_t fps)
     throw runtime_error("Failed to open Y4M input");
   }
   parse_y4m_header();
-  keyframe_interval_frames_ = std::max<uint16_t>(fps_, 30);
   if (!init_codec()) {
     throw runtime_error("Failed to initialize VP9 encoder");
   }
@@ -136,6 +136,23 @@ void Encoder::set_target_bitrate_kbps(uint32_t bitrate_kbps)
   vpx_codec_enc_config_set(&ctx_, &cfg_);
 }
 
+void Encoder::set_periodic_keyframe_interval(float interval_s)
+{
+  if (interval_s <= 0.0f) {
+    disable_periodic_keyframes();
+    return;
+  }
+  periodic_keyframes_enabled_ = true;
+  keyframe_interval_frames_ = static_cast<uint16_t>(
+    std::max(1.0f, std::round(interval_s * std::max<uint16_t>(1, fps_))));
+}
+
+void Encoder::disable_periodic_keyframes()
+{
+  periodic_keyframes_enabled_ = false;
+  keyframe_interval_frames_ = 0;
+}
+
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
                                 std::vector<std::vector<uint8_t>>& payloads,
@@ -170,7 +187,10 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   raw.stride[VPX_PLANE_V] = width_ / 2;
 
   vpx_enc_frame_flags_t encode_flags = 0;
+
   if (frame_id_ == 0 || (frame_id_ % keyframe_interval_frames_ == 0)) {
+  // if (frame_id_ == 0 ||
+  //     (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
   if (force_key_frame) {

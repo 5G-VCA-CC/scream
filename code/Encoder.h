@@ -24,6 +24,8 @@ public:
                          std::vector<std::vector<uint8_t>>& payloads,
                          bool* is_key_frame = nullptr,
                          bool force_key_frame = false);
+  void set_periodic_keyframe_interval(float interval_s);
+  void disable_periodic_keyframes();
 
   uint16_t width() const { return width_; }
   uint16_t height() const { return height_; }
@@ -41,7 +43,8 @@ private:
   uint16_t fps_ {0};
   uint32_t frame_id_ {0};
   uint32_t target_bitrate_kbps_ {0};
-  uint16_t keyframe_interval_frames_ {30};
+  bool periodic_keyframes_enabled_ {false};
+  uint16_t keyframe_interval_frames_ {0};
 
   vpx_codec_ctx_t ctx_ {};
   vpx_codec_enc_cfg_t cfg_ {};

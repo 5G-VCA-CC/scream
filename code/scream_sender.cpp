@@ -60,6 +60,8 @@ bool isKeyFrame = false;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
+bool periodicKeyFrameMode = false;
+float periodicKeyFrameInterval = 0.0f;
 int initRate = 1000;
 int minRate = 1000;
 int maxRate = 500000;
@@ -403,6 +405,12 @@ void* createRtpThread(void* arg) {
 	if (videoMode) {
 		try {
 			videoEncoder = new bwvideo::Encoder(videoPath, (uint16_t)std::max(1.0f, FPS));
+			if (periodicKeyFrameMode) {
+				videoEncoder->set_periodic_keyframe_interval(periodicKeyFrameInterval);
+			}
+			else {
+				videoEncoder->disable_periodic_keyframes();
+			}
 			cerr << "Video mode enabled: " << videoEncoder->width() << "x" << videoEncoder->height() << " @ " << FPS << "fps" << endl;
 		}
 		catch (const std::exception& e) {
@@ -821,6 +829,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -mulincrease val         Multiplicative increase factor for (default 0.05)" << endl;
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
+		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
@@ -943,6 +952,13 @@ int main(int argc, char* argv[]) {
 			parseFloatOrExit(argv[ix + 1], burstTime, opt);
 			parseFloatOrExit(argv[ix + 2], burstSleep, opt);
 			ix += 3;
+			continue;
+		}
+		if (strcmp(opt, "-periodic-key-frame") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			periodicKeyFrameMode = true;
+			parseFloatOrExit(argv[ix + 1], periodicKeyFrameInterval, opt);
+			ix += 2;
 			continue;
 		}
 		if (strcmp(opt, "-key") == 0) {
@@ -1117,6 +1133,10 @@ int main(int argc, char* argv[]) {
 	}
 	if (videoMode && videoPath == nullptr) {
 		cerr << "Error : -video requires a Y4M file path" << endl;
+		exit(-1);
+	}
+	if (periodicKeyFrameMode && !videoMode) {
+		cerr << "Error : -periodic-key-frame requires -video" << endl;
 		exit(-1);
 	}
 	if (keyframeOnLossEpoch && !videoMode) {

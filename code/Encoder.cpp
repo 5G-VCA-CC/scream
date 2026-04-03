@@ -188,9 +188,8 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   vpx_enc_frame_flags_t encode_flags = 0;
 
-  if (frame_id_ == 0 || (frame_id_ % keyframe_interval_frames_ == 0)) {
-  // if (frame_id_ == 0 ||
-  //     (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
+  if (frame_id_ == 0 ||
+      (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
   if (force_key_frame) {

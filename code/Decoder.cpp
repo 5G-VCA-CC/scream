@@ -1,6 +1,8 @@
 #include "Decoder.h"
 
+#include <algorithm>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 
 #include "image.hh"
@@ -22,35 +24,29 @@ Decoder::Decoder(uint16_t width,
                  const std::string& output_path)
   : width_(width), height_(height), render_video_(render_video)
 {
-  vpx_codec_dec_cfg_t cfg {};
-  cfg.threads = 4;
-  cfg.w = width_;
-  cfg.h = height_;
-  if (vpx_codec_dec_init(&ctx_, &vpx_codec_vp9_dx_algo, &cfg, 0) != VPX_CODEC_OK) {
-    throw runtime_error("vpx_codec_dec_init failed");
-  }
-
   output_ = fopen(output_path.c_str(), "wb");
   if (output_) {
     fprintf(output_, "YUV4MPEG2 W%d H%d F30:1 Ip A0:0 C420\n", width_, height_);
   }
 
-  if (render_video_) {
-    display_ = new VideoDisplay(width_, height_);
-  }
+  worker_thread_ = std::thread(&Decoder::worker_main, this);
 }
 
 Decoder::~Decoder()
 {
-  delete display_;
-  display_ = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    stop_worker_ = true;
+  }
+  queue_cv_.notify_one();
+  if (worker_thread_.joinable()) {
+    worker_thread_.join();
+  }
 
   if (output_) {
     fclose(output_);
     output_ = nullptr;
   }
-
-  vpx_codec_destroy(&ctx_);
 }
 
 void Decoder::add_rtp_payload(uint16_t seq_nr,
@@ -131,12 +127,7 @@ void Decoder::try_decode_legacy(uint32_t timestamp)
     return;
   }
 
-  if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
-    write_decoded_frames();
-  } else {
-    cerr << "VP9 decode failed for timestamp " << timestamp << endl;
-  }
-
+  enqueue_frame(timestamp, std::move(bitstream));
   frame_by_ts_.erase(it);
 }
 
@@ -175,11 +166,7 @@ void Decoder::try_decode_with_metadata(uint16_t frame_id)
       continue;
     }
 
-    if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
-      write_decoded_frames();
-    } else {
-      cerr << "VP9 decode failed for frame_id " << decode_frame_id << endl;
-    }
+    enqueue_frame(decode_frame_id, std::move(bitstream));
 
     frame_by_id_.erase(it);
     next_expected_frame_id_ = static_cast<uint16_t>(decode_frame_id + 1);
@@ -187,11 +174,82 @@ void Decoder::try_decode_with_metadata(uint16_t frame_id)
   }
 }
 
-void Decoder::write_decoded_frames()
+void Decoder::enqueue_frame(uint32_t timestamp, std::vector<uint8_t>&& bitstream)
+{
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    decode_queue_.emplace_back();
+    decode_queue_.back().timestamp = timestamp;
+    decode_queue_.back().bitstream = std::move(bitstream);
+  }
+  queue_cv_.notify_one();
+}
+
+void Decoder::worker_main()
+{
+  const unsigned int hw_threads = std::thread::hardware_concurrency();
+  const unsigned int decoder_threads = std::max(1u, std::min(hw_threads, 4u));
+
+  vpx_codec_dec_cfg_t cfg {};
+  cfg.threads = decoder_threads;
+  cfg.w = width_;
+  cfg.h = height_;
+
+  vpx_codec_ctx_t ctx {};
+  if (vpx_codec_dec_init(&ctx, &vpx_codec_vp9_dx_algo, &cfg, 0) != VPX_CODEC_OK) {
+    cerr << "vpx_codec_dec_init failed in worker thread" << endl;
+    return;
+  }
+
+  std::unique_ptr<VideoDisplay> display;
+  if (render_video_) {
+    display.reset(new VideoDisplay(width_, height_));
+  }
+
+  std::deque<QueuedFrame> local_queue;
+  for (;;) {
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex_);
+      queue_cv_.wait(lock, [this] {
+        return stop_worker_ || !decode_queue_.empty();
+      });
+
+      if (stop_worker_ && decode_queue_.empty()) {
+        break;
+      }
+
+      while (!decode_queue_.empty()) {
+        local_queue.push_back(std::move(decode_queue_.front()));
+        decode_queue_.pop_front();
+      }
+    }
+
+    while (!local_queue.empty()) {
+      if (display && display->signal_quit()) {
+        display.reset();
+      }
+
+      QueuedFrame frame = std::move(local_queue.front());
+      local_queue.pop_front();
+
+      if (vpx_codec_decode(&ctx, frame.bitstream.data(), frame.bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
+        write_decoded_frames(ctx, display.get());
+      } else {
+        cerr << "VP9 decode failed for timestamp " << frame.timestamp << endl;
+      }
+    }
+  }
+
+  if (vpx_codec_destroy(&ctx) != VPX_CODEC_OK) {
+    cerr << "vpx_codec_destroy failed in worker thread" << endl;
+  }
+}
+
+void Decoder::write_decoded_frames(vpx_codec_ctx_t& ctx, VideoDisplay* display)
 {
   vpx_codec_iter_t iter = nullptr;
   vpx_image_t* img = nullptr;
-  while ((img = vpx_codec_get_frame(&ctx_, &iter)) != nullptr) {
+  while ((img = vpx_codec_get_frame(&ctx, &iter)) != nullptr) {
     if (output_) {
       fwrite("FRAME\n", 1, 6, output_);
       write_plane(img->planes[0], img->stride[0], width_, height_);
@@ -199,12 +257,8 @@ void Decoder::write_decoded_frames()
       write_plane(img->planes[2], img->stride[2], width_ / 2, height_ / 2);
     }
 
-    if (display_) {
-      display_->show_frame(RawImage(img));
-      if (display_->signal_quit()) {
-        delete display_;
-        display_ = nullptr;
-      }
+    if (display) {
+      display->show_frame(RawImage(img));
     }
   }
 }

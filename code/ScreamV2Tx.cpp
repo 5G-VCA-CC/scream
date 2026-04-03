@@ -2199,4 +2199,9 @@ int ScreamV2Tx::getRecommendedMss(uint32_t time_ntp) {
 	return mssList[mssIndex];
 }
 
-
+bool ScreamV2Tx::getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) return false;
+	return stream->getOldestUnacked(seqNr, txTime_ntp);
+}

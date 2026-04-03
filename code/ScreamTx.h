@@ -525,6 +525,8 @@ extern "C" {
 		void setEstimatedJitter(float estimatedJitter_) {
 			estimatedJitter = estimatedJitter_;
 		}
+
+		bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp);
 	private:
 		/*
 		* Struct for list of RTP packets in flight
@@ -604,6 +606,8 @@ extern "C" {
 			float getRelFrameSizeHigh() {
 				return relFrameSizeHigh;
 			}
+
+			bool getOldestUnacked(uint16_t& seqNr, uint32_t& txTime_ntp);
 
 			ScreamV2Tx* parent;
 			RtpQueueIface* rtpQueue;      // RTP Packet queue

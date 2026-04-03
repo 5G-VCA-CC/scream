@@ -1,17 +1,31 @@
 #include "Encoder.h"
+#include "ScreamTx.h"
 
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <sys/time.h>
 
 using namespace std;
 
 namespace bwvideo {
 
-Encoder::Encoder(const std::string& y4m_path, uint16_t fps)
+static uint64_t get_timestamp_us() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
+Encoder::Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc, bool keyframe_unacked)
   : fps_(fps)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
+  screamTx_ = screamTx;
+  lock_scream_ = lock_scream;
+  ssrc_ = ssrc;
+  keyframe_unacked_ = keyframe_unacked;
+  last_triggered_seq_ = 0;
+  last_keyframe_ts_ = 0;
   if (!fp_) {
     throw runtime_error("Failed to open Y4M input");
   }
@@ -173,8 +187,31 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   if (frame_id_ == 0 || (frame_id_ % keyframe_interval_frames_ == 0)) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
-  if (force_key_frame) {
+  if (force_key_frame && !keyframe_unacked_) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  if (keyframe_unacked_) {
+    uint32_t curr_ts = get_timestamp_us();
+    if (force_key_frame && curr_ts - last_keyframe_ts_ > 250000) {
+        encode_flags |= VPX_EFLAG_FORCE_KF;
+        last_keyframe_ts_ = curr_ts;
+    } else {
+        uint16_t oldest_unacked_seq = 0;
+        uint32_t oldest_unacked_ts = 0;
+        pthread_mutex_lock(lock_scream_);
+        if (screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_ts)) {
+            uint32_t curr_ts = get_timestamp_us();
+            uint32_t us_since_first_send = curr_ts - oldest_unacked_ts;
+            if (us_since_first_send > 1000000 && curr_ts - last_keyframe_ts_ > 250000) {
+                if (last_triggered_seq_ != oldest_unacked_seq) {
+                    encode_flags |= VPX_EFLAG_FORCE_KF;
+                    last_triggered_seq_ = oldest_unacked_seq;
+                    last_keyframe_ts_ = curr_ts;
+                }
+            }
+        }
+        pthread_mutex_unlock(lock_scream_);
+    }
   }
 
   if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {

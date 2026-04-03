@@ -346,6 +346,8 @@ extern "C" {
                   logTag = aLogTag;
                 }
 
+                bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp);
+
 
               private:
                 /*

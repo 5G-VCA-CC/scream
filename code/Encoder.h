@@ -5,18 +5,21 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <pthread.h>
 
 extern "C" {
 #include <vpx/vpx_encoder.h>
 #include <vpx/vp8cx.h>
 }
 
+class ScreamV2Tx;
+
 namespace bwvideo {
 
 class Encoder
 {
 public:
-  Encoder(const std::string& y4m_path, uint16_t fps);
+  Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc, bool keyframe_unacked);
   ~Encoder();
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
@@ -45,6 +48,13 @@ private:
 
   vpx_codec_ctx_t ctx_ {};
   vpx_codec_enc_cfg_t cfg_ {};
+
+  ScreamV2Tx* screamTx_;
+  pthread_mutex_t* lock_scream_;
+  uint32_t ssrc_;
+  bool keyframe_unacked_;
+  uint16_t last_triggered_seq_;
+  uint32_t last_keyframe_ts_;
 
   size_t frame_size_bytes() const;
   void parse_y4m_header();

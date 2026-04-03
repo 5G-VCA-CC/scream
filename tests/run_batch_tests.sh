@@ -234,19 +234,23 @@ run_test() {
 
     echo "Mahimahi shell exited, stopping receiver..."
     kill -TERM "$RX_PID" 2>/dev/null || true
-    timeout 3 bash -c "wait $RX_PID" 2>/dev/null || {
+
+    grace_ok=0
+    for _ in $(seq 1 30); do
+        if ! kill -0 "$RX_PID" 2>/dev/null; then
+            grace_ok=1
+            break
+        fi
+        sleep 0.1
+    done
+
+    if [ "$grace_ok" -eq 1 ]; then
+        wait "$RX_PID" 2>/dev/null || true
+    else
         echo "Receiver did not exit in time, forcing kill"
         kill -KILL "$RX_PID" 2>/dev/null || true
         wait "$RX_PID" 2>/dev/null || true
-    }
-
-    cleanup_scream
-    rm -f "$signal_start" "$signal_rx_ready" "$signal_done"
-
-    echo "Test iteration $iteration completed!"
-    echo "Logs saved to: ${log_prefix}_*.log"
-
-    sleep 3
+    fi
 }
 
 echo "Starting batch tests..."

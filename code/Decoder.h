@@ -50,6 +50,11 @@ private:
     uint16_t frag_cnt {0};
     std::map<uint16_t, std::vector<uint8_t>> fragments {};
   };
+  enum class RecoveryMode {
+    kUnknown,
+    kMetadata,
+    kLegacy
+  };
 
   uint16_t width_ {0};
   uint16_t height_ {0};
@@ -58,7 +63,7 @@ private:
   vpx_codec_ctx_t ctx_ {};
   std::map<uint32_t, LegacyFrameAssembly> frame_by_ts_ {};
   std::map<uint16_t, FrameAssembly> frame_by_id_ {};
-  bool wait_for_keyframe_ {true};
+  RecoveryMode recovery_mode_ {RecoveryMode::kUnknown};
   bool next_expected_frame_valid_ {false};
   uint16_t next_expected_frame_id_ {0};
   VideoDisplay* display_ {nullptr};
@@ -68,6 +73,9 @@ private:
   void write_decoded_frames();
   void write_plane(uint8_t* plane, int stride, int w, int h);
   void cleanup_old_frames();
+  bool frame_complete(const FrameAssembly& frame) const;
+  bool find_complete_keyframe_ahead(uint16_t* frame_id) const;
+  void cleanup_metadata_frames_before(uint16_t frame_id);
 };
 
 } // namespace bwvideo

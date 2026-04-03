@@ -60,7 +60,16 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
                               bool marker,
                               const RtpVideoExtension* ext)
 {
-  if (ext != nullptr && ext->frag_cnt > 0 && ext->frag_id < ext->frag_cnt) {
+  const bool has_valid_metadata = (ext != nullptr && ext->frag_cnt > 0 && ext->frag_id < ext->frag_cnt);
+  if (has_valid_metadata) {
+    if (recovery_mode_ == RecoveryMode::kUnknown) {
+      recovery_mode_ = RecoveryMode::kMetadata;
+    }
+    if (recovery_mode_ != RecoveryMode::kMetadata) {
+      cleanup_old_frames();
+      return;
+    }
+
     auto& frame = frame_by_id_[ext->frame_id];
     if (frame.frag_cnt == 0) {
       frame.frag_cnt = ext->frag_cnt;
@@ -72,6 +81,14 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
     frame.fragments[ext->frag_id] = vector<uint8_t>(payload, payload + payload_size);
     try_decode_with_metadata(ext->frame_id);
   } else {
+    if (recovery_mode_ == RecoveryMode::kUnknown) {
+      recovery_mode_ = RecoveryMode::kLegacy;
+    }
+    if (recovery_mode_ != RecoveryMode::kLegacy) {
+      cleanup_old_frames();
+      return;
+    }
+
     auto& frame = frame_by_ts_[timestamp];
     frame.payloads[seq_nr] = vector<uint8_t>(payload, payload + payload_size);
     if (marker) {
@@ -125,59 +142,49 @@ void Decoder::try_decode_legacy(uint32_t timestamp)
 
 void Decoder::try_decode_with_metadata(uint16_t frame_id)
 {
-  auto it = frame_by_id_.find(frame_id);
-  if (it == frame_by_id_.end()) {
-    return;
-  }
-  FrameAssembly& frame = it->second;
-  if (frame.frag_cnt == 0 || frame.fragments.size() < frame.frag_cnt) {
-    return;
-  }
-  for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
-    if (frame.fragments.find(frag_id) == frame.fragments.end()) {
-      return;
-    }
-  }
-
-  if (next_expected_frame_valid_) {
-    if (frame_id == next_expected_frame_id_) {
-      // expected frame
-    } else if (frame_id_ahead(frame_id, next_expected_frame_id_)) {
-      wait_for_keyframe_ = true;
-    } else {
-      frame_by_id_.erase(it);
-      return; // stale frame
-    }
-  }
-
-  if (wait_for_keyframe_ && !frame.is_keyframe) {
-    frame_by_id_.erase(it);
-    return;
-  }
-
-  vector<uint8_t> bitstream;
-  for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
-    const auto frag_it = frame.fragments.find(frag_id);
-    bitstream.insert(bitstream.end(), frag_it->second.begin(), frag_it->second.end());
-  }
-  if (bitstream.empty()) {
-    frame_by_id_.erase(it);
-    return;
-  }
-
-  if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
-    write_decoded_frames();
-    if (frame.is_keyframe) {
-      wait_for_keyframe_ = false;
-    }
+  if (!next_expected_frame_valid_) {
     next_expected_frame_valid_ = true;
-    next_expected_frame_id_ = static_cast<uint16_t>(frame_id + 1);
-  } else {
-    wait_for_keyframe_ = true;
-    cerr << "VP9 decode failed for frame_id " << frame_id << endl;
+    next_expected_frame_id_ = frame_id;
   }
 
-  frame_by_id_.erase(it);
+  while (next_expected_frame_valid_) {
+    uint16_t decode_frame_id = next_expected_frame_id_;
+    auto it = frame_by_id_.find(next_expected_frame_id_);
+    if (it == frame_by_id_.end() || !frame_complete(it->second)) {
+      uint16_t recovery_frame_id = 0;
+      if (!find_complete_keyframe_ahead(&recovery_frame_id)) {
+        return;
+      }
+      decode_frame_id = recovery_frame_id;
+      it = frame_by_id_.find(decode_frame_id);
+      if (it == frame_by_id_.end() || !frame_complete(it->second)) {
+        return;
+      }
+    }
+
+    const FrameAssembly& frame = it->second;
+    vector<uint8_t> bitstream;
+    for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
+      const auto frag_it = frame.fragments.find(frag_id);
+      bitstream.insert(bitstream.end(), frag_it->second.begin(), frag_it->second.end());
+    }
+    if (bitstream.empty()) {
+      frame_by_id_.erase(it);
+      next_expected_frame_id_ = static_cast<uint16_t>(decode_frame_id + 1);
+      cleanup_metadata_frames_before(next_expected_frame_id_);
+      continue;
+    }
+
+    if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
+      write_decoded_frames();
+    } else {
+      cerr << "VP9 decode failed for frame_id " << decode_frame_id << endl;
+    }
+
+    frame_by_id_.erase(it);
+    next_expected_frame_id_ = static_cast<uint16_t>(decode_frame_id + 1);
+    cleanup_metadata_frames_before(next_expected_frame_id_);
+  }
 }
 
 void Decoder::write_decoded_frames()
@@ -214,8 +221,75 @@ void Decoder::cleanup_old_frames()
   while (frame_by_ts_.size() > 24) {
     frame_by_ts_.erase(frame_by_ts_.begin());
   }
-  while (frame_by_id_.size() > 64) {
-    frame_by_id_.erase(frame_by_id_.begin());
+
+  if (next_expected_frame_valid_) {
+    cleanup_metadata_frames_before(next_expected_frame_id_);
+  }
+
+  if (!frame_by_id_.empty() && !next_expected_frame_valid_) {
+    // Keep bounded startup memory before we establish a decode frontier.
+    while (frame_by_id_.size() > 64) {
+      frame_by_id_.erase(frame_by_id_.begin());
+    }
+  }
+}
+
+bool Decoder::frame_complete(const FrameAssembly& frame) const
+{
+  if (frame.frag_cnt == 0 || frame.fragments.size() < frame.frag_cnt) {
+    return false;
+  }
+
+  for (uint16_t frag_id = 0; frag_id < frame.frag_cnt; frag_id++) {
+    if (frame.fragments.find(frag_id) == frame.fragments.end()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool Decoder::find_complete_keyframe_ahead(uint16_t* frame_id) const
+{
+  bool found = false;
+  int16_t best_diff = 0;
+  uint16_t best_id = 0;
+
+  for (const auto& it : frame_by_id_) {
+    const uint16_t candidate_id = it.first;
+    const FrameAssembly& candidate = it.second;
+
+    if (!frame_id_ahead(candidate_id, next_expected_frame_id_)) {
+      continue;
+    }
+    if (!candidate.is_keyframe || !frame_complete(candidate)) {
+      continue;
+    }
+
+    const int16_t diff = static_cast<int16_t>(candidate_id - next_expected_frame_id_);
+    if (!found || diff < best_diff) {
+      found = true;
+      best_diff = diff;
+      best_id = candidate_id;
+    }
+  }
+
+  if (!found) {
+    return false;
+  }
+
+  *frame_id = best_id;
+  return true;
+}
+
+void Decoder::cleanup_metadata_frames_before(uint16_t frame_id)
+{
+  for (auto it = frame_by_id_.begin(); it != frame_by_id_.end();) {
+    if (it->first == frame_id || frame_id_ahead(it->first, frame_id)) {
+      ++it;
+      continue;
+    }
+    it = frame_by_id_.erase(it);
   }
 }
 

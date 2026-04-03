@@ -483,11 +483,11 @@ int main(int argc, char* argv[])
 				bool isMark = (buf[1] & 0x80) != 0;
 				if (videoMode && recvlen > 12 && videoDecoder) {
 					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
-					bwvideo::RtpVideoExtension ext;
+					bwvideo::RtpVideoExtension ext {};
 					bwvideo::RtpVideoExtension* extPtr = nullptr;
 					if (!bwvideo::parse_rtp_video_extension(buf, recvlen, &ext, &payloadOffset)) {
-						cerr << "Malformed RTP header extension, dropping packet seq=" << seqNr << endl;
-						continue;
+						// Graceful fallback: keep decoding through legacy RTP path.
+						payloadOffset = bwvideo::kRtpFixedHeaderSize;
 					}
 					if (ext.frag_cnt != 0) {
 						extPtr = &ext;

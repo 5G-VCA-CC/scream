@@ -2,6 +2,7 @@
 #define RTP_QUEUE
 
 #include <cstdint>
+#include <deque>
 #include <mutex>
 /*
 * Implements a simple RTP packet queue, one RTP queue
@@ -39,6 +40,7 @@ public:
 	RtpQueue();
 
 	bool push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
+	bool pushFront(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp);
 	bool pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp);
 	int sizeOfNextRtp();
 	int seqNrOfNextRtp();
@@ -52,10 +54,7 @@ public:
 	void setSizeOfLastFrame(int sz) { sizeOfLastFrame = sz; };
 	void computeSizeOfNextRtp();
 
-	RtpQueueItem* items[kRtpQueueSize];
-	int head; // Pointer to last inserted item
-	int tail; // Pointer to the oldest item
-	int nItems;
+	std::deque<RtpQueueItem> items;
 	int sizeOfLastFrame;
 
 	int bytesInQueue_;

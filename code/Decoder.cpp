@@ -74,7 +74,10 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
       frame_by_id_.erase(ext->frame_id);
       return;
     }
-    frame.fragments[ext->frag_id] = vector<uint8_t>(payload, payload + payload_size);
+    if (frame.fragments.find(ext->frag_id) == frame.fragments.end()) {
+      // Keep first valid fragment payload to avoid duplicate overwrite jitter.
+      frame.fragments[ext->frag_id] = vector<uint8_t>(payload, payload + payload_size);
+    }
     try_decode_with_metadata(ext->frame_id);
   } else {
     if (recovery_mode_ == RecoveryMode::kUnknown) {
@@ -279,13 +282,6 @@ void Decoder::cleanup_old_frames()
   if (next_expected_frame_valid_) {
     cleanup_metadata_frames_before(next_expected_frame_id_);
   }
-
-  if (!frame_by_id_.empty() && !next_expected_frame_valid_) {
-    // Keep bounded startup memory before we establish a decode frontier.
-    while (frame_by_id_.size() > 64) {
-      frame_by_id_.erase(frame_by_id_.begin());
-    }
-  }
 }
 
 bool Decoder::frame_complete(const FrameAssembly& frame) const
@@ -321,7 +317,7 @@ bool Decoder::find_complete_keyframe_ahead(uint16_t* frame_id) const
     }
 
     const int16_t diff = static_cast<int16_t>(candidate_id - next_expected_frame_id_);
-    if (!found || diff < best_diff) {
+    if (!found || diff > best_diff) {
       found = true;
       best_diff = diff;
       best_id = candidate_id;

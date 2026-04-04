@@ -485,8 +485,13 @@ int main(int argc, char* argv[])
 					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
 					bwvideo::RtpVideoExtension ext {};
 					bwvideo::RtpVideoExtension* extPtr = nullptr;
+					const bool hasRtpExtension = (buf[0] & 0x10) != 0;
 					if (!bwvideo::parse_rtp_video_extension(buf, recvlen, &ext, &payloadOffset)) {
-						// Graceful fallback: keep decoding through legacy RTP path.
+						if (hasRtpExtension) {
+							// Drop malformed extension packets instead of feeding legacy path.
+							continue;
+						}
+						// Fallback to legacy payload parsing for non-extension RTP packets.
 						payloadOffset = bwvideo::kRtpFixedHeaderSize;
 					}
 					if (ext.frag_cnt != 0) {

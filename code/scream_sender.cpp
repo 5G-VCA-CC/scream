@@ -534,7 +534,12 @@ void* createRtpThread(void* arg) {
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
 		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
 		float rateTx = targetRate * rateScale;
-		bool requestKeyFrame = videoMode && targetRate < 0.0f;
+		bool requestKeyFrame = false;
+		if (videoMode && targetRate < 0.0f) {
+			requestKeyFrame = true;
+			cerr << "* Recovery: requesting keyframe because getTargetBitrate() is negative ("
+				 << targetRate << ")" << endl;
+		}
 		if (videoMode) {
 			float time_s = time_ntp / 65536.0f;
 			if (keyframeOnLossEpoch) {

@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <limits>
 #include <sys/time.h>
+#include <arpa/inet.h>
 #include <iostream>
 #include <pthread.h>
 #include <iterator>
@@ -53,6 +54,24 @@ static uint64_t get_timestamp_us() {
     gettimeofday(&tv, NULL);
     return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
+
+static void writeRtpHeader(uint8_t* buf,
+                           unsigned short seqNr,
+                           uint32_t timeStamp,
+                           uint32_t ssrc,
+                           uint8_t pt = 98) {
+    seqNr = htons(seqNr);
+    timeStamp = htonl(timeStamp);
+    uint32_t ssrc_n = htonl(ssrc);
+
+    buf[0] = 0x80;
+    buf[1] = pt;
+    memcpy(buf + 2, &seqNr, 2);
+    memcpy(buf + 4, &timeStamp, 4);
+    memcpy(buf + 8, &ssrc_n, 4);
+}
+
+static constexpr size_t kRtpHeaderSize = 12;
 
 Encoder::Encoder(int width,
                  int height,
@@ -432,12 +451,13 @@ size_t Encoder::packetize_encoded_frame(uint64_t frame_generation_ts,
             std::cerr << "Encoded key frame, frame_id=" << (impl_->frame_id - 1) << std::endl;
         }
 
+        uint32_t frame_id = impl_->frame_id - 1;
         uint32_t rtp_timestamp = static_cast<uint32_t>(
-            ((impl_->frame_id - 1) * 90000) / (impl_->framerate > 0 ? impl_->framerate : 25));
+            (frame_id * 90000) / (impl_->framerate > 0 ? impl_->framerate : 25));
 
         // Notify SCReAM once per frame
         if (screamTx && *screamTx) {
-            (*screamTx)->newMediaFrame(frame_generation_ts / 1000.0, // if your API expects another format, adapt
+            (*screamTx)->newMediaFrame(frame_generation_ts / 1000.0,
                                        impl_->ssrc,
                                        static_cast<int>(frame_size),
                                        false);
@@ -446,37 +466,47 @@ size_t Encoder::packetize_encoded_frame(uint64_t frame_generation_ts,
         for (uint16_t frag_id = 0; frag_id < frag_cnt; ++frag_id) {
             size_t payload_size = std::min(max_payload, static_cast<size_t>(buf_end - buf_ptr));
             bool is_mark = (frag_id == frag_cnt - 1);
+            size_t packet_size = kRtpHeaderSize + payload_size;
 
-            // NOTE:
-            // Here we are just storing the encoded payload pointer directly as "packet".
-            // In a real RTP sender, this should be a complete RTP packet buffer.
-            // You probably already have packet-building code elsewhere; use that buffer instead.
-            void* pkt_mem = malloc(payload_size);
+            uint8_t* pkt_mem = static_cast<uint8_t*>(malloc(packet_size));
             if (!pkt_mem) {
-                throw std::runtime_error("malloc failed for RTP payload");
+                throw std::runtime_error("malloc failed for RTP packet");
             }
-            memcpy(pkt_mem, buf_ptr, payload_size);
 
             unsigned short seq = next_seq_++;
+            writeRtpHeader(pkt_mem, seq, rtp_timestamp, impl_->ssrc,
+                           static_cast<uint8_t>(98 | (is_mark ? 0x80 : 0)));
+            memcpy(pkt_mem + kRtpHeaderSize, buf_ptr, payload_size);
+
+            uint64_t send_ts_us = get_timestamp_us();
 
             bool ok = rtp_queue_.push(pkt_mem,
-                                      static_cast<int>(payload_size),
+                                      static_cast<int>(packet_size),
                                       impl_->ssrc,
                                       seq,
                                       is_mark,
-                                      get_timestamp_us() / 1e6f,
+                                      send_ts_us / 1e6f,
                                       rtp_timestamp);
 
             if (!ok) {
                 std::cerr << "RtpQueue full, dropping packet frame="
-                          << (impl_->frame_id - 1)
+                          << frame_id
                           << " frag=" << frag_id << std::endl;
                 free(pkt_mem);
             } else {
-                std::cout << "Packetized frame=" << (impl_->frame_id - 1)
+                addUnacked(pkt_mem,
+                           static_cast<int>(packet_size),
+                           frame_id,
+                           frag_id,
+                           seq,
+                           is_mark,
+                           rtp_timestamp,
+                           send_ts_us);
+
+                std::cout << "Packetized frame=" << frame_id
                           << " frag=" << frag_id
                           << "/" << frag_cnt
-                          << " size=" << payload_size
+                          << " size=" << packet_size
                           << " queue=" << rtp_queue_.sizeOfQueue()
                           << " bytes=" << rtp_queue_.bytesInQueue()
                           << std::endl;

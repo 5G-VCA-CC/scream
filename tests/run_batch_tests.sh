@@ -6,7 +6,7 @@
 # Video parameters are optional; if provided, the script runs in video mode.
 #
 # Usage:
-#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir]
+#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [keyframe_mode] [video_fps]
 #
 # Required:
 #   l4s_enabled     : 0 or 1 to disable/enable L4S ECT marking
@@ -19,6 +19,8 @@
 # Optional (video mode):
 #   video_file       : path to input video file (.y4m)
 #   video_resolution : video resolution WxH (e.g., 704x576)
+#   keyframe_mode    : loss | time | periodic | none | ringmaster-style(alias for time)
+#   video_fps        : sender FPS (default: 30)
 #
 # Optional:
 #   output_dir      : directory for logs (default: auto-generated)
@@ -36,7 +38,17 @@ MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
 usage() {
     cat <<EOF
 Usage:
-  $0 <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir]
+    $0 <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [keyframe_mode] [video_fps]
+
+  keyframe_mode (video mode only, optional):
+        loss                 Use -losskey
+        time                 Use -timekey 1.0
+        periodic             Use -periodickey 2.0 5.0
+        none                 Disable forced keyframes
+        ringmaster-style     Alias for time
+
+    video_fps (video mode only, optional):
+        Positive number, e.g. 24, 29.97, 30, 60
 
 Examples:
   # Fake traffic
@@ -44,8 +56,8 @@ Examples:
   $0 0 3 25 0.00 traces/trace_flat.txt 60 /tmp/results
 
   # Video traffic
-  $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576
-  $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576 /tmp/results
+    $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576
+    $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576 /tmp/results loss 30
 EOF
 }
 
@@ -65,23 +77,56 @@ shift 6
 VIDEO_FILE=""
 VIDEO_RESOLUTION=""
 OUTPUT_DIR=""
+KEYFRAME_MODE="loss"
+VIDEO_FPS="30"
 
-# Optional video args are positional. If the next arg is a file, treat it as video_file.
-if [ $# -ge 1 ] && [ -f "$1" ]; then
+is_keyframe_mode() {
+    case "$1" in
+        loss|time|periodic|none|ringmaster-style) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Detect video mode by [video_file] [video_resolution]
+if [ $# -ge 2 ] && [[ "$2" =~ ^[0-9]+x[0-9]+$ ]]; then
     VIDEO_FILE="$1"
-    if [ $# -lt 2 ]; then
-        echo "ERROR: video_resolution (WxH) is required when video_file is provided"
-        usage
-        exit 1
-    fi
     VIDEO_RESOLUTION="$2"
     shift 2
 fi
 
-# Optional output dir (remaining single arg)
-if [ $# -ge 1 ]; then
-    OUTPUT_DIR="$1"
-    shift 1
+if [ -n "$VIDEO_FILE" ]; then
+    # Optional output_dir
+    if [ $# -ge 1 ] && ! is_keyframe_mode "$1" && ! [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        OUTPUT_DIR="$1"
+        shift 1
+    fi
+
+    # Optional keyframe_mode
+    if [ $# -ge 1 ] && is_keyframe_mode "$1"; then
+        KEYFRAME_MODE="$1"
+        shift 1
+    fi
+
+    # Optional video_fps
+    if [ $# -ge 1 ]; then
+        if [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            VIDEO_FPS="$1"
+            shift 1
+        else
+            echo "ERROR: Invalid video_fps '$1' (expected positive number)"
+            exit 1
+        fi
+    fi
+else
+    # Fake traffic mode: only optional output_dir is supported
+    if [ $# -ge 1 ]; then
+        OUTPUT_DIR="$1"
+        shift 1
+    fi
+fi
+
+if [ "$KEYFRAME_MODE" = "ringmaster-style" ]; then
+    KEYFRAME_MODE="time"
 fi
 
 if [ $# -ne 0 ]; then
@@ -108,6 +153,10 @@ fi
 if [ -n "$VIDEO_FILE" ]; then
     if ! [[ "$VIDEO_RESOLUTION" =~ ^[0-9]+x[0-9]+$ ]]; then
         echo "ERROR: video_resolution must look like WxH (got: '$VIDEO_RESOLUTION')"
+        exit 1
+    fi
+    if ! awk "BEGIN { exit !($VIDEO_FPS > 0) }"; then
+        echo "ERROR: video_fps must be > 0 (got: '$VIDEO_FPS')"
         exit 1
     fi
 fi
@@ -153,6 +202,8 @@ echo "Test duration: ${TEST_DURATION}s"
 if [ "$MODE" = "video" ]; then
     echo "Video file: $VIDEO_FILE"
     echo "Video resolution: $VIDEO_RESOLUTION"
+    echo "Keyframe mode: $KEYFRAME_MODE"
+    echo "Video FPS: $VIDEO_FPS"
 fi
 echo "Output directory: $OUTPUT_DIR"
 echo ""
@@ -192,6 +243,7 @@ run_test() {
                 "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION" \
                 "$VIDEO_FILE" "$TEST_DURATION" "$log_prefix" \
                 "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
+                "$KEYFRAME_MODE" "$VIDEO_FPS" \
             > /dev/null 2>&1 &
     else
         mm-delay "$DELAY_MS" \

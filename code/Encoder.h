@@ -3,8 +3,11 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <pthread.h>
 #include <string>
 #include <vector>
+
+class RtpQueue;
 
 extern "C" {
 #include <vpx/vpx_encoder.h>
@@ -16,7 +19,21 @@ namespace bwvideo {
 class Encoder
 {
 public:
-  Encoder(const std::string& y4m_path, uint16_t fps);
+  struct EnqueuedPacketInfo {
+    int size_bytes {0};
+    bool is_mark {false};
+  };
+
+  struct EnqueueResult {
+    std::vector<EnqueuedPacketInfo> enqueued_packets;
+    bool is_key_frame {false};
+    uint32_t dropped_packets {0};
+  };
+
+  Encoder(const std::string& y4m_path,
+          uint16_t fps,
+          RtpQueue* rtp_queue = nullptr,
+          pthread_mutex_t* lock_rtp_queue = nullptr);
   ~Encoder();
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
@@ -24,6 +41,15 @@ public:
                          std::vector<std::vector<uint8_t>>& payloads,
                          bool* is_key_frame = nullptr,
                          bool force_key_frame = false);
+  bool encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
+                                     int mtu,
+                                     uint32_t ssrc,
+                                     uint16_t& seq_nr,
+                                     uint32_t rtp_timestamp,
+                                     float enqueue_ts_s,
+                                     EnqueueResult& result,
+                                     bool force_key_frame = false,
+                                     bool include_video_extension = false);
   void set_periodic_keyframe_interval(float interval_s);
   void disable_periodic_keyframes();
 
@@ -45,6 +71,8 @@ private:
   uint32_t target_bitrate_kbps_ {0};
   bool periodic_keyframes_enabled_ {false};
   uint16_t keyframe_interval_frames_ {0};
+  RtpQueue* rtp_queue_ {nullptr};
+  pthread_mutex_t* lock_rtp_queue_ {nullptr};
 
   vpx_codec_ctx_t ctx_ {};
   vpx_codec_enc_cfg_t cfg_ {};

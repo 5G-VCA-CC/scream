@@ -1,16 +1,42 @@
 #include "Encoder.h"
+#include "RtpQueue.h"
+#include "rtp_video_extension.h"
 
 #include <algorithm>
+#include <arpa/inet.h>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
 using namespace std;
 
 namespace bwvideo {
+namespace {
+void write_rtp_header(uint8_t* buf,
+                      uint16_t seq_nr,
+                      uint32_t time_stamp,
+                      unsigned char pt,
+                      uint32_t ssrc)
+{
+  const uint16_t seq_nr_network = htons(seq_nr);
+  const uint32_t ts_network = htonl(time_stamp);
+  const uint32_t ssrc_network = htonl(ssrc);
+  memcpy(buf, "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 12);
+  memcpy(buf + 1, &pt, 1);
+  memcpy(buf + 2, &seq_nr_network, 2);
+  memcpy(buf + 4, &ts_network, 4);
+  memcpy(buf + 8, &ssrc_network, 4);
+}
+} // namespace
 
-Encoder::Encoder(const std::string& y4m_path, uint16_t fps)
-  : fps_(fps)
+Encoder::Encoder(const std::string& y4m_path,
+                 uint16_t fps,
+                 RtpQueue* rtp_queue,
+                 pthread_mutex_t* lock_rtp_queue)
+  : fps_(fps),
+    rtp_queue_(rtp_queue),
+    lock_rtp_queue_(lock_rtp_queue)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
   if (!fp_) {
@@ -221,6 +247,89 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   frame_id_++;
   return !payloads.empty();
+}
+
+bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
+                                            int mtu,
+                                            uint32_t ssrc,
+                                            uint16_t& seq_nr,
+                                            uint32_t rtp_timestamp,
+                                            float enqueue_ts_s,
+                                            EnqueueResult& result,
+                                            bool force_key_frame,
+                                            bool include_video_extension)
+{
+  result.enqueued_packets.clear();
+  result.is_key_frame = false;
+  result.dropped_packets = 0;
+  if (mtu <= 0 || !rtp_queue_ || !lock_rtp_queue_) {
+    return false;
+  }
+
+  std::vector<std::vector<uint8_t>> payloads;
+  bool is_key_frame = false;
+  if (!encode_next_frame(target_bitrate_bps, mtu, payloads, &is_key_frame, force_key_frame)) {
+    return false;
+  }
+  if (payloads.size() > 0xFFFFu) {
+    return false;
+  }
+
+  result.is_key_frame = is_key_frame;
+  const uint16_t frame_id = static_cast<uint16_t>(frame_id_ - 1);
+  const uint16_t frag_cnt = static_cast<uint16_t>(payloads.size());
+
+  for (size_t i = 0; i < payloads.size(); i++) {
+    const bool is_mark = (i + 1 == payloads.size());
+    const int packet_size = static_cast<int>(payloads[i].size()) + 12 +
+                            (include_video_extension ? static_cast<int>(kRtpVideoExtensionTotalBytes) : 0);
+    unsigned char pt = 98;
+    if (is_mark) {
+      pt |= 0x80;
+    }
+
+    uint8_t* buf_rtp = static_cast<uint8_t*>(malloc(packet_size));
+    if (!buf_rtp) {
+      return false;
+    }
+    write_rtp_header(buf_rtp, seq_nr, rtp_timestamp, pt, ssrc);
+
+    size_t payload_offset = 12;
+    if (include_video_extension) {
+      RtpVideoExtension ext;
+      ext.frame_is_keyframe = is_key_frame;
+      ext.frame_id = frame_id;
+      ext.frag_id = static_cast<uint16_t>(i);
+      ext.frag_cnt = frag_cnt;
+      if (!write_rtp_video_extension(buf_rtp, static_cast<std::size_t>(packet_size), ext)) {
+        free(buf_rtp);
+        result.dropped_packets++;
+        seq_nr++;
+        continue;
+      }
+      payload_offset += kRtpVideoExtensionTotalBytes;
+    }
+
+    memcpy(buf_rtp + payload_offset, payloads[i].data(), payloads[i].size());
+
+    pthread_mutex_lock(lock_rtp_queue_);
+    const bool pushed = rtp_queue_->push(buf_rtp, packet_size, ssrc, seq_nr, is_mark, enqueue_ts_s, rtp_timestamp);
+    pthread_mutex_unlock(lock_rtp_queue_);
+
+    if (pushed) {
+      EnqueuedPacketInfo packet_info;
+      packet_info.size_bytes = packet_size;
+      packet_info.is_mark = is_mark;
+      result.enqueued_packets.push_back(packet_info);
+    } else {
+      free(buf_rtp);
+      result.dropped_packets++;
+    }
+
+    seq_nr++;
+  }
+
+  return true;
 }
 
 } // namespace bwvideo

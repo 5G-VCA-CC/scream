@@ -12,9 +12,10 @@ SET(scream_BIN ${scream_SOURCE_DIR}/bin)
 
 message("scream_SOURCE_DIR directories:" ${scream_SOURCE_DIR})
 
-IF(UNIX)
-add_definitions(-std=c++0x)
-ENDIF(UNIX)
+# Require at least C++17 so std::optional and other modern features are available.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 IF(WIN32)
 IF(MSVC12)

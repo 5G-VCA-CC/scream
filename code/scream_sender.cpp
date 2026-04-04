@@ -484,7 +484,12 @@ void* createRtpThread(void* arg) {
 		if (videoMode) {
 			bool encodedKeyFrame = false;
 			if (videoEncoder &&
-				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame, requestKeyFrame)) {
+				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx),
+					mtu,
+					time_ntp,
+					encodedPayloads,
+					&encodedKeyFrame,
+					requestKeyFrame)) {
 				if (encodedKeyFrame) {
 					lastKeyFrameT_ntp = time_ntp;
 				}

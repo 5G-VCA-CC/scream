@@ -24,6 +24,7 @@ public:
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
                          int mtu,
+                         uint32_t time_ntp,
                          std::vector<std::vector<uint8_t>>& payloads,
                          bool* is_key_frame = nullptr,
                          bool force_key_frame = false);
@@ -54,7 +55,6 @@ private:
   uint32_t ssrc_;
   bool keyframe_unacked_;
   uint16_t last_triggered_seq_;
-  uint32_t last_keyframe_ts_;
 
   size_t frame_size_bytes() const;
   void parse_y4m_header();

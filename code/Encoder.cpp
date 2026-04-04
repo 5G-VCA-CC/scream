@@ -4,17 +4,10 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
-#include <sys/time.h>
 
 using namespace std;
 
 namespace bwvideo {
-
-static uint64_t get_timestamp_us() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-}
 
 Encoder::Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc, bool keyframe_unacked)
   : fps_(fps)
@@ -25,7 +18,6 @@ Encoder::Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx
   ssrc_ = ssrc;
   keyframe_unacked_ = keyframe_unacked;
   last_triggered_seq_ = 0;
-  last_keyframe_ts_ = 0;
   if (!fp_) {
     throw runtime_error("Failed to open Y4M input");
   }
@@ -152,6 +144,7 @@ void Encoder::set_target_bitrate_kbps(uint32_t bitrate_kbps)
 
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
+                                uint32_t time_ntp,
                                 std::vector<std::vector<uint8_t>>& payloads,
                                 bool* is_key_frame,
                                 bool force_key_frame)
@@ -187,30 +180,24 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   if (frame_id_ == 0 || (frame_id_ % keyframe_interval_frames_ == 0)) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
-  if (force_key_frame && !keyframe_unacked_) {
+  else if (force_key_frame) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
-  if (keyframe_unacked_) {
-    uint32_t curr_ts = get_timestamp_us();
-    if (force_key_frame && curr_ts - last_keyframe_ts_ > 250000) {
-        encode_flags |= VPX_EFLAG_FORCE_KF;
-        last_keyframe_ts_ = curr_ts;
-    } else {
-        uint16_t oldest_unacked_seq = 0;
-        uint32_t oldest_unacked_ts = 0;
-        pthread_mutex_lock(lock_scream_);
-        if (screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_ts)) {
-            uint32_t curr_ts = get_timestamp_us();
-            uint32_t us_since_first_send = curr_ts - oldest_unacked_ts;
-            if (us_since_first_send > 1000000 && curr_ts - last_keyframe_ts_ > 250000) {
-                if (last_triggered_seq_ != oldest_unacked_seq) {
-                    encode_flags |= VPX_EFLAG_FORCE_KF;
-                    last_triggered_seq_ = oldest_unacked_seq;
-                    last_keyframe_ts_ = curr_ts;
-                }
+  else if (keyframe_unacked_) {
+    const uint32_t kOneSecondQ16 = 65536u;
+    uint16_t oldest_unacked_seq = 0;
+    uint32_t oldest_unacked_tx_ntp = 0;
+    pthread_mutex_lock(lock_scream_);
+    const bool has_oldest_unacked = screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_tx_ntp);
+    pthread_mutex_unlock(lock_scream_);
+    if (has_oldest_unacked) {
+        uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
+        if (age_ntp > kOneSecondQ16) {
+            if (last_triggered_seq_ != oldest_unacked_seq) {
+                encode_flags |= VPX_EFLAG_FORCE_KF;
+                last_triggered_seq_ = oldest_unacked_seq;
             }
         }
-        pthread_mutex_unlock(lock_scream_);
     }
   }
 

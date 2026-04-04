@@ -58,14 +58,6 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
 {
   const bool has_valid_metadata = (ext != nullptr && ext->frag_cnt > 0 && ext->frag_id < ext->frag_cnt);
   if (has_valid_metadata) {
-    if (recovery_mode_ == RecoveryMode::kUnknown) {
-      recovery_mode_ = RecoveryMode::kMetadata;
-    }
-    if (recovery_mode_ != RecoveryMode::kMetadata) {
-      cleanup_old_frames();
-      return;
-    }
-
     auto& frame = frame_by_id_[ext->frame_id];
     if (frame.frag_cnt == 0) {
       frame.frag_cnt = ext->frag_cnt;
@@ -80,14 +72,6 @@ void Decoder::add_rtp_payload(uint16_t seq_nr,
     }
     try_decode_with_metadata(ext->frame_id);
   } else {
-    if (recovery_mode_ == RecoveryMode::kUnknown) {
-      recovery_mode_ = RecoveryMode::kLegacy;
-    }
-    if (recovery_mode_ != RecoveryMode::kLegacy) {
-      cleanup_old_frames();
-      return;
-    }
-
     auto& frame = frame_by_ts_[timestamp];
     frame.payloads[seq_nr] = vector<uint8_t>(payload, payload + payload_size);
     if (marker) {

@@ -14,11 +14,20 @@ extern "C" {
 #include <vpx/vp8cx.h>
 }
 
+class ScreamV2Tx;
 namespace bwvideo {
 
 class Encoder
 {
 public:
+  Encoder(const std::string& y4m_path,
+          uint16_t fps,
+          ScreamV2Tx* screamTx = nullptr,
+          pthread_mutex_t* lock_scream = nullptr,
+          RtpQueue* rtp_queue = nullptr,
+          pthread_mutex_t* lock_rtp_queue = nullptr,
+          uint32_t ssrc = 0,
+          bool keyframe_unacked = false);
   struct EnqueuedPacketInfo {
     int size_bytes {0};
     bool is_mark {false};
@@ -30,14 +39,11 @@ public:
     uint32_t dropped_packets {0};
   };
 
-  Encoder(const std::string& y4m_path,
-          uint16_t fps,
-          RtpQueue* rtp_queue = nullptr,
-          pthread_mutex_t* lock_rtp_queue = nullptr);
   ~Encoder();
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
                          int mtu,
+                         uint32_t time_ntp,
                          std::vector<std::vector<uint8_t>>& payloads,
                          bool* is_key_frame = nullptr,
                          bool force_key_frame = false);
@@ -77,6 +83,11 @@ private:
   vpx_codec_ctx_t ctx_ {};
   vpx_codec_enc_cfg_t cfg_ {};
 
+  ScreamV2Tx* screamTx_ {nullptr};
+  pthread_mutex_t* lock_scream_ {nullptr};
+  uint32_t ssrc_ {0};
+  bool keyframe_unacked_ {false};
+  uint16_t last_triggered_seq_ {0};
   size_t frame_size_bytes() const;
   void parse_y4m_header();
   bool rewind_to_first_frame();

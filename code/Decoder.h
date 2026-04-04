@@ -58,11 +58,6 @@ private:
     uint16_t frag_cnt {0};
     std::map<uint16_t, std::vector<uint8_t>> fragments {};
   };
-  enum class RecoveryMode {
-    kUnknown,
-    kMetadata,
-    kLegacy
-  };
 
   uint16_t width_ {0};
   uint16_t height_ {0};
@@ -70,7 +65,6 @@ private:
   FILE* output_ {nullptr};
   std::map<uint32_t, LegacyFrameAssembly> frame_by_ts_ {};
   std::map<uint16_t, FrameAssembly> frame_by_id_ {};
-  RecoveryMode recovery_mode_ {RecoveryMode::kUnknown};
   bool next_expected_frame_valid_ {false};
   uint16_t next_expected_frame_id_ {0};
   std::mutex queue_mutex_ {};

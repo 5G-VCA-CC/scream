@@ -56,6 +56,7 @@ float FPS = 50.0f; // Frames per second
 bool videoMode = false;
 const char* videoPath = nullptr;
 bool keyframeOnLossEpoch = false;
+bool keyframeUnacked = false;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -502,8 +503,12 @@ void* createRtpThread(void* arg) {
 		try {
 			videoEncoder = new bwvideo::Encoder(videoPath,
 												(uint16_t)std::max(1.0f, FPS),
+												screamTx,
+												&lock_scream,
 												pushTraffic ? nullptr : rtpQueue,
-												pushTraffic ? nullptr : &lock_rtp_queue);
+												&lock_rtp_queue,
+												SSRC,
+												keyframeUnacked);
 			if (periodicKeyFrameMode) {
 				videoEncoder->set_periodic_keyframe_interval(periodicKeyFrameInterval);
 			}
@@ -560,7 +565,6 @@ void* createRtpThread(void* arg) {
 		}
 
 		mtu = screamTx->getRecommendedMss(time_ntp);
-
 		screamTx->setCwndMinLow((mtu+12)*2);
 
 		float randVal = float(rand()) / RAND_MAX - 0.5;
@@ -620,7 +624,12 @@ void* createRtpThread(void* arg) {
 			}
 			else if (videoEncoder && pushTraffic) {
 				std::vector<std::vector<uint8_t>> encodedPayloads;
-				if (videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame, requestKeyFrame)) {
+				if (videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx),
+													mtu,
+													time_ntp,
+													encodedPayloads,
+													&encodedKeyFrame,
+													requestKeyFrame)) {
 					if (encodedKeyFrame) {
 						lastKeyFrameT_ntp = time_ntp;
 					}
@@ -972,6 +981,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
 		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
+		cerr << "     -keyframe-unacked        Force keyframe if our last unacked packet is still unacked after 1s, also sends on loss, but never forces more than 1 keyframe each 250ms (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -1150,6 +1160,11 @@ int main(int argc, char* argv[]) {
 			ix++;
 			continue;
 		}
+		if (strcmp(opt, "-keyframe-unacked") == 0) {
+			keyframeUnacked = true;
+			ix++;
+			continue;
+		}
 		if (strcmp(opt, "-rand") == 0) {
 			float randPct = 0.0f;
 			requireArgsOrExit(argc, ix, 1, opt);
@@ -1284,6 +1299,14 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : -keyframe-on-loss requires -video" << endl;
 		exit(-1);
 	}
+	if (keyframeUnacked && !videoMode) {
+		cerr << "Error : -keyframe-unacked requires -video" << endl;
+		exit(-1);
+	}
+	if (keyframeUnacked && keyframeOnLossEpoch) {
+		cerr << "Error : -keyframe-unacked and -keyframe-on-loss cannot be used together" << endl;
+		exit(-1);
+	}
 	if (logFile) {
 		if (append)
 			fp_log = fopen(logFile, "a");
@@ -1356,7 +1379,6 @@ int main(int argc, char* argv[]) {
 					float time_s = time_ntp / 65536.0f;
 					char s[500];
 					screamTx->getStatistics(time_s, s);
-
 					cout << s << ", MTU = " << mtu <<endl;
 				}
 				lastLogT_ntp = time_ntp;

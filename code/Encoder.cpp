@@ -1,4 +1,5 @@
 #include "Encoder.h"
+#include "ScreamTx.h"
 #include "RtpQueue.h"
 #include "rtp_video_extension.h"
 
@@ -32,11 +33,22 @@ void write_rtp_header(uint8_t* buf,
 
 Encoder::Encoder(const std::string& y4m_path,
                  uint16_t fps,
+                 ScreamV2Tx* screamTx,
+                 pthread_mutex_t* lock_scream,
                  RtpQueue* rtp_queue,
-                 pthread_mutex_t* lock_rtp_queue)
+                 pthread_mutex_t* lock_rtp_queue,
+                 uint32_t ssrc,
+                 bool keyframe_unacked)
   : fps_(fps),
+    periodic_keyframes_enabled_(true),
+    keyframe_interval_frames_(std::max<uint16_t>(fps_, 30)),
     rtp_queue_(rtp_queue),
-    lock_rtp_queue_(lock_rtp_queue)
+    lock_rtp_queue_(lock_rtp_queue),
+    screamTx_(screamTx),
+    lock_scream_(lock_scream),
+    ssrc_(ssrc),
+    keyframe_unacked_(keyframe_unacked),
+    last_triggered_seq_(0)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
   if (!fp_) {
@@ -181,6 +193,7 @@ void Encoder::disable_periodic_keyframes()
 
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
+                                uint32_t time_ntp,
                                 std::vector<std::vector<uint8_t>>& payloads,
                                 bool* is_key_frame,
                                 bool force_key_frame)
@@ -213,13 +226,45 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   raw.stride[VPX_PLANE_V] = width_ / 2;
 
   vpx_enc_frame_flags_t encode_flags = 0;
-
   if (frame_id_ == 0 ||
       (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
   if (force_key_frame) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  else if (keyframe_unacked_ && screamTx_ && lock_scream_ && lock_rtp_queue_) {
+    const uint32_t kOneSecondQ16 = 65536u;
+    uint16_t oldest_unacked_seq = 0;
+    uint32_t oldest_unacked_tx_ntp = 0;
+    pthread_mutex_lock(lock_scream_);
+    const bool has_oldest_unacked = screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_tx_ntp);
+    bool should_force_recovery_keyframe = false;
+    if (has_oldest_unacked) {
+      uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
+      if (age_ntp > kOneSecondQ16) {
+        if (last_triggered_seq_ != oldest_unacked_seq) {
+          should_force_recovery_keyframe = true;
+          encode_flags |= VPX_EFLAG_FORCE_KF;
+          last_triggered_seq_ = oldest_unacked_seq;
+        }
+      }
+    }
+    if (should_force_recovery_keyframe) {
+      /*
+       * Keep SCReAM state reset atomic vs TX/RTP queue threads.
+       */
+      pthread_mutex_lock(lock_rtp_queue_);
+      uint32_t rtp_queue_cleared = 0;
+      uint32_t tx_packets_cleared = 0;
+      uint32_t bytes_in_flight_cleared = 0;
+      screamTx_->resetStreamForRecoveryKeyframe(ssrc_,
+                                                rtp_queue_cleared,
+                                                tx_packets_cleared,
+                                                bytes_in_flight_cleared);
+      pthread_mutex_unlock(lock_rtp_queue_);
+    }
+    pthread_mutex_unlock(lock_scream_);
   }
 
   if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
@@ -268,7 +313,8 @@ bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
 
   std::vector<std::vector<uint8_t>> payloads;
   bool is_key_frame = false;
-  if (!encode_next_frame(target_bitrate_bps, mtu, payloads, &is_key_frame, force_key_frame)) {
+  const uint32_t time_ntp = static_cast<uint32_t>(enqueue_ts_s * 65536.0f);
+  if (!encode_next_frame(target_bitrate_bps, mtu, time_ntp, payloads, &is_key_frame, force_key_frame)) {
     return false;
   }
   if (payloads.size() > 0xFFFFu) {

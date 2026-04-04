@@ -321,10 +321,17 @@ void* transmitRtpThread(void* arg) {
 		pthread_mutex_lock(&lock_rtp_queue);
 		float rtpQueueDelay = 0.0f;
 		rtpQueueDelay = rtpQueue->getDelay((time_ntp) / 65536.0f);
-		rtpQueue->pop(&buf, size, ssrc_unused, seqNr, isMark, ts);
-		sendPacket(buf, size);
-		nTx++;
+		const bool popped = rtpQueue->pop(&buf, size, ssrc_unused, seqNr, isMark, ts);
 		pthread_mutex_unlock(&lock_rtp_queue);
+		if (popped && buf != NULL) {
+			sendPacket(buf, size);
+			nTx++;
+		}
+
+		if (!popped || buf == NULL) {
+			usleep(50);
+			continue;
+		}
 
 		packet_free(buf, SSRC);
 		buf = NULL;
@@ -396,7 +403,6 @@ void* createRtpThread(void* arg) {
 	uint32_t dT_us = (uint32_t)(1e6 / FPS);
 	unsigned char PT = 98;
 	struct periodicInfo info;
-	std::vector<std::vector<uint8_t>> encodedPayloads;
 	bwvideo::Encoder* videoEncoder = nullptr;
 	float lastVideoRateTx = initRate * 1000.0f;
 	float lastLossEpochTime = -1.0f;
@@ -404,12 +410,13 @@ void* createRtpThread(void* arg) {
 	if (videoMode) {
 		try {
 			videoEncoder = new bwvideo::Encoder(videoPath,
-				(uint16_t)std::max(1.0f, FPS),
-				screamTx,
-				&lock_scream,
-				&lock_rtp_queue,
-				SSRC,
-				keyframeUnacked);
+												(uint16_t)std::max(1.0f, FPS),
+												screamTx,
+												&lock_scream,
+												pushTraffic ? nullptr : rtpQueue,
+												&lock_rtp_queue,
+												SSRC,
+												keyframeUnacked);
 			cerr << "Video mode enabled: " << videoEncoder->width() << "x" << videoEncoder->height() << " @ " << FPS << "fps" << endl;
 		}
 		catch (const std::exception& e) {
@@ -455,7 +462,6 @@ void* createRtpThread(void* arg) {
 		}
 
 		mtu = screamTx->getRecommendedMss(time_ntp);
-
 		screamTx->setCwndMinLow((mtu+12)*2);
 
 		float randVal = float(rand()) / RAND_MAX - 0.5;
@@ -483,48 +489,61 @@ void* createRtpThread(void* arg) {
 				isBurst = true;
 				burstStartTime = time_s;
 			}
-			if (!isBurst)
+			if (!isBurst) {
 				bytes = 0;
+			}
 		}
 
 		if (videoMode) {
 			bool encodedKeyFrame = false;
-			if (videoEncoder &&
-				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx),
-					mtu,
-					time_ntp,
-					encodedPayloads,
-					&encodedKeyFrame,
-					requestKeyFrame)) {
-				if (encodedKeyFrame) {
-					lastKeyFrameT_ntp = time_ntp;
-				}
-				for (size_t i = 0; i < encodedPayloads.size(); i++) {
-					const bool isMark = (i + 1 == encodedPayloads.size());
-					const int recvlen = (int)encodedPayloads[i].size() + 12;
-					unsigned char pt = PT;
-					if (isMark) {
-						pt |= 0x80;
+			if (videoEncoder && !pushTraffic) {
+				bwvideo::Encoder::EnqueueResult enqueueResult;
+				if (videoEncoder->encode_next_frame_and_enqueue((uint32_t)std::max(0.0f, rateTx),
+																mtu,
+																SSRC,
+																seqNr,
+																ts,
+																(time_ntp) / 65536.0f,
+																enqueueResult,
+																requestKeyFrame)) {
+					encodedKeyFrame = enqueueResult.is_key_frame;
+					if (encodedKeyFrame) {
+						lastKeyFrameT_ntp = time_ntp;
 					}
-					uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
-					writeRtp(buf_rtp, seqNr, ts, pt);
-					memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
 
-					if (pushTraffic) {
-						sendPacket(buf_rtp, recvlen);
-						packet_free(buf_rtp, SSRC);
-					}
-					else {
-						pthread_mutex_lock(&lock_rtp_queue);
-						rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
-						pthread_mutex_unlock(&lock_rtp_queue);
-
+					for (const auto& packetInfo : enqueueResult.enqueued_packets) {
 						pthread_mutex_lock(&lock_scream);
 						time_ntp = getTimeInNtp();
-						screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+						screamTx->newMediaFrame(time_ntp, SSRC, packetInfo.size_bytes, packetInfo.is_mark);
 						pthread_mutex_unlock(&lock_scream);
 					}
-					seqNr++;
+				}
+			}
+			else if (videoEncoder && pushTraffic) {
+				std::vector<std::vector<uint8_t>> encodedPayloads;
+				if (videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx),
+													mtu,
+													time_ntp,
+													encodedPayloads,
+													&encodedKeyFrame,
+													requestKeyFrame)) {
+					if (encodedKeyFrame) {
+						lastKeyFrameT_ntp = time_ntp;
+					}
+					for (size_t i = 0; i < encodedPayloads.size(); i++) {
+						const bool isMark = (i + 1 == encodedPayloads.size());
+						const int recvlen = (int)encodedPayloads[i].size() + 12;
+						unsigned char pt = PT;
+						if (isMark) {
+							pt |= 0x80;
+						}
+						uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
+						writeRtp(buf_rtp, seqNr, ts, pt);
+						memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
+						sendPacket(buf_rtp, recvlen);
+						packet_free(buf_rtp, SSRC);
+						seqNr++;
+					}
 				}
 			}
 		}
@@ -1252,9 +1271,29 @@ int main(int argc, char* argv[]) {
 	}
 	usleep(500000);
 	close(fd_outgoing_rtp);
+
+	if (create_rtp_thread) {
+		pthread_join(create_rtp_thread, NULL);
+	}
+	if (!pushTraffic) {
+		if (rtcp_thread) {
+			pthread_join(rtcp_thread, NULL);
+		}
+		if (transmit_rtp_thread) {
+			pthread_join(transmit_rtp_thread, NULL);
+		}
+	}
+
 	if (fp_log)
 		fclose(fp_log);
 	if (fp_txrxlog)
 		fclose(fp_txrxlog);
 	screamTx->printFinalSummary();
+	delete screamTx;
+	screamTx = nullptr;
+	delete rtpQueue;
+	rtpQueue = nullptr;
+	pthread_mutex_destroy(&lock_scream);
+	pthread_mutex_destroy(&lock_rtp_queue);
+	pthread_mutex_destroy(&lock_pace);
 }

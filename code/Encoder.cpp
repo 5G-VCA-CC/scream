@@ -1,35 +1,59 @@
 #include "Encoder.h"
 #include "ScreamTx.h"
+#include "RtpQueue.h"
 
 #include <algorithm>
+#include <arpa/inet.h>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
 using namespace std;
 
 namespace bwvideo {
+namespace {
+void write_rtp_header(uint8_t* buf,
+                      uint16_t seq_nr,
+                      uint32_t time_stamp,
+                      unsigned char pt,
+                      uint32_t ssrc)
+{
+  const uint16_t seq_nr_network = htons(seq_nr);
+  const uint32_t ts_network = htonl(time_stamp);
+  const uint32_t ssrc_network = htonl(ssrc);
+  memcpy(buf, "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 12);
+  memcpy(buf + 1, &pt, 1);
+  memcpy(buf + 2, &seq_nr_network, 2);
+  memcpy(buf + 4, &ts_network, 4);
+  memcpy(buf + 8, &ssrc_network, 4);
+}
+} // namespace
 
 Encoder::Encoder(const std::string& y4m_path,
                  uint16_t fps,
                  ScreamV2Tx* screamTx,
                  pthread_mutex_t* lock_scream,
+                 RtpQueue* rtp_queue,
                  pthread_mutex_t* lock_rtp_queue,
                  uint32_t ssrc,
                  bool keyframe_unacked)
-  : fps_(fps)
+  : fps_(fps),
+    periodic_keyframes_enabled_(true),
+    keyframe_interval_frames_(std::max<uint16_t>(fps_, 30)),
+    rtp_queue_(rtp_queue),
+    lock_rtp_queue_(lock_rtp_queue),
+    screamTx_(screamTx),
+    lock_scream_(lock_scream),
+    ssrc_(ssrc),
+    keyframe_unacked_(keyframe_unacked),
+    last_triggered_seq_(0)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
-  screamTx_ = screamTx;
-  lock_scream_ = lock_scream;
-  lock_rtp_queue_ = lock_rtp_queue;
-  ssrc_ = ssrc;
-  keyframe_unacked_ = keyframe_unacked;
-  last_triggered_seq_ = 0;
   if (!fp_) {
     throw runtime_error("Failed to open Y4M input");
   }
   parse_y4m_header();
-  keyframe_interval_frames_ = std::max<uint16_t>(fps_, 30);
   if (!init_codec()) {
     throw runtime_error("Failed to initialize VP9 encoder");
   }
@@ -190,7 +214,7 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   else if (force_key_frame) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
-  else if (keyframe_unacked_) {
+  else if (keyframe_unacked_ && screamTx_ && lock_scream_ && lock_rtp_queue_) {
     const uint32_t kOneSecondQ16 = 65536u;
     uint16_t oldest_unacked_seq = 0;
     uint32_t oldest_unacked_tx_ntp = 0;
@@ -249,6 +273,125 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   frame_id_++;
   return !payloads.empty();
+}
+
+bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
+                                            int mtu,
+                                            uint32_t ssrc,
+                                            uint16_t& seq_nr,
+                                            uint32_t rtp_timestamp,
+                                            float enqueue_ts_s,
+                                            EnqueueResult& result,
+                                            bool force_key_frame)
+{
+  result.enqueued_packets.clear();
+  result.is_key_frame = false;
+  result.dropped_packets = 0;
+  if (mtu <= 0 || !rtp_queue_ || !lock_rtp_queue_) {
+    return false;
+  }
+
+  vector<uint8_t> frame;
+  if (!read_y4m_frame(frame)) {
+    return false;
+  }
+
+  set_target_bitrate_kbps(target_bitrate_bps / 1000);
+
+  vpx_image_t raw;
+  vpx_img_wrap(&raw, VPX_IMG_FMT_I420, width_, height_, 1, frame.data());
+  const uint8_t* y = frame.data();
+  const uint8_t* u = y + width_ * height_;
+  const uint8_t* v = u + (width_ * height_) / 4;
+  raw.planes[VPX_PLANE_Y] = const_cast<uint8_t*>(y);
+  raw.planes[VPX_PLANE_U] = const_cast<uint8_t*>(u);
+  raw.planes[VPX_PLANE_V] = const_cast<uint8_t*>(v);
+  raw.stride[VPX_PLANE_Y] = width_;
+  raw.stride[VPX_PLANE_U] = width_ / 2;
+  raw.stride[VPX_PLANE_V] = width_ / 2;
+
+  vpx_enc_frame_flags_t encode_flags = 0;
+  if (frame_id_ == 0 ||
+      (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
+    encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  if (force_key_frame) {
+    encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+
+  if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
+    return false;
+  }
+
+  bool encoded_any_payload = false;
+  vpx_codec_iter_t iter = nullptr;
+  const vpx_codec_cx_pkt_t* pkt;
+  while ((pkt = vpx_codec_get_cx_data(&ctx_, &iter))) {
+    if (pkt->kind != VPX_CODEC_CX_FRAME_PKT) {
+      continue;
+    }
+    encoded_any_payload = true;
+    if (pkt->data.frame.flags & VPX_FRAME_IS_KEY) {
+      result.is_key_frame = true;
+    }
+
+    const uint8_t* ptr = static_cast<const uint8_t*>(pkt->data.frame.buf);
+    size_t left = pkt->data.frame.sz;
+    while (left > 0) {
+      const size_t payload_size = std::min(static_cast<size_t>(mtu), left);
+      const bool is_mark = (left == payload_size);
+      const int packet_size = static_cast<int>(payload_size) + 12;
+      unsigned char pt = 98;
+      if (is_mark) {
+        pt |= 0x80;
+      }
+
+      uint8_t* buf_rtp = static_cast<uint8_t*>(malloc(packet_size));
+      if (!buf_rtp) {
+        return false;
+      }
+      write_rtp_header(buf_rtp, seq_nr, rtp_timestamp, pt, ssrc);
+      memcpy(buf_rtp + 12, ptr, payload_size);
+
+      pthread_mutex_lock(lock_rtp_queue_);
+      const bool pushed = rtp_queue_->push(buf_rtp, packet_size, ssrc, seq_nr, is_mark, enqueue_ts_s, rtp_timestamp);
+      pthread_mutex_unlock(lock_rtp_queue_);
+
+      if (pushed) {
+        EnqueuedPacketInfo packet_info;
+        packet_info.size_bytes = packet_size;
+        packet_info.is_mark = is_mark;
+        result.enqueued_packets.push_back(packet_info);
+      } else {
+        free(buf_rtp);
+        result.dropped_packets++;
+      }
+
+      seq_nr++;
+      ptr += payload_size;
+      left -= payload_size;
+    }
+  }
+
+  frame_id_++;
+  return encoded_any_payload;
+}
+
+void Encoder::set_periodic_keyframe_interval(float interval_s)
+{
+  if (interval_s <= 0.0f) {
+    periodic_keyframes_enabled_ = false;
+    keyframe_interval_frames_ = 0;
+    return;
+  }
+  periodic_keyframes_enabled_ = true;
+  keyframe_interval_frames_ = std::max<uint16_t>(1, static_cast<uint16_t>(std::lround(interval_s * fps_)));
+}
+
+void Encoder::disable_periodic_keyframes()
+{
+  periodic_keyframes_enabled_ = false;
+  keyframe_interval_frames_ = 0;
 }
 
 } // namespace bwvideo

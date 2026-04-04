@@ -328,7 +328,9 @@ echo "====================================================="
 echo "Results saved in: $OUTPUT_DIR"
 
 PLOTS_DIR="${OUTPUT_DIR}/plots"
-mkdir -p "$PLOTS_DIR"
+SENDER_PLOTS_DIR="${PLOTS_DIR}/sender"
+RECEIVER_PLOTS_DIR="${PLOTS_DIR}/receiver"
+mkdir -p "$SENDER_PLOTS_DIR" "$RECEIVER_PLOTS_DIR"
 export MPLBACKEND=Agg
 
 HIST_CMD=(python3 "${SCRIPT_DIR}/plot_scream_histogram.py" \
@@ -346,11 +348,6 @@ python3 "${SCRIPT_DIR}/plot_receiver_histogram.py" \
     "$OUTPUT_DIR" \
     "${PLOTS_DIR}/receiver_summary" \
     --no-show
-
-python3 "${SCRIPT_DIR}/plot_scream_receiver_stats.py" \
-    "$OUTPUT_DIR" \
-    -o "${PLOTS_DIR}/receiver" \
-    -c
 
 echo ""
 echo "To analyze CWND data from all tests:"

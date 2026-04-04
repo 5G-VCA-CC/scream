@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 #include "Encoder.h"
 struct itimerval timer;
@@ -135,6 +136,15 @@ pthread_mutex_t lock_pace;
 
 FILE* fp_log = 0;
 FILE* fp_txrxlog = 0;
+
+struct RtxScheduleState {
+	std::vector<uint8_t> payload;
+	uint8_t numRtx = 0;
+	uint32_t lastSend_ntp = 0;
+};
+
+static const uint8_t kMaxNumRtx = 3;
+static std::unordered_map<uint16_t, RtxScheduleState> retransmitStateBySeq;
 
 char* ifname = 0;
 
@@ -254,6 +264,75 @@ void writeRtp(unsigned char* buf, uint16_t seqNr, uint32_t timeStamp, unsigned c
 	buf[0] = 0x80;
 }
 
+static void clearSenderRetransmitState() {
+	retransmitStateBySeq.clear();
+}
+
+static void pruneRetransmitStateFromScream() {
+	for (auto it = retransmitStateBySeq.begin(); it != retransmitStateBySeq.end();) {
+		uint32_t txTime_ntp = 0;
+		if (screamTx->isTxPacketInFlight(SSRC, it->first, txTime_ntp)) {
+			++it;
+			continue;
+		}
+		it = retransmitStateBySeq.erase(it);
+	}
+}
+
+static bool isSeqBefore(uint16_t lhs, uint16_t rhs) {
+	return static_cast<int16_t>(lhs - rhs) < 0;
+}
+
+static void scheduleRetransmissionsForAck(uint32_t time_ntp, uint16_t ackedSeq, uint32_t rttSpacing_ntp) {
+	for (auto it = retransmitStateBySeq.begin(); it != retransmitStateBySeq.end(); ++it) {
+		const uint16_t seqCandidate = it->first;
+		RtxScheduleState& rtxState = it->second;
+		if (!isSeqBefore(seqCandidate, ackedSeq)) {
+			continue;
+		}
+		uint32_t lastTx_ntp = 0;
+		if (!screamTx->isTxPacketInFlight(SSRC, seqCandidate, lastTx_ntp)) {
+			continue;
+		}
+		if (rtxState.payload.empty()) {
+			continue;
+		}
+		if (rtxState.numRtx >= kMaxNumRtx) {
+			continue;
+		}
+		const uint32_t spacingBase_ntp = std::max(lastTx_ntp, rtxState.lastSend_ntp);
+		if (time_ntp - spacingBase_ntp < rttSpacing_ntp) {
+			continue;
+		}
+
+		uint8_t* pkt = (uint8_t*)malloc(rtxState.payload.size());
+		if (pkt == nullptr) {
+			continue;
+		}
+		memcpy(pkt, rtxState.payload.data(), rtxState.payload.size());
+		uint16_t seqNr = 0;
+		uint32_t ts = 0;
+		unsigned char pt = 0;
+		parseRtp(pkt, &seqNr, &ts, &pt);
+		const bool isMark = (pt & 0x80) != 0;
+		pthread_mutex_lock(&lock_rtp_queue);
+		const bool pushed = rtpQueue->pushFront(pkt,
+												(int)rtxState.payload.size(),
+												SSRC,
+												seqNr,
+												isMark,
+												time_ntp / 65536.0f,
+												ts);
+		pthread_mutex_unlock(&lock_rtp_queue);
+		if (!pushed) {
+			packet_free(pkt, SSRC);
+			break;
+		}
+		rtxState.numRtx++;
+		rtxState.lastSend_ntp = time_ntp;
+	}
+}
+
 
 void sendPacket(void* buf, int size) {
 	if (ipv6)
@@ -272,17 +351,16 @@ void* transmitRtpThread(void* arg) {
 	uint16_t seqNr;
 	uint32_t ts;
 	bool isMark;
-	char buf[2000];
 	uint32_t time_ntp = getTimeInNtp();
 	float retVal = 0.0f;
 	struct timeval start, end;
 	useconds_t diff = 0;
-
 	accumulatedPaceTime = 0.0;
 	int nTx = 0;
 
 	for (;;) {
 		if (stopThread) {
+			clearSenderRetransmitState();
 			return NULL;
 		}
 		retVal = -1.0f;
@@ -290,6 +368,7 @@ void* transmitRtpThread(void* arg) {
 		while (retVal == -1.0f) {
 			pthread_mutex_lock(&lock_scream);
 			time_ntp = getTimeInNtp();
+			pruneRetransmitStateFromScream();
 			retVal = screamTx->isOkToTransmit(time_ntp, SSRC);
 			pthread_mutex_unlock(&lock_scream);
 			if (retVal == -1.0f) {
@@ -333,13 +412,22 @@ void* transmitRtpThread(void* arg) {
 			continue;
 		}
 
-		packet_free(buf, SSRC);
-		buf = NULL;
-
 		pthread_mutex_lock(&lock_scream);
+		uint32_t txTime_ntp = 0;
+		const bool wasInFlight = screamTx->isTxPacketInFlight(SSRC, seqNr, txTime_ntp);
 		time_ntp = getTimeInNtp();
 		retVal = screamTx->addTransmitted(time_ntp, SSRC, size, seqNr, isMark, rtpQueueDelay, ts);
 		pthread_mutex_unlock(&lock_scream);
+		RtxScheduleState& state = retransmitStateBySeq[seqNr];
+		state.payload.resize(size);
+		memcpy(state.payload.data(), buf, size);
+		if (!wasInFlight) {
+			state.numRtx = 0;
+		}
+		state.lastSend_ntp = time_ntp;
+
+		packet_free(buf, SSRC);
+		buf = NULL;
 
 		if (!disablePacing && retVal > 0.0) {
 			accumulatedPaceTime += retVal;
@@ -621,6 +709,12 @@ void* readRtcpThread(void* arg) {
 			screamTx->setTimeString(s);
 
 			screamTx->incomingStandardizedFeedback(time_ntp, buf_rtcp, recvlen);
+			pruneRetransmitStateFromScream();
+			uint16_t hiSeqAck = 0;
+			if (screamTx->getHighestAcked(SSRC, hiSeqAck)) {
+				const uint32_t rttSpacing_ntp = std::max(1u, (uint32_t)(screamTx->getSRtt() * 65536.0f));
+				scheduleRetransmissionsForAck(time_ntp, hiSeqAck, rttSpacing_ntp);
+			}
 
 			pthread_mutex_unlock(&lock_scream);
 			rtcp_rx_time_ntp = time_ntp;

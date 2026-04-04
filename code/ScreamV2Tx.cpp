@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 #endif
 
-
 // === Some good to have features, SCReAM works also
 //     with these disabled
 // Fast start can resume if little or no congestion detected
@@ -2204,6 +2203,30 @@ bool ScreamV2Tx::getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTi
 	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
 	if (!stream) return false;
 	return stream->getOldestUnacked(seqNr, txTime_ntp);
+}
+
+bool ScreamV2Tx::getHighestAcked(uint32_t ssrc, uint16_t& seqNr) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) {
+		return false;
+	}
+	seqNr = stream->hiSeqAck;
+	return true;
+}
+
+bool ScreamV2Tx::isTxPacketInFlight(uint32_t ssrc, uint16_t seqNr, uint32_t& lastTx_ntp) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) {
+		return false;
+	}
+	Transmitted& packet = stream->txPackets[seqNr % kMaxTxPackets];
+	if (!packet.isUsed || packet.seqNr != seqNr || packet.isAcked) {
+		return false;
+	}
+	lastTx_ntp = packet.timeTx_ntp;
+	return true;
 }
 
 bool ScreamV2Tx::resetStreamForRecoveryKeyframe(uint32_t ssrc,

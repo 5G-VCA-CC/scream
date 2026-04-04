@@ -527,6 +527,8 @@ extern "C" {
 		}
 
 		bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp);
+		bool getHighestAcked(uint32_t ssrc, uint16_t& seqNr);
+		bool isTxPacketInFlight(uint32_t ssrc, uint16_t seqNr, uint32_t& lastTx_ntp);
 		bool resetStreamForRecoveryKeyframe(uint32_t ssrc,
 			uint32_t& rtpQueueCleared,
 			uint32_t& txPacketsCleared,

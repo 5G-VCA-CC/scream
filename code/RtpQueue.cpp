@@ -15,12 +15,6 @@ RtpQueueItem::RtpQueueItem() {
 
 
 RtpQueue::RtpQueue() {
-	for (int n = 0; n < kRtpQueueSize; n++) {
-		items[n] = new RtpQueueItem();
-	}
-	head = -1;
-	tail = 0;
-	nItems = 0;
 	sizeOfLastFrame = 0;
 	bytesInQueue_ = 0;
 	sizeOfQueue_ = 0;
@@ -29,73 +23,83 @@ RtpQueue::RtpQueue() {
 
 bool RtpQueue::push(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp) {
 	std::unique_lock<std::mutex> lock(queue_operation_mutex_);
-	int ix = head + 1;
-	if (ix == kRtpQueueSize) ix = 0;
-	if (items[ix]->used) {
+	if ((int)items.size() >= kRtpQueueSize) {
 		/*
 		* RTP queue is full, do a drop tail i.e ignore new RTP packets
 		*/
 		return (false);
 	}
-	head = ix;
-	items[head]->seqNr = seqNr;
-	items[head]->timeStamp = timeStamp;
-	items[head]->ssrc = ssrc;
-	items[head]->size = size;
-	items[head]->ts = ts;
-	items[head]->isMark = isMark;
-	items[head]->used = true;
-	bytesInQueue_ += size;
-	sizeOfQueue_ += 1;
+	RtpQueueItem item;
+	item.seqNr = seqNr;
+	item.timeStamp = timeStamp;
+	item.ssrc = ssrc;
+	item.size = size;
+	item.ts = ts;
+	item.isMark = isMark;
+	item.used = true;
 #ifndef IGNORE_PACKET
-	items[head]->packet = rtpPacket;
+	item.packet = rtpPacket;
 #endif
+	items.push_back(item);
+	bytesInQueue_ += size;
+	sizeOfQueue_ = static_cast<int>(items.size());
+	computeSizeOfNextRtp();
+	return (true);
+}
+
+bool RtpQueue::pushFront(void* rtpPacket, int size, uint32_t ssrc, unsigned short seqNr, bool isMark, float ts, uint32_t timeStamp) {
+	std::unique_lock<std::mutex> lock(queue_operation_mutex_);
+	if ((int)items.size() >= kRtpQueueSize) {
+		return false;
+	}
+	RtpQueueItem item;
+	item.seqNr = seqNr;
+	item.timeStamp = timeStamp;
+	item.ssrc = ssrc;
+	item.size = size;
+	item.ts = ts;
+	item.isMark = isMark;
+	item.used = true;
+#ifndef IGNORE_PACKET
+	item.packet = rtpPacket;
+#endif
+	items.push_front(item);
+	bytesInQueue_ += size;
+	sizeOfQueue_ = static_cast<int>(items.size());
 	computeSizeOfNextRtp();
 	return (true);
 }
 bool RtpQueue::pop(void** rtpPacket, int& size, uint32_t& ssrc, unsigned short& seqNr, bool& isMark, uint32_t& timeStamp)
 {
 	std::unique_lock<std::mutex> lock(queue_operation_mutex_);
-	if (items[tail]->used == false) {
+	if (items.empty()) {
 		*rtpPacket = NULL;
 		sizeOfNextRtp_ = -1;
 		return false;
 	}
-	else {
-		size = items[tail]->size;
+	RtpQueueItem item = items.front();
+	items.pop_front();
+	size = item.size;
 
 #ifndef IGNORE_PACKET
-		* rtpPacket = items[tail]->packet;
+		*rtpPacket = item.packet;
 #endif
-		seqNr = items[tail]->seqNr;
-		timeStamp = items[tail]->timeStamp;
-		ssrc = items[tail]->ssrc;
-		isMark = items[tail]->isMark;
-		items[tail]->used = false;
-		/*
-		* Thread safe update of tail to avoid that tail points outside
-		*  array, which can cause e.g RtpQueue::getDelay to give a
-		*  segmentation fault.
-		* This should not really be needed because
-		*  we use mutex to make the pop function atomic
-		*/
-		if (tail == kRtpQueueSize - 1)
-			tail = 0;
-		else
-			tail++;
-		bytesInQueue_ -= size;
-		sizeOfQueue_ -= 1;
-		computeSizeOfNextRtp();
-		return true;
-	}
+	seqNr = item.seqNr;
+	timeStamp = item.timeStamp;
+	ssrc = item.ssrc;
+	isMark = item.isMark;
+	bytesInQueue_ -= size;
+	sizeOfQueue_ = static_cast<int>(items.size());
+	computeSizeOfNextRtp();
+	return true;
 }
 
 void RtpQueue::computeSizeOfNextRtp() {
-	if (!items[tail]->used) {
+	if (items.empty()) {
 		sizeOfNextRtp_ = -1;
 	}
 	else {
-		sizeOfNextRtp_ = items[tail]->size;
+		sizeOfNextRtp_ = items.front().size;
 	}
 }
 
@@ -104,20 +108,20 @@ int RtpQueue::sizeOfNextRtp() {
 }
 
 int RtpQueue::seqNrOfNextRtp() {
-	if (!items[tail]->used) {
+	if (items.empty()) {
 		return -1;
 	}
 	else {
-		return items[tail]->seqNr;
+		return items.front().seqNr;
 	}
 }
 
 int RtpQueue::seqNrOfLastRtp() {
-	if (!items[head]->used) {
+	if (items.empty()) {
 		return -1;
 	}
 	else {
-		return items[head]->seqNr;
+		return items.back().seqNr;
 	}
 }
 
@@ -130,11 +134,11 @@ int RtpQueue::sizeOfQueue() {
 }
 
 float RtpQueue::getDelay(float currTs) {
-	if (items[tail]->used == false) {
+	if (items.empty()) {
 		return 0;
 	}
 	else {
-		return currTs - items[tail]->ts;
+		return currTs - items.front().ts;
 	}
 }
 

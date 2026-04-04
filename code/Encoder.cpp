@@ -9,12 +9,19 @@ using namespace std;
 
 namespace bwvideo {
 
-Encoder::Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc, bool keyframe_unacked)
+Encoder::Encoder(const std::string& y4m_path,
+                 uint16_t fps,
+                 ScreamV2Tx* screamTx,
+                 pthread_mutex_t* lock_scream,
+                 pthread_mutex_t* lock_rtp_queue,
+                 uint32_t ssrc,
+                 bool keyframe_unacked)
   : fps_(fps)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
   screamTx_ = screamTx;
   lock_scream_ = lock_scream;
+  lock_rtp_queue_ = lock_rtp_queue;
   ssrc_ = ssrc;
   keyframe_unacked_ = keyframe_unacked;
   last_triggered_seq_ = 0;
@@ -189,16 +196,32 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
     uint32_t oldest_unacked_tx_ntp = 0;
     pthread_mutex_lock(lock_scream_);
     const bool has_oldest_unacked = screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_tx_ntp);
-    pthread_mutex_unlock(lock_scream_);
+    bool should_force_recovery_keyframe = false;
     if (has_oldest_unacked) {
-        uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
-        if (age_ntp > kOneSecondQ16) {
-            if (last_triggered_seq_ != oldest_unacked_seq) {
-                encode_flags |= VPX_EFLAG_FORCE_KF;
-                last_triggered_seq_ = oldest_unacked_seq;
-            }
+      uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
+      if (age_ntp > kOneSecondQ16) {
+        if (last_triggered_seq_ != oldest_unacked_seq) {
+          should_force_recovery_keyframe = true;
+          encode_flags |= VPX_EFLAG_FORCE_KF;
+          last_triggered_seq_ = oldest_unacked_seq;
         }
+      }
     }
+    if (should_force_recovery_keyframe) {
+      /*
+       * Keep SCReAM state reset atomic vs TX/RTP queue threads.
+       */
+      pthread_mutex_lock(lock_rtp_queue_);
+      uint32_t rtp_queue_cleared = 0;
+      uint32_t tx_packets_cleared = 0;
+      uint32_t bytes_in_flight_cleared = 0;
+      screamTx_->resetStreamForRecoveryKeyframe(ssrc_,
+                                                rtp_queue_cleared,
+                                                tx_packets_cleared,
+                                                bytes_in_flight_cleared);
+      pthread_mutex_unlock(lock_rtp_queue_);
+    }
+    pthread_mutex_unlock(lock_scream_);
   }
 
   if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {

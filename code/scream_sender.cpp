@@ -403,7 +403,13 @@ void* createRtpThread(void* arg) {
 
 	if (videoMode) {
 		try {
-			videoEncoder = new bwvideo::Encoder(videoPath, (uint16_t)std::max(1.0f, FPS), screamTx, &lock_scream, SSRC, keyframeUnacked);
+			videoEncoder = new bwvideo::Encoder(videoPath,
+				(uint16_t)std::max(1.0f, FPS),
+				screamTx,
+				&lock_scream,
+				&lock_rtp_queue,
+				SSRC,
+				keyframeUnacked);
 			cerr << "Video mode enabled: " << videoEncoder->width() << "x" << videoEncoder->height() << " @ " << FPS << "fps" << endl;
 		}
 		catch (const std::exception& e) {
@@ -1215,7 +1221,6 @@ int main(int argc, char* argv[]) {
 					float time_s = time_ntp / 65536.0f;
 					char s[500];
 					screamTx->getStatistics(time_s, s);
-
 					cout << s << ", MTU = " << mtu <<endl;
 				}
 				lastLogT_ntp = time_ntp;

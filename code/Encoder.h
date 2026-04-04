@@ -19,7 +19,13 @@ namespace bwvideo {
 class Encoder
 {
 public:
-  Encoder(const std::string& y4m_path, uint16_t fps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc, bool keyframe_unacked);
+  Encoder(const std::string& y4m_path,
+          uint16_t fps,
+          ScreamV2Tx* screamTx,
+          pthread_mutex_t* lock_scream,
+          pthread_mutex_t* lock_rtp_queue,
+          uint32_t ssrc,
+          bool keyframe_unacked);
   ~Encoder();
 
   bool encode_next_frame(uint32_t target_bitrate_bps,
@@ -52,6 +58,7 @@ private:
 
   ScreamV2Tx* screamTx_;
   pthread_mutex_t* lock_scream_;
+  pthread_mutex_t* lock_rtp_queue_;
   uint32_t ssrc_;
   bool keyframe_unacked_;
   uint16_t last_triggered_seq_;

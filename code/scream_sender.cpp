@@ -22,6 +22,14 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/timerfd.h>
+#include <algorithm>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstdint>
+#include <sstream>
+#include <vector>
+#include "Encoder.h"
 struct itimerval timer;
 struct sigaction sa;
 
@@ -49,6 +57,9 @@ int minPaceIntervalUs = 500;
 int ect = -1;
 
 float FPS = 50.0f; // Frames per second
+bool videoMode = false;
+const char* videoPath = nullptr;
+bool keyframeOnLossEpoch = false;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -58,6 +69,8 @@ float timekeyTimeout = 1.0f;
 bool disablePacing = false;
 float keyFrameInterval = 0.0;
 float keyFrameSize = 1.0;
+bool periodicKeyFrameMode = false;
+float periodicKeyFrameInterval = 0.0f;
 int initRate = 1000;
 int minRate = 1000;
 int maxRate = 500000;
@@ -78,7 +91,6 @@ float multiplicativeIncreaseFactor = 0.05f;
 float adaptivePaceHeadroom = 1.5f;
 float hysteresis = 0.0f;
 float reorderTime = 0.03f;
-float enableDelayBasedCc = true;
 
 uint16_t seqNr = 0;
 uint32_t lastKeyFrameT_ntp = 0;
@@ -240,6 +252,55 @@ static Encoder* g_encoder = nullptr;
 int g_enc_width = 0;
 int g_enc_height = 0;
 
+
+static bool parseIntStrict(const char* s, int& out) {
+	if (s == nullptr || *s == '\0') {
+		return false;
+	}
+	errno = 0;
+	char* end = nullptr;
+	long v = strtol(s, &end, 10);
+	if (errno != 0 || end == s || *end != '\0' || v < INT_MIN || v > INT_MAX) {
+		return false;
+	}
+	out = static_cast<int>(v);
+	return true;
+}
+
+static bool parseFloatStrict(const char* s, float& out) {
+	if (s == nullptr || *s == '\0') {
+		return false;
+	}
+	errno = 0;
+	char* end = nullptr;
+	float v = strtof(s, &end);
+	if (errno != 0 || end == s || *end != '\0') {
+		return false;
+	}
+	out = v;
+	return true;
+}
+
+static void requireArgsOrExit(int argc, int ix, int nArgs, const char* opt) {
+	if (ix + nArgs >= argc) {
+		cerr << "Error : " << opt << " requires " << nArgs << " argument(s)" << endl;
+		exit(-1);
+	}
+}
+
+static void parseIntOrExit(const char* s, int& out, const char* opt) {
+	if (!parseIntStrict(s, out)) {
+		cerr << "Error : " << opt << " expects an integer value, got '" << s << "'" << endl;
+		exit(-1);
+	}
+}
+
+static void parseFloatOrExit(const char* s, float& out, const char* opt) {
+	if (!parseFloatStrict(s, out)) {
+		cerr << "Error : " << opt << " expects a float value, got '" << s << "'" << endl;
+		exit(-1);
+	}
+}
 
 double t0 = 0;
 /*
@@ -447,6 +508,28 @@ void* createRtpThread(void* arg) {
 	uint32_t dT_us = (uint32_t)(1e6 / FPS);
 	unsigned char PT = 98;
 	struct periodicInfo info;
+	std::vector<std::vector<uint8_t>> encodedPayloads;
+	bwvideo::Encoder* videoEncoder = nullptr;
+	float lastVideoRateTx = initRate * 1000.0f;
+	float lastLossEpochTime = -1.0f;
+
+	if (videoMode) {
+		try {
+			videoEncoder = new bwvideo::Encoder(videoPath, (uint16_t)std::max(1.0f, FPS));
+			if (periodicKeyFrameMode) {
+				videoEncoder->set_periodic_keyframe_interval(periodicKeyFrameInterval);
+			}
+			else {
+				videoEncoder->disable_periodic_keyframes();
+			}
+			cerr << "Video mode enabled: " << videoEncoder->width() << "x" << videoEncoder->height() << " @ " << FPS << "fps" << endl;
+		}
+		catch (const std::exception& e) {
+			cerr << "Failed to initialize video encoder: " << e.what() << endl;
+			stopThread = true;
+			return NULL;
+		}
+	}
 
 	makePeriodic(dT_us, &info);
 
@@ -455,23 +538,33 @@ void* createRtpThread(void* arg) {
 	*/
 	for (;;) {
 		if (stopThread) {
+			delete videoEncoder;
 			return NULL;
 		}
 		uint32_t time_ntp = getTimeInNtp();
 
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
-			float rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
-
-			// Loss-based keyframe: if SCReAM signals loss (returns negative bitrate), force a keyframe
-			if (useLossKeyframe && rateTx < 0 && g_encoder) {
-				g_encoder->forceNextKeyframe();
-				cerr << "Loss detected by SCReAM, requesting key frame" << endl;
-				// Re-fetch the target bitrate (repairLoss was consumed, next call returns real rate)
-				rateTx = screamTx->getTargetBitrate(time_ntp, SSRC) * rateScale;
+		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
+		float rateTx = targetRate * rateScale;
+		bool requestKeyFrame = videoMode && targetRate < 0.0f;
+		if (videoMode) {
+			float time_s = time_ntp / 65536.0f;
+			if (keyframeOnLossEpoch) {
+				if (screamTx->isLossEpoch(SSRC)) {
+					lastLossEpochTime = time_s;
+				}
+				if (lastLossEpochTime > 0.0f && time_s - lastLossEpochTime > 0.1f) {
+					requestKeyFrame = true;
+					lastLossEpochTime = -1.0f;
+				}
 			}
-
-			// If rateTx is still negative (no -losskey, or first-call edge case), clamp to 0
-			if (rateTx < 0) rateTx = 0;
+			if (targetRate > 0.0f) {
+				lastVideoRateTx = rateTx;
+			}
+			else {
+				rateTx = lastVideoRateTx;
+			}
+		}
 
 			cout << "SCReAM target bitrate: " << rateTx / 1000 << " kbps" << endl;
 
@@ -483,84 +576,13 @@ void* createRtpThread(void* arg) {
 
 			mtu = screamTx->getRecommendedMss(time_ntp);
 
-			screamTx->setCwndMinLow((mtu+12)*2);
-
-			float randVal = float(rand()) / RAND_MAX - 0.5;
-			int bytes = (int)(rateTx / FPS / 8 * (1.0 + randVal * randRate));
-
-			// Only apply artificial key frame size multiplier for synthetic traffic (not video)
-			if (!useVideo && isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
-				/*
-				* Fake a key frame (synthetic traffic only)
-				*/
-				bytes = (int)(bytes * keyFrameSize);
-				lastKeyFrameT_ntp = time_ntp;
-			}
-
-			// If video mode enabled, read a frame and (optionally) encode to VP9
-			std::vector<uint8_t> frame_buf;
-			std::vector<uint8_t> encoded_frame;
-			size_t encoded_offset = 0;
-			bool has_encoded = false;
-			if (useVideo) {
-				if (!y4m.in.is_open()) {
-					if (!y4m.open_file(videoPath)) {
-						cerr << "Failed to open video file: " << videoPath << "\n";
-						useVideo = false; // fallback
-					}
-				}
-				if (useVideo) {
-					if (!y4m.read_frame(frame_buf)) {
-						cerr << "Failed to read video frame\n";
-						useVideo = false;
-					} else {
-						// initialize per-file encoder on first use
-						if (!g_encoder) {
-							g_enc_width = y4m.width;
-							g_enc_height = y4m.height;
-							try {
-								// Initialize encoder with 500 kbps starting bitrate
-								g_encoder = new Encoder(y4m.width, y4m.height, 25, 500, screamTx, &lock_scream, SSRC);
-								cerr << "Encoder initialized with target bitrate: 500 kbps" << endl;
-								
-								// Configure periodic keyframes if -periodickey option was provided
-								if (isKeyFrame) {
-									uint64_t interval_us = (uint64_t)(keyFrameInterval * 1000000);
-									g_encoder->setPeriodicKeyframes(true, interval_us);
-									cerr << "Encoder configured with periodic keyframes: interval=" 
-									     << keyFrameInterval << "s (no artificial size multiplier)" << endl;
-								}
-								if (useLossKeyframe) {
-									cerr << "Encoder configured with loss-triggered keyframes" << endl;
-								}
-								if (useTimekeyKeyframe) {
-									uint64_t timeout_us = (uint64_t)(timekeyTimeout * 1000000);
-									g_encoder->setFeedbackTimeoutKeyframes(true, timeout_us);
-									cerr << "Encoder configured with feedback-timeout keyframes: timeout="
-									     << timekeyTimeout << "s (emulates ringmaster MAX_UNACKED_US)" << endl;
-								}
-							} catch (...) {
-								cerr << "Failed to initialize Encoder\n";
-								useVideo = false;
-							}
-						}
-						if (g_encoder) {
-							try {
-								encoded_frame = g_encoder->encodeFrame(frame_buf);
-								if (!encoded_frame.empty()) {
-									has_encoded = true;
-									bytes = (int)encoded_frame.size();
-								} else {
-									bytes = (int)frame_buf.size();
-								}
-							} catch (const std::exception &e) {
-								cerr << "Encoder error: " << e.what() << "\n";
-								useVideo = false;
-							}
-						}
-					}
-				}
-			}
+		if (!videoMode && isKeyFrame && time_ntp - lastKeyFrameT_ntp >= keyFrameInterval_ntp) {
+			/*
+			* Fake a key frame
+			*/
+			bytes = (int)(bytes * keyFrameSize);
+			lastKeyFrameT_ntp = time_ntp;
+		}
 
 		if (!pushTraffic && burstTime < 0) {
 			float time_s = time_ntp / 65536.0f;
@@ -580,65 +602,74 @@ void* createRtpThread(void* arg) {
 				bytes = 0;
 		}
 
-			while (bytes > 0) {
-				int pl_size = min(bytes, mtu);
-				bytes = std::max(0, bytes - pl_size);
-				int recvlen = pl_size + 12; // will adjust based on actual copy_len below
-				unsigned char pt = PT;
-				bool isMark;
-				if (bytes == 0) {
-					// Last RTP packet, set marker bit
-					pt |= 0x80;
-					isMark = true;
+		if (videoMode) {
+			bool encodedKeyFrame = false;
+			if (videoEncoder &&
+				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame, requestKeyFrame)) {
+				if (encodedKeyFrame) {
+					lastKeyFrameT_ntp = time_ntp;
 				}
-				else {
-					isMark = false;
-				}
-				uint8_t* buf_rtp = (uint8_t*)malloc(BUFSIZE);
-				writeRtp(buf_rtp, seqNr, ts, pt);
-
-				// copy payload: either zeros (default) or frame data when useVideo
-					size_t copy_len = pl_size;
-					if (useVideo && has_encoded) {
-						// copy from encoded_frame
-						if (encoded_offset + copy_len > encoded_frame.size()) copy_len = encoded_frame.size() - encoded_offset;
-						memcpy(buf_rtp + 12, encoded_frame.data() + encoded_offset, copy_len);
-						encoded_offset += copy_len;
-						if (isMark) encoded_offset = 0; // reset for next frame
-					} else if (useVideo && !frame_buf.empty()) {
-						// raw frame fallback
-						static size_t video_offset = 0;
-						if (video_offset + copy_len > frame_buf.size()) copy_len = frame_buf.size() - video_offset;
-						memcpy(buf_rtp + 12, frame_buf.data() + video_offset, copy_len);
-						video_offset += copy_len;
-						if (isMark) video_offset = 0; // reset for next frame
-					} else {
-						// zero payload
-						memset(buf_rtp + 12, 0, copy_len);
-					}
-					// Adjust packet length to reflect actual payload (no padded zeros)
-					recvlen = (int)(12 + copy_len);
-
-				if (pushTraffic) {
-					sendPacket(buf_rtp, recvlen);
-					packet_free(buf_rtp, SSRC);
-					buf_rtp = NULL;
-				}
-				else {
-					pthread_mutex_lock(&lock_rtp_queue);
-					rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
-					pthread_mutex_unlock(&lock_rtp_queue);
-					// Debug: log when queuing marker packets (end of frame)
+				for (size_t i = 0; i < encodedPayloads.size(); i++) {
+					const bool isMark = (i + 1 == encodedPayloads.size());
+					const int recvlen = (int)encodedPayloads[i].size() + 12;
+					unsigned char pt = PT;
 					if (isMark) {
-						fprintf(stderr, "[TX-QUEUE] seq=%u recvlen=%d encoded=%d\n", seqNr, recvlen, has_encoded ? 1 : 0);
+						pt |= 0x80;
 					}
+					uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
+					writeRtp(buf_rtp, seqNr, ts, pt);
+					memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
 
-					pthread_mutex_lock(&lock_scream);
-					time_ntp = getTimeInNtp();
-					screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
-					pthread_mutex_unlock(&lock_scream);
+					if (pushTraffic) {
+						sendPacket(buf_rtp, recvlen);
+						packet_free(buf_rtp, SSRC);
+					}
+					else {
+						pthread_mutex_lock(&lock_rtp_queue);
+						rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
+						pthread_mutex_unlock(&lock_rtp_queue);
+
+						pthread_mutex_lock(&lock_scream);
+						time_ntp = getTimeInNtp();
+						screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+						pthread_mutex_unlock(&lock_scream);
+					}
+					seqNr++;
 				}
-				seqNr++;
+			}
+		}
+		else while (bytes > 0) {
+			int pl_size = min(bytes, mtu);
+			int recvlen = pl_size + 12;
+
+			bytes = std::max(0, bytes - pl_size);
+			unsigned char pt = PT;
+			bool isMark;
+			if (bytes == 0) {
+				// Last RTP packet, set marker bit
+				pt |= 0x80;
+				isMark = true;
+			}
+			else {
+				isMark = false;
+			}
+			uint8_t* buf_rtp = (uint8_t*)malloc(BUFSIZE);
+			writeRtp(buf_rtp, seqNr, ts, pt);
+
+			if (pushTraffic) {
+				sendPacket(buf_rtp, recvlen);
+				packet_free(buf_rtp, SSRC);
+				buf_rtp = NULL;
+			}
+			else {
+				pthread_mutex_lock(&lock_rtp_queue);
+				rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
+				pthread_mutex_unlock(&lock_rtp_queue);
+
+				pthread_mutex_lock(&lock_scream);
+				time_ntp = getTimeInNtp();
+				screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+				pthread_mutex_unlock(&lock_scream);
 			}
 		waitPeriod(&info);
 
@@ -831,7 +862,6 @@ int setup() {
 	screamTx->enableRelaxedPacing(relaxedPacing);
 	screamTx->setMssListMinPacketsInFlight(mtuList, nMtuListItems, minPktsInFlight);
 	screamTx->setReorderTime(reorderTime);
-	screamTx->enableDelayBasedCongestionControl(enableDelayBasedCc);
 
 	if (disablePacing)
 		screamTx->enablePacketPacing(false);
@@ -883,7 +913,7 @@ int main(int argc, char* argv[]) {
 	* Parse command line
 	*/
 	if (argc <= 1) {
-		cerr << "SCReAM V2 BW test tool, sender. Ericsson AB. Version 2025-11-10 " << endl;
+		cerr << "SCReAM V2 BW test tool, sender. Ericsson AB. Version 2026-03-04 " << endl;
 		cerr << "Usage : " << endl << " > scream_bw_test_tx <options> decoder_ip decoder_port " << endl;
 		cerr << "     -if name                 Bind to specific interface" << endl;
 		cerr << "     -ipv6                    IPv6" << endl;
@@ -918,7 +948,6 @@ int main(int argc, char* argv[]) {
 		cerr << "                               -1 for not-ECT (default)" << endl;
 		cerr << "     -scale value             Scale factor in case of loss or ECN event (default 0.7) " << endl;
 		cerr << "     -delaytarget val         Set a queue delay target (default = 0.06s) " << endl;
-		cerr << "     -nodelaycc               Disable delay based congestion control " << endl;
 		cerr << "     -paceheadroom val        Set a packet pacing headroom (default = 1.5) " << endl;
 		cerr << "     -maxwindowheadroom val   How much bytes in flight can exceed cwnd  (default = 5.0) " << endl;
 		cerr << "     -adaptivepaceheadroom val Set adaptive packet pacing headroom (default = 1.5) " << endl;
@@ -926,6 +955,9 @@ int main(int argc, char* argv[]) {
 		cerr << "     -inflightheadroom val    Set a bytes in flight headroom (default = 2.0) " << endl;
 		cerr << "     -mulincrease val         Multiplicative increase factor for (default 0.05)" << endl;
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
+		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
+		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
+		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -951,251 +983,274 @@ int main(int argc, char* argv[]) {
 	char* logFile = 0;
 	char* txRxLogFile = 0;
 	/* First find options */
-	while (strstr(argv[ix], "-")) {
-		if (strstr(argv[ix], "-ect")) {
-			ect = atoi(argv[ix + 1]);
+	while (ix < argc && argv[ix][0] == '-') {
+		const char* opt = argv[ix];
+		if (strcmp(opt, "-ect") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], ect, opt);
 			ix += 2;
-			if (!(ect == 1 || ect == 0 || ect == 1 || ect == 3)) {
+			if (!(ect == -1 || ect == 0 || ect == 1 || ect == 3)) {
 				cerr << "ect must be -1, 0, 1 or 3 " << endl;
-				exit(0);
-
+				exit(-1);
 			}
 			continue;
 		}
-		if (strstr(argv[ix], "-ipv6")) {
+		if (strcmp(opt, "-ipv6") == 0) {
 			ipv6 = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-timekey")) {
-			useTimekeyKeyframe = true;
-			timekeyTimeout = atof(argv[ix + 1]);
+		if (strcmp(opt, "-time") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], runTime, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-time")) {
-			runTime = atof(argv[ix + 1]);
+		if (strcmp(opt, "-scale") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], scaleFactor, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-scale")) {
-			scaleFactor = atof(argv[ix + 1]);
+		if (strcmp(opt, "-delaytarget") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], delayTarget, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-delaytarget")) {
-			delayTarget = atof(argv[ix + 1]);
+		if (strcmp(opt, "-paceheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], packetPacingHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-nodelaycc")) {
-			enableDelayBasedCc = false;
-			ix ++;
-			continue;
-		}
-		if (strstr(argv[ix], "-paceheadroom")) {
-			packetPacingHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-adaptivepaceheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], adaptivePaceHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-adaptivepaceheadroom")) {
-			adaptivePaceHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-inflightheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], bytesInFlightHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-inflightheadroom")) {
-			bytesInFlightHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-mtu") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			nMtuListItems = 0;
+			string s = argv[ix + 1];
+			stringstream ss(s);
+			string item;
+			while (getline(ss, item, ',')) {
+				int parsedMtu = 0;
+				if (!parseIntStrict(item.c_str(), parsedMtu)) {
+					cerr << "Error : -mtu expects comma separated integers, got '" << item << "'" << endl;
+					exit(-1);
+				}
+				if (nMtuListItems >= 10) {
+					cerr << "Error : -mtu supports at most 10 values" << endl;
+					exit(-1);
+				}
+				mtuList[nMtuListItems++] = parsedMtu;
+			}
+			if (nMtuListItems == 0) {
+				cerr << "Error : -mtu requires at least one value" << endl;
+				exit(-1);
+			}
+			mtu = mtuList[0];
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-mtu")) {
-			char s[100];
-			strcpy(s,argv[ix + 1]);
-            char *t = strtok(s,",");
-            nMtuListItems = 0;
-            cerr << t << endl;
-            mtuList[nMtuListItems++] = atoi(t);
-            while (t != 0) {
-            	t = strtok(0,",");
-            	if (t != 0) {
-                   mtuList[nMtuListItems++] = atoi(t);
-            	}
-            }
-
-            mtu = mtuList[0];
-
+		if (strcmp(opt, "-minpktsinflight") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], minPktsInFlight, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-minpktsinflight")) {
-			minPktsInFlight = atoi(argv[ix + 1]);
+		if (strcmp(opt, "-fixedrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], fixedRate, opt);
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-fixedrate")) {
-			fixedRate = atoi(argv[ix + 1]);
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-burst")) {
-			burstTime = atof(argv[ix + 1]);
-			burstSleep = atof(argv[ix + 2]);
+		if (strcmp(opt, "-burst") == 0) {
+			requireArgsOrExit(argc, ix, 2, opt);
+			parseFloatOrExit(argv[ix + 1], burstTime, opt);
+			parseFloatOrExit(argv[ix + 2], burstSleep, opt);
 			ix += 3;
 			continue;
 		}
-		if (strstr(argv[ix], "-periodickey")) {
+		if (strcmp(opt, "-periodic-key-frame") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			periodicKeyFrameMode = true;
+			parseFloatOrExit(argv[ix + 1], periodicKeyFrameInterval, opt);
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-key") == 0) {
+			requireArgsOrExit(argc, ix, 2, opt);
 			isKeyFrame = true;
-			keyFrameInterval = atof(argv[ix + 1]);
-			keyFrameSize = atof(argv[ix + 2]);
+			parseFloatOrExit(argv[ix + 1], keyFrameInterval, opt);
+			parseFloatOrExit(argv[ix + 2], keyFrameSize, opt);
 			ix += 3;
 			continue;
 		}
-		if (strstr(argv[ix], "-losskey")) {
-			useLossKeyframe = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-maxwindowheadroom")) {
-			maxWindowHeadroom = atof(argv[ix + 1]);
+		if (strcmp(opt, "-maxwindowheadroom") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], maxWindowHeadroom, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-nopace")) {
+		if (strcmp(opt, "-nopace") == 0) {
 			disablePacing = true;
 			ix++;
 			continue;
 		}
-		if (strstr(argv[ix], "-relaxedpacing")) {
+		if (strcmp(opt, "-relaxedpacing") == 0) {
 			relaxedPacing = true;
 			ix++;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-reordertime")) {
-			reorderTime = atof(argv[ix + 1]);;
-			ix+=2;
-			continue;
-		}
-
-		if (strstr(argv[ix], "-fps")) {
-			FPS = atof(argv[ix + 1]);
+		if (strcmp(opt, "-reordertime") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], reorderTime, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-rand")) {
-			randRate = atof(argv[ix + 1]) / 100.0;
+		if (strcmp(opt, "-fps") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], FPS, opt);
 			ix += 2;
 			continue;
 		}
-		if (strstr(argv[ix], "-initrate")) {
-			initRate = atoi(argv[ix + 1]);
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-minrate")) {
-			minRate = atoi(argv[ix + 1]);
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-maxrate")) {
-			maxRate = atoi(argv[ix + 1]);
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-verbose")) {
-			verbose = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-nosummary")) {
-			printSummary = false;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-log")) {
-			logFile = argv[ix + 1];
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-txrxlog")) {
-			txRxLogFile = argv[ix + 1];
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-ntp")) {
-			ntp = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-append")) {
-			append = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-itemlist")) {
-			itemlist = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-detailed")) {
-			detailed = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-pushtraffic")) {
-			pushTraffic = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-clockdrift")) {
-			enableClockDriftCompensation = true;
-			ix++;
-			continue;
-		}
-		if (strstr(argv[ix], "-if")) {
-			ifname = argv[ix + 1];
-			ix += 2;
-			continue;
-		}
-		if (strstr(argv[ix], "-video")) {
-			useVideo = true;
+		if (strcmp(opt, "-video") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			videoMode = true;
 			videoPath = argv[ix + 1];
 			ix += 2;
 			continue;
 		}
-
-		if (strstr(argv[ix], "-microburstinterval")) {
-			minPaceInterval = 0.001 * (atof(argv[ix + 1]));
+		if (strcmp(opt, "-keyframe-on-loss") == 0) {
+			keyframeOnLossEpoch = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-rand") == 0) {
+			float randPct = 0.0f;
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], randPct, opt);
+			randRate = randPct / 100.0f;
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-initrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], initRate, opt);
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-minrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], minRate, opt);
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-maxrate") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseIntOrExit(argv[ix + 1], maxRate, opt);
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-verbose") == 0) {
+			verbose = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-nosummary") == 0) {
+			printSummary = false;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-log") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			logFile = argv[ix + 1];
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-txrxlog") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			txRxLogFile = argv[ix + 1];
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-ntp") == 0) {
+			ntp = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-append") == 0) {
+			append = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-itemlist") == 0) {
+			itemlist = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-detailed") == 0) {
+			detailed = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-pushtraffic") == 0) {
+			pushTraffic = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-clockdrift") == 0) {
+			enableClockDriftCompensation = true;
+			ix++;
+			continue;
+		}
+		if (strcmp(opt, "-if") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			ifname = argv[ix + 1];
+			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-microburstinterval") == 0) {
+			float valMs = 0.0f;
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], valMs, opt);
+			minPaceInterval = 0.001f * valMs;
 			minPaceIntervalUs = (int)(minPaceInterval * 1e6f);
 			ix += 2;
 			if (minPaceInterval < 0.0002f || minPaceInterval > 0.020f) {
 				cerr << "microburstinterval must be in range 0.2..20ms" << endl;
-				exit(0);
+				exit(-1);
 			}
 			continue;
 		}
-		if (strstr(argv[ix], "-hysteresis")) {
-			hysteresis = atof(argv[ix + 1]);
+		if (strcmp(opt, "-hysteresis") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], hysteresis, opt);
 			ix += 2;
 			if (hysteresis < 0.0f || hysteresis > 0.2f) {
 				cerr << "hysteresis must be in range 0.0...0.2" << endl;
-				exit(0);
+				exit(-1);
 			}
 			continue;
 		}
-		
-		if (strstr(argv[ix], "-mulincrease")) {
-			multiplicativeIncreaseFactor = atof(argv[ix + 1]);
+		if (strcmp(opt, "-mulincrease") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], multiplicativeIncreaseFactor, opt);
 			ix += 2;
 			continue;
 		}
 		cerr << "unexpected arg " << argv[ix] << endl;
-		exit(0);
+		exit(-1);
 	}
 
 
@@ -1203,24 +1258,16 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : pushtraffic can only be used with fixedrate" << endl;
 		exit(-1);
 	}
-	if (isKeyFrame && useLossKeyframe) {
-		cerr << "Error : -periodickey and -losskey are mutually exclusive" << endl;
+	if (videoMode && videoPath == nullptr) {
+		cerr << "Error : -video requires a Y4M file path" << endl;
 		exit(-1);
 	}
-	if (isKeyFrame && useTimekeyKeyframe) {
-		cerr << "Error : -periodickey and -timekey are mutually exclusive" << endl;
+	if (periodicKeyFrameMode && !videoMode) {
+		cerr << "Error : -periodic-key-frame requires -video" << endl;
 		exit(-1);
 	}
-	if (useLossKeyframe && useTimekeyKeyframe) {
-		cerr << "Error : -losskey and -timekey are mutually exclusive" << endl;
-		exit(-1);
-	}
-	if (useLossKeyframe && !useVideo) {
-		cerr << "Error : -losskey requires -video (VP9 mode only)" << endl;
-		exit(-1);
-	}
-	if (useTimekeyKeyframe && !useVideo) {
-		cerr << "Error : -timekey requires -video (VP9 mode only)" << endl;
+	if (keyframeOnLossEpoch && !videoMode) {
+		cerr << "Error : -keyframe-on-loss requires -video" << endl;
 		exit(-1);
 	}
 	if (logFile) {
@@ -1237,8 +1284,12 @@ int main(int argc, char* argv[]) {
 	}
 	if (minRate > initRate)
 		initRate = minRate;
-	DECODER_IP = argv[ix];ix++;
-	DECODER_PORT = atoi(argv[ix]);ix++;
+	if (ix + 1 >= argc) {
+		cerr << "Error : missing decoder_ip and decoder_port" << endl;
+		exit(-1);
+	}
+	DECODER_IP = argv[ix]; ix++;
+	parseIntOrExit(argv[ix], DECODER_PORT, "decoder_port"); ix++;
 
 	if (setup() == 0)
 		return 0;

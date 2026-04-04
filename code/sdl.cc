@@ -47,19 +47,17 @@ VideoDisplay::~VideoDisplay()
   SDL_Quit();
 }
 
-void VideoDisplay::show_frame_planes(const uint8_t* y, int y_stride,
-                                    const uint8_t* u, int u_stride,
-                                    const uint8_t* v, int v_stride,
-                                    const uint16_t display_width, const uint16_t display_height)
+void VideoDisplay::show_frame(const RawImage& raw_img)
 {
-  if (display_width != display_width_ or display_height != display_height_) {
+  if (raw_img.display_width() != display_width_ or
+      raw_img.display_height() != display_height_) {
     throw runtime_error("VideoDisplay: image dimensions don't match");
   }
 
   SDL_UpdateYUVTexture(texture_, nullptr,
-    y, y_stride,
-    u, u_stride,
-    v, v_stride);
+    raw_img.y_plane(), raw_img.y_stride(),
+    raw_img.u_plane(), raw_img.u_stride(),
+    raw_img.v_plane(), raw_img.v_stride());
   SDL_RenderClear(renderer_);
   SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
   SDL_RenderPresent(renderer_);

@@ -1,93 +1,143 @@
 #include "Decoder.h"
-#include <vpx/vp8dx.h>
-#include <vpx/vpx_decoder.h>
+
+#include <iostream>
 #include <stdexcept>
-#include <vector>
-#include <cstring>
 
-struct Decoder::Impl {
-    vpx_codec_ctx_t ctx{};
-    vpx_codec_dec_cfg_t cfg{};
-    int max_threads = 4;
-};
+#include "image.hh"
+#include "sdl.hh"
 
-Decoder::Decoder(int max_threads) : impl_(new Impl()) {
-    impl_->max_threads = max_threads;
-    std::memset(&impl_->cfg, 0, sizeof(impl_->cfg));
-    std::memset(&impl_->ctx, 0, sizeof(impl_->ctx));
-    initContext();
+using namespace std;
+
+namespace bwvideo {
+
+Decoder::Decoder(uint16_t width,
+                 uint16_t height,
+                 bool render_video,
+                 const std::string& output_path)
+  : width_(width), height_(height), render_video_(render_video)
+{
+  vpx_codec_dec_cfg_t cfg {};
+  cfg.threads = 4;
+  cfg.w = width_;
+  cfg.h = height_;
+  if (vpx_codec_dec_init(&ctx_, &vpx_codec_vp9_dx_algo, &cfg, 0) != VPX_CODEC_OK) {
+    throw runtime_error("vpx_codec_dec_init failed");
+  }
+
+  output_ = fopen(output_path.c_str(), "wb");
+  if (output_) {
+    fprintf(output_, "YUV4MPEG2 W%d H%d F30:1 Ip A0:0 C420\n", width_, height_);
+  }
+
+  if (render_video_) {
+    display_ = new VideoDisplay(width_, height_);
+  }
 }
 
-Decoder::~Decoder() {
-    vpx_codec_destroy(&impl_->ctx);
-    delete impl_;
+Decoder::~Decoder()
+{
+  delete display_;
+  display_ = nullptr;
+
+  if (output_) {
+    fclose(output_);
+    output_ = nullptr;
+  }
+
+  vpx_codec_destroy(&ctx_);
 }
 
-bool Decoder::decodeFrame(const std::vector<uint8_t> &vp9_frame, std::vector<uint8_t> &out_frame, int &out_w, int &out_h) {
-    if (vpx_codec_decode(&impl_->ctx, vp9_frame.data(), (unsigned int)vp9_frame.size(), NULL, 0) != VPX_CODEC_OK) {
-        return false;
-    }
+void Decoder::add_rtp_payload(uint16_t seq_nr,
+                              uint32_t timestamp,
+                              const uint8_t* payload,
+                              size_t payload_size,
+                              bool marker)
+{
+  auto& frame = frame_by_ts_[timestamp];
+  frame.payloads[seq_nr] = vector<uint8_t>(payload, payload + payload_size);
+  if (marker) {
+    frame.marker_seen = true;
+    frame.marker_seq = seq_nr;
+  }
 
-    vpx_image_t *img = NULL;
-    vpx_codec_iter_t iter = NULL;
-    if ((img = vpx_codec_get_frame(&impl_->ctx, &iter)) != NULL) {
-        int w = img->d_w;
-        int h = img->d_h;
-        out_w = w;
-        out_h = h;
-        size_t y_size = (size_t)w * h;
-        size_t uv_size = y_size / 4;
-        out_frame.resize(y_size + 2 * uv_size);
-        // Copy Y plane
-        for (int r = 0; r < h; ++r) {
-            memcpy(out_frame.data() + r * w, img->planes[VPX_PLANE_Y] + r * img->stride[VPX_PLANE_Y], w);
-        }
-        // U plane
-        int half_h = h / 2;
-        int half_w = w / 2;
-        uint8_t *u_dst = out_frame.data() + y_size;
-        for (int r = 0; r < half_h; ++r) {
-            memcpy(u_dst + r * half_w, img->planes[VPX_PLANE_U] + r * img->stride[VPX_PLANE_U], half_w);
-        }
-        // V plane
-        uint8_t *v_dst = out_frame.data() + y_size + uv_size;
-        for (int r = 0; r < half_h; ++r) {
-            memcpy(v_dst + r * half_w, img->planes[VPX_PLANE_V] + r * img->stride[VPX_PLANE_V], half_w);
-        }
-        return true;
-    }
-    return false;
+  try_decode(timestamp);
+  cleanup_old_frames();
 }
 
-void Decoder::reset() {
-    if (!impl_) {
-        return;
+void Decoder::try_decode(uint32_t timestamp)
+{
+  auto it = frame_by_ts_.find(timestamp);
+  if (it == frame_by_ts_.end()) {
+    return;
+  }
+
+  FrameAssembly& frame = it->second;
+  if (!frame.marker_seen || frame.payloads.empty()) {
+    return;
+  }
+
+  vector<uint8_t> bitstream;
+  bool found_marker = false;
+  uint16_t expected = frame.payloads.begin()->first;
+  for (const auto& pkt : frame.payloads) {
+    if (pkt.first != expected) {
+      return;
     }
-    vpx_codec_destroy(&impl_->ctx);
-    std::memset(&impl_->ctx, 0, sizeof(impl_->ctx));
-    initContext();
+    bitstream.insert(bitstream.end(), pkt.second.begin(), pkt.second.end());
+    if (pkt.first == frame.marker_seq) {
+      found_marker = true;
+      break;
+    }
+    expected++;
+  }
+
+  if (!found_marker || bitstream.empty()) {
+    return;
+  }
+
+  if (vpx_codec_decode(&ctx_, bitstream.data(), bitstream.size(), nullptr, 0) == VPX_CODEC_OK) {
+    write_decoded_frames();
+  } else {
+    cerr << "VP9 decode failed for timestamp " << timestamp << endl;
+  }
+
+  frame_by_ts_.erase(it);
 }
 
-bool Decoder::isKeyFrame(const std::vector<uint8_t> &vp9_frame) const {
-    if (vp9_frame.empty()) {
-        return false;
+void Decoder::write_decoded_frames()
+{
+  vpx_codec_iter_t iter = nullptr;
+  vpx_image_t* img = nullptr;
+  while ((img = vpx_codec_get_frame(&ctx_, &iter)) != nullptr) {
+    if (output_) {
+      fwrite("FRAME\n", 1, 6, output_);
+      write_plane(img->planes[0], img->stride[0], width_, height_);
+      write_plane(img->planes[1], img->stride[1], width_ / 2, height_ / 2);
+      write_plane(img->planes[2], img->stride[2], width_ / 2, height_ / 2);
     }
-    vpx_codec_stream_info_t info{};
-    info.sz = sizeof(info);
-    if (vpx_codec_peek_stream_info(&vpx_codec_vp9_dx_algo,
-                                   vp9_frame.data(),
-                                   static_cast<unsigned int>(vp9_frame.size()),
-                                   &info) != VPX_CODEC_OK) {
-        return false;
+
+    if (display_) {
+      display_->show_frame(RawImage(img));
+      if (display_->signal_quit()) {
+        delete display_;
+        display_ = nullptr;
+      }
     }
-    return info.is_kf != 0;
+  }
 }
 
-void Decoder::initContext() {
-    impl_->cfg.threads = impl_->max_threads;
-    impl_->cfg.w = 0;
-    impl_->cfg.h = 0;
-    if (vpx_codec_dec_init(&impl_->ctx, &vpx_codec_vp9_dx_algo, &impl_->cfg, 0) != VPX_CODEC_OK) {
-        throw std::runtime_error("vpx_codec_dec_init failed");
-    }
+void Decoder::write_plane(uint8_t* plane, int stride, int w, int h)
+{
+  for (int y = 0; y < h; y++) {
+    fwrite(plane + y * stride, 1, w, output_);
+  }
 }
+
+void Decoder::cleanup_old_frames()
+{
+  while (frame_by_ts_.size() > 24) {
+    frame_by_ts_.erase(frame_by_ts_.begin());
+  }
+}
+
+} // namespace bwvideo

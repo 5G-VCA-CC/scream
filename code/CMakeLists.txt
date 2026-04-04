@@ -11,12 +11,16 @@ ScreamTx.cpp
 ScreamV2Tx.cpp
 ScreamV2TxStream.cpp
 RtpQueue.cpp
+Encoder.cpp
 scream_sender.cpp
 Encoder.cpp
 )
 
 SET(SRC_RECEIVER
 ScreamRx.cpp
+Decoder.cpp
+image.cc
+sdl.cc
 scream_receiver.cpp
 	sdl.cc
 Decoder.cpp
@@ -56,11 +60,10 @@ endif()
 
 TARGET_LINK_LIBRARIES (
 scream_bw_test_tx
-${screamLibs} pthread
+${screamLibs} pthread vpx
 )
 
 TARGET_LINK_LIBRARIES (
 scream_bw_test_rx
-${screamLibs} pthread
-	SDL2
+${screamLibs} pthread vpx SDL2
 )

@@ -1,216 +1,226 @@
 #include "Encoder.h"
-#include <vpx/vpx_encoder.h>
-#include <vpx/vp8cx.h>
-#include <memory>
+
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <stdexcept>
-#include <limits>
-#include <sys/time.h>
-#include <iostream>
-#include <pthread.h>
 
-#include "ScreamTx.h"
+using namespace std;
 
-struct Encoder::Impl {
-    vpx_codec_ctx_t ctx{};
-    vpx_codec_enc_cfg_t cfg{};
-    int width;
-    int height;
-    int framerate;
-    unsigned int bitrate_kbps;
-    uint64_t frame_id = 0;
-    
-    // Periodic key frame control
-    bool use_periodic_keyframes = false;
-    uint64_t keyframe_interval_us = 2000000; // default 2 seconds
-    uint64_t last_keyframe_ts_us = 0;
+namespace bwvideo {
 
-    // Feedback-timeout key frame control (emulates ringmaster's MAX_UNACKED_US)
-    bool use_feedback_timeout_keyframes = false;
-    uint64_t max_unacked_us = 1000000; // default 1s (matches ringmaster)
-    bool has_triggered = false;
-    uint16_t last_triggered_seq = 0;
-
-    // One-shot forced key frame (set by forceNextKeyframe(), cleared after use)
-    bool force_keyframe = false;
-
-    // ScreamV2Tx object to access txPackets data
-    ScreamV2Tx* screamTx;
-    pthread_mutex_t* lock_scream;
-    uint32_t ssrc;
-};
-
-// Helper to get current timestamp in microseconds
-static uint64_t get_timestamp_us() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+Encoder::Encoder(const std::string& y4m_path, uint16_t fps)
+  : fps_(fps)
+{
+  fp_ = fopen(y4m_path.c_str(), "rb");
+  if (!fp_) {
+    throw runtime_error("Failed to open Y4M input");
+  }
+  parse_y4m_header();
+  if (!init_codec()) {
+    throw runtime_error("Failed to initialize VP9 encoder");
+  }
 }
 
-Encoder::Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc)
-    : impl_(new Impl()) {
-    impl_->width = width;
-    impl_->height = height;
-    impl_->framerate = framerate;
-    impl_->bitrate_kbps = bitrate_kbps;
-    impl_->screamTx = screamTx;
-    impl_->lock_scream = lock_scream;
-    impl_->ssrc = ssrc;
-
-    if (vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &impl_->cfg, 0) != VPX_CODEC_OK)
-        throw std::runtime_error("vpx_codec_enc_config_default failed");
-
-    impl_->cfg.g_w = width;
-    impl_->cfg.g_h = height;
-    impl_->cfg.g_timebase.num = 1;
-    impl_->cfg.g_timebase.den = framerate > 0 ? framerate : 25;
-    impl_->cfg.g_pass = VPX_RC_ONE_PASS;
-    impl_->cfg.g_lag_in_frames = 0;
-    impl_->cfg.g_error_resilient = VPX_ERROR_RESILIENT_DEFAULT;
-    impl_->cfg.g_threads = 4; // Match ringmaster: encoder threads equal to column tiles
-    impl_->cfg.rc_resize_allowed = 0; // Match ringmaster: disable spatial sampling
-    impl_->cfg.rc_dropframe_thresh = 0; // Match ringmaster: disable frame dropping
-
-    // Tighten rate-control buffers so we react quickly to bandwidth drops
-    impl_->cfg.rc_buf_initial_sz = 500;
-    impl_->cfg.rc_buf_optimal_sz = 600;
-    impl_->cfg.rc_buf_sz = 1000;
-
-    // Allow the encoder to raise QP aggressively while staying within CBR
-    impl_->cfg.rc_min_quantizer = 2; // Match ringmaster: QP range 2-52
-    impl_->cfg.rc_max_quantizer = 52;
-    impl_->cfg.rc_undershoot_pct = 50;
-    impl_->cfg.rc_overshoot_pct = 50;
-
-    // Prevent libvpx encoder from automatically placing key frames (match ringmaster)
-    impl_->cfg.kf_mode = VPX_KF_DISABLED;
-    impl_->cfg.kf_max_dist = std::numeric_limits<unsigned int>::max();
-    impl_->cfg.kf_min_dist = 0;
-
-    impl_->cfg.rc_end_usage = VPX_CBR;
-    impl_->cfg.rc_target_bitrate = bitrate_kbps;
-
-    if (vpx_codec_enc_init(&impl_->ctx, &vpx_codec_vp9_cx_algo, &impl_->cfg, 0) != VPX_CODEC_OK)
-        throw std::runtime_error("vpx_codec_enc_init failed");
-
-    // reasonable defaults for realtime
-    vpx_codec_control(&impl_->ctx, VP8E_SET_CPUUSED, 12);
-    vpx_codec_control(&impl_->ctx, VP9E_SET_TILE_COLUMNS, 2);
-    vpx_codec_control(&impl_->ctx, VP9E_SET_ROW_MT, 1);
-
-    // Clamp keyframe bitrate spikes so sudden I-frames stay within budget
-    vpx_codec_control(&impl_->ctx, VP8E_SET_MAX_INTRA_BITRATE_PCT, 900);
-
-    // OPTIONAL: latency-friendly quality tuning (disable to revert to baseline behaviour)
-    vpx_codec_control(&impl_->ctx, VP8E_SET_STATIC_THRESHOLD, 1);
-    vpx_codec_control(&impl_->ctx, VP9E_SET_AQ_MODE, 3);
-    vpx_codec_control(&impl_->ctx, VP9E_SET_NOISE_SENSITIVITY, 1);
-    vpx_codec_control(&impl_->ctx, VP9E_SET_FRAME_PARALLEL_DECODING, 0);
+Encoder::~Encoder()
+{
+  destroy_codec();
+  if (fp_) {
+    fclose(fp_);
+    fp_ = nullptr;
+  }
 }
 
-Encoder::~Encoder() {
-    vpx_codec_destroy(&impl_->ctx);
-    delete impl_;
+size_t Encoder::frame_size_bytes() const
+{
+  return static_cast<size_t>(width_) * static_cast<size_t>(height_) * 3 / 2;
 }
 
-void Encoder::setBitrate(unsigned int bitrate_kbps) {
-    if (!impl_) return;
-    if (bitrate_kbps == impl_->bitrate_kbps) return;
-    impl_->bitrate_kbps = bitrate_kbps;
-    impl_->cfg.rc_target_bitrate = bitrate_kbps;
-    vpx_codec_enc_config_set(&impl_->ctx, &impl_->cfg);
-}
+void Encoder::parse_y4m_header()
+{
+  char line[256];
+  if (!fgets(line, sizeof(line), fp_)) {
+    throw runtime_error("Failed to read Y4M header");
+  }
+  if (strncmp(line, "YUV4MPEG2", 9) != 0) {
+    throw runtime_error("Unsupported input format, expected Y4M");
+  }
 
-void Encoder::setPeriodicKeyframes(bool enable, uint64_t interval_us) {
-    if (!impl_) return;
-    impl_->use_periodic_keyframes = enable;
-    impl_->keyframe_interval_us = interval_us;
-}
-
-// Configure the encoder to use feedback timeouts to force keyframes
-void Encoder::setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us) {
-    if (!impl_) return;
-    impl_->use_feedback_timeout_keyframes = enable;
-}
-
-// Called by scream_sender to notify the encoder when RTCP feedback is received
-// void Encoder::notifyFeedbackReceived() {
-//     if (!impl_) return;
-//     impl_->last_feedback_ts_us = get_timestamp_us();
-//     impl_->feedback_ever_received = true;
-// }
-
-void Encoder::forceNextKeyframe() {
-    if (!impl_) return;
-    impl_->force_keyframe = true;
-}
-
-std::vector<uint8_t> Encoder::encodeFrame(const std::vector<uint8_t> &yuv_frame) {
-    if (!impl_) return {};
-    const int w = impl_->width;
-    const int h = impl_->height;
-    const size_t y_size = (size_t)w * h;
-    const size_t uv_size = y_size / 4;
-    if (yuv_frame.size() < y_size + 2 * uv_size) throw std::runtime_error("yuv frame too small");
-
-    vpx_image_t *img = vpx_img_alloc(NULL, VPX_IMG_FMT_I420, w, h, 1);
-    memcpy(img->planes[VPX_PLANE_Y], yuv_frame.data(), y_size);
-    memcpy(img->planes[VPX_PLANE_U], yuv_frame.data() + y_size, uv_size);
-    memcpy(img->planes[VPX_PLANE_V], yuv_frame.data() + y_size + uv_size, uv_size);
-
-    // Check if we need to force a key frame
-    vpx_enc_frame_flags_t flags = 0;
-
-    // One-shot forced key frame (e.g. loss-triggered)
-    if (impl_->force_keyframe) {
-        flags = VPX_EFLAG_FORCE_KF;
-        impl_->force_keyframe = false;
-        impl_->last_keyframe_ts_us = get_timestamp_us();
-        std::cerr << "* Loss-triggered key frame forced at frame " << impl_->frame_id << std::endl;
+  char* token = strtok(line, " ");
+  while (token) {
+    if (token[0] == 'W') {
+      width_ = static_cast<uint16_t>(atoi(token + 1));
+    } else if (token[0] == 'H') {
+      height_ = static_cast<uint16_t>(atoi(token + 1));
     }
-    // Periodic key frame timer
-    else if (impl_->use_periodic_keyframes) {
-        uint64_t curr_ts = get_timestamp_us();
-        if (impl_->last_keyframe_ts_us == 0 || 
-            curr_ts - impl_->last_keyframe_ts_us >= impl_->keyframe_interval_us) {
-            flags = VPX_EFLAG_FORCE_KF;
-            impl_->last_keyframe_ts_us = curr_ts;
-            std::cerr << "* Periodic key frame forced at frame " << impl_->frame_id 
-                     << " (interval: " << impl_->keyframe_interval_us / 1000 << " ms)" << std::endl;
-        }
-    }
-    // Force a keyframe if the last transmitted packet has been unacked for longer than 1s (max_unacked_us)
-    else if (impl_->use_feedback_timeout_keyframes && impl_->screamTx) {
-        uint16_t oldest_unacked_seq = 0;
-        uint32_t oldest_unacked_ts = 0;
-        pthread_mutex_lock(impl_->lock_scream);
-        if (impl_->screamTx->getOldestUnacked(impl_->ssrc, oldest_unacked_seq, oldest_unacked_ts)) {
-            uint32_t us_since_first_send = get_timestamp_us() - oldest_unacked_ts;
-            if (us_since_first_send > impl_->max_unacked_us) {
-                if (impl_->last_triggered_seq != oldest_unacked_seq) {
-                    flags = VPX_EFLAG_FORCE_KF;
-                    impl_->last_triggered_seq = oldest_unacked_seq;
-                }
-            }
-        }
-        pthread_mutex_unlock(impl_->lock_scream);
-    }
+    token = strtok(nullptr, " ");
+  }
+  if (width_ == 0 || height_ == 0) {
+    throw runtime_error("Invalid Y4M dimensions");
+  }
 
-    if (vpx_codec_encode(&impl_->ctx, img, impl_->frame_id++, 1, flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
-        vpx_img_free(img);
-        throw std::runtime_error("vpx_codec_encode failed");
-    }
-
-    std::vector<uint8_t> out;
-    vpx_codec_iter_t iter = NULL;
-    const vpx_codec_cx_pkt_t *pkt;
-    while ((pkt = vpx_codec_get_cx_data(&impl_->ctx, &iter))) {
-        if (pkt->kind == VPX_CODEC_CX_FRAME_PKT) {
-            const uint8_t* b = (const uint8_t*)pkt->data.frame.buf;
-            out.insert(out.end(), b, b + pkt->data.frame.sz);
-        }
-    }
-
-    vpx_img_free(img);
-    return out;
+  first_frame_offset_ = ftell(fp_);
 }
+
+bool Encoder::rewind_to_first_frame()
+{
+  return fp_ && fseek(fp_, first_frame_offset_, SEEK_SET) == 0;
+}
+
+bool Encoder::read_y4m_frame(std::vector<uint8_t>& frame)
+{
+  char line[128];
+  while (true) {
+    if (!fgets(line, sizeof(line), fp_)) {
+      if (!rewind_to_first_frame()) {
+        return false;
+      }
+      continue;
+    }
+    if (strncmp(line, "FRAME", 5) == 0) {
+      break;
+    }
+  }
+
+  frame.resize(frame_size_bytes());
+  if (fread(frame.data(), 1, frame.size(), fp_) != frame.size()) {
+    if (!rewind_to_first_frame()) {
+      return false;
+    }
+    return read_y4m_frame(frame);
+  }
+  return true;
+}
+
+bool Encoder::init_codec()
+{
+  if (vpx_codec_enc_config_default(&vpx_codec_vp9_cx_algo, &cfg_, 0) != VPX_CODEC_OK) {
+    return false;
+  }
+
+  cfg_.g_w = width_;
+  cfg_.g_h = height_;
+  cfg_.g_timebase.num = 1;
+  cfg_.g_timebase.den = std::max<uint16_t>(1, fps_);
+  cfg_.g_threads = 4;
+  cfg_.g_error_resilient = VPX_ERROR_RESILIENT_DEFAULT;
+  cfg_.g_lag_in_frames = 0;
+  cfg_.kf_mode = VPX_KF_DISABLED;
+  cfg_.rc_end_usage = VPX_CBR;
+  cfg_.rc_target_bitrate = 1000;
+
+  if (vpx_codec_enc_init(&ctx_, &vpx_codec_vp9_cx_algo, &cfg_, 0) != VPX_CODEC_OK) {
+    return false;
+  }
+
+  vpx_codec_control(&ctx_, VP8E_SET_CPUUSED, 8);
+  vpx_codec_control(&ctx_, VP9E_SET_ROW_MT, 1);
+  vpx_codec_control(&ctx_, VP9E_SET_TILE_COLUMNS, 2);
+  return true;
+}
+
+void Encoder::destroy_codec()
+{
+  vpx_codec_destroy(&ctx_);
+}
+
+void Encoder::set_target_bitrate_kbps(uint32_t bitrate_kbps)
+{
+  bitrate_kbps = std::max(100u, bitrate_kbps);
+  if (bitrate_kbps == target_bitrate_kbps_) {
+    return;
+  }
+
+  target_bitrate_kbps_ = bitrate_kbps;
+  cfg_.rc_target_bitrate = target_bitrate_kbps_;
+  vpx_codec_enc_config_set(&ctx_, &cfg_);
+}
+
+void Encoder::set_periodic_keyframe_interval(float interval_s)
+{
+  if (interval_s <= 0.0f) {
+    disable_periodic_keyframes();
+    return;
+  }
+  periodic_keyframes_enabled_ = true;
+  keyframe_interval_frames_ = static_cast<uint16_t>(
+    std::max(1.0f, std::round(interval_s * std::max<uint16_t>(1, fps_))));
+}
+
+void Encoder::disable_periodic_keyframes()
+{
+  periodic_keyframes_enabled_ = false;
+  keyframe_interval_frames_ = 0;
+}
+
+bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
+                                int mtu,
+                                std::vector<std::vector<uint8_t>>& payloads,
+                                bool* is_key_frame,
+                                bool force_key_frame)
+{
+  payloads.clear();
+  if (is_key_frame) {
+    *is_key_frame = false;
+  }
+  if (mtu <= 0) {
+    return false;
+  }
+
+  vector<uint8_t> frame;
+  if (!read_y4m_frame(frame)) {
+    return false;
+  }
+
+  set_target_bitrate_kbps(target_bitrate_bps / 1000);
+
+  vpx_image_t raw;
+  vpx_img_wrap(&raw, VPX_IMG_FMT_I420, width_, height_, 1, frame.data());
+  const uint8_t* y = frame.data();
+  const uint8_t* u = y + width_ * height_;
+  const uint8_t* v = u + (width_ * height_) / 4;
+  raw.planes[VPX_PLANE_Y] = const_cast<uint8_t*>(y);
+  raw.planes[VPX_PLANE_U] = const_cast<uint8_t*>(u);
+  raw.planes[VPX_PLANE_V] = const_cast<uint8_t*>(v);
+  raw.stride[VPX_PLANE_Y] = width_;
+  raw.stride[VPX_PLANE_U] = width_ / 2;
+  raw.stride[VPX_PLANE_V] = width_ / 2;
+
+  vpx_enc_frame_flags_t encode_flags = 0;
+
+  if (frame_id_ == 0 ||
+      (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
+    encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  if (force_key_frame) {
+    encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+
+  if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
+    return false;
+  }
+
+  vpx_codec_iter_t iter = nullptr;
+  const vpx_codec_cx_pkt_t* pkt;
+  while ((pkt = vpx_codec_get_cx_data(&ctx_, &iter))) {
+    if (pkt->kind != VPX_CODEC_CX_FRAME_PKT) {
+      continue;
+    }
+    if (is_key_frame && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)) {
+      *is_key_frame = true;
+    }
+    const uint8_t* ptr = static_cast<const uint8_t*>(pkt->data.frame.buf);
+    size_t left = pkt->data.frame.sz;
+    while (left > 0) {
+      const size_t sz = std::min(static_cast<size_t>(mtu), left);
+      payloads.emplace_back(ptr, ptr + sz);
+      ptr += sz;
+      left -= sz;
+    }
+  }
+
+  frame_id_++;
+  return !payloads.empty();
+}
+
+} // namespace bwvideo

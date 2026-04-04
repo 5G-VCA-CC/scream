@@ -1,39 +1,63 @@
-#ifndef SCREAM_ENCODER_H
-#define SCREAM_ENCODER_H
+#ifndef BW_VIDEO_ENCODER_H
+#define BW_VIDEO_ENCODER_H
 
-#include <vector>
+#include <cstdio>
 #include <cstdint>
-#include <pthread.h>
-#include "ScreamTx.h"
+#include <string>
+#include <vector>
 
-class Encoder {
+extern "C" {
+#include <vpx/vpx_encoder.h>
+#include <vpx/vp8cx.h>
+}
+
+namespace bwvideo {
+
+class Encoder
+{
 public:
-    Encoder(int width, int height, int framerate, unsigned int bitrate_kbps, ScreamV2Tx* screamTx, pthread_mutex_t* lock_scream, uint32_t ssrc);
-    ~Encoder();
+  Encoder(const std::string& y4m_path, uint16_t fps);
+  ~Encoder();
 
-    // Encode a single YUV420p frame (Y plane then U then V). Returns encoded bytes (VP9 bitstream)
-    std::vector<uint8_t> encodeFrame(const std::vector<uint8_t> &yuv_frame);
+  bool encode_next_frame(uint32_t target_bitrate_bps,
+                         int mtu,
+                         std::vector<std::vector<uint8_t>>& payloads,
+                         bool* is_key_frame = nullptr,
+                         bool force_key_frame = false);
+  void set_periodic_keyframe_interval(float interval_s);
+  void disable_periodic_keyframes();
 
-    // Update target bitrate (kbps)
-    void setBitrate(unsigned int bitrate_kbps);
+  uint16_t width() const { return width_; }
+  uint16_t height() const { return height_; }
 
-    // Enable periodic key frames (interval in microseconds)
-    void setPeriodicKeyframes(bool enable, uint64_t interval_us = 2000000);
-
-    // Enable feedback-timeout key frames (emulates ringmaster's MAX_UNACKED_US).
-    // Forces a key frame when RTCP feedback has been absent for timeout_us microseconds.
-    void setFeedbackTimeoutKeyframes(bool enable, uint64_t timeout_us = 1000000);
-
-    // Notify the encoder that RTCP feedback was just received (resets the timeout clock).
-    // Called from the RTCP receive path.
-    void notifyFeedbackReceived();
-
-    // Force the next encoded frame to be a key frame (resets after use)
-    void forceNextKeyframe();
+  Encoder(const Encoder&) = delete;
+  Encoder& operator=(const Encoder&) = delete;
+  Encoder(Encoder&&) = delete;
+  Encoder& operator=(Encoder&&) = delete;
 
 private:
-    struct Impl;
-    Impl* impl_;
+  FILE* fp_ {nullptr};
+  long first_frame_offset_ {0};
+  uint16_t width_ {0};
+  uint16_t height_ {0};
+  uint16_t fps_ {0};
+  uint32_t frame_id_ {0};
+  uint32_t target_bitrate_kbps_ {0};
+  bool periodic_keyframes_enabled_ {false};
+  uint16_t keyframe_interval_frames_ {0};
+
+  vpx_codec_ctx_t ctx_ {};
+  vpx_codec_enc_cfg_t cfg_ {};
+
+  size_t frame_size_bytes() const;
+  void parse_y4m_header();
+  bool rewind_to_first_frame();
+  bool read_y4m_frame(std::vector<uint8_t>& frame);
+  bool init_codec();
+  void destroy_codec();
+  void set_target_bitrate_kbps(uint32_t bitrate_kbps);
 };
 
-#endif // SCREAM_ENCODER_H
+} // namespace bwvideo
+
+#endif // BW_VIDEO_ENCODER_H

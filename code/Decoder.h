@@ -1,27 +1,62 @@
-#ifndef SCREAM_DECODER_H
-#define SCREAM_DECODER_H
+#ifndef BW_VIDEO_DECODER_H
+#define BW_VIDEO_DECODER_H
 
-#include <vector>
 #include <cstdint>
+#include <cstdio>
+#include <map>
+#include <string>
+#include <vector>
 
-class Decoder {
+extern "C" {
+#include <vpx/vpx_decoder.h>
+#include <vpx/vp8dx.h>
+}
+
+class VideoDisplay;
+
+namespace bwvideo {
+
+class Decoder
+{
 public:
-    Decoder(int max_threads = 4);
-    ~Decoder();
+  Decoder(uint16_t width,
+          uint16_t height,
+          bool render_video,
+          const std::string& output_path = "received.y4m");
+  ~Decoder();
 
-    // Decode a VP9 frame buffer; returns true on success and fills out_frame (Y,U,V) and sets out_w/out_h
-    bool decodeFrame(const std::vector<uint8_t> &vp9_frame, std::vector<uint8_t> &out_frame, int &out_w, int &out_h);
+  void add_rtp_payload(uint16_t seq_nr,
+                       uint32_t timestamp,
+                       const uint8_t* payload,
+                       size_t payload_size,
+                       bool marker);
 
-    // Reinitialize the decoder context (used after corruption/loss)
-    void reset();
-
-    // Lightweight probe to determine whether the provided frame is a key frame
-    bool isKeyFrame(const std::vector<uint8_t> &vp9_frame) const;
+  Decoder(const Decoder&) = delete;
+  Decoder& operator=(const Decoder&) = delete;
+  Decoder(Decoder&&) = delete;
+  Decoder& operator=(Decoder&&) = delete;
 
 private:
-    struct Impl;
-    Impl* impl_;
-    void initContext();
+  struct FrameAssembly {
+    std::map<uint16_t, std::vector<uint8_t>> payloads {};
+    bool marker_seen {false};
+    uint16_t marker_seq {0};
+  };
+
+  uint16_t width_ {0};
+  uint16_t height_ {0};
+  bool render_video_ {false};
+  FILE* output_ {nullptr};
+  vpx_codec_ctx_t ctx_ {};
+  std::map<uint32_t, FrameAssembly> frame_by_ts_ {};
+  VideoDisplay* display_ {nullptr};
+
+  void try_decode(uint32_t timestamp);
+  void write_decoded_frames();
+  void write_plane(uint8_t* plane, int stride, int w, int h);
+  void cleanup_old_frames();
 };
 
-#endif // SCREAM_DECODER_H
+} // namespace bwvideo
+
+#endif // BW_VIDEO_DECODER_H

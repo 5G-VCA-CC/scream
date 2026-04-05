@@ -266,14 +266,14 @@ extern "C" {
                 }
 
                 void setTimeString(char *s) {
-                  strcpy(timeString, s);
+                  snprintf(timeString, sizeof(timeString), "%s", s ? s : "");
                 }
 
                 /*
                 * extra data to be appended to detailed log
                 */
                 void setDetailedLogExtraData(char *s) {
-                  strcpy(detailedLogExtraData, s);
+                  snprintf(detailedLogExtraData, sizeof(detailedLogExtraData), "%s", s ? s : "");
                 }
 
                 /*
@@ -346,6 +346,7 @@ extern "C" {
                   logTag = aLogTag;
                 }
 
+                bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp);
 
               private:
                 /*

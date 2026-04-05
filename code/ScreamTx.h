@@ -394,14 +394,14 @@ extern "C" {
 		}
 
 		void setTimeString(char* s) {
-			strcpy(timeString, s);
+			snprintf(timeString, sizeof(timeString), "%s", s ? s : "");
 		}
 
 		/*
 		* extra data to be appended to detailed log
 		*/
 		void setDetailedLogExtraData(char* s) {
-			strcpy(detailedLogExtraData, s);
+			snprintf(detailedLogExtraData, sizeof(detailedLogExtraData), "%s", s ? s : "");
 		}
 
 		/*
@@ -525,6 +525,13 @@ extern "C" {
 		void setEstimatedJitter(float estimatedJitter_) {
 			estimatedJitter = estimatedJitter_;
 		}
+		bool getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp);
+		bool getHighestAcked(uint32_t ssrc, uint16_t& seqNr);
+		bool isTxPacketInFlight(uint32_t ssrc, uint16_t seqNr, uint32_t& lastTx_ntp);
+		bool resetStreamForRecoveryKeyframe(uint32_t ssrc,
+			uint32_t& rtpQueueCleared,
+			uint32_t& txPacketsCleared,
+			uint32_t& bytesInFlightCleared);
 	private:
 		/*
 		* Struct for list of RTP packets in flight
@@ -605,6 +612,7 @@ extern "C" {
 				return relFrameSizeHigh;
 			}
 
+			bool getOldestUnacked(uint16_t& seqNr, uint32_t& txTime_ntp);
 			ScreamV2Tx* parent;
 			RtpQueueIface* rtpQueue;      // RTP Packet queue
 			uint32_t ssrc;            // SSRC of stream

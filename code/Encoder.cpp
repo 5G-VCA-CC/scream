@@ -1,16 +1,54 @@
 #include "Encoder.h"
+#include "ScreamTx.h"
+#include "RtpQueue.h"
+#include "rtp_video_extension.h"
 
 #include <algorithm>
+#include <arpa/inet.h>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 
 using namespace std;
 
 namespace bwvideo {
+namespace {
+void write_rtp_header(uint8_t* buf,
+                      uint16_t seq_nr,
+                      uint32_t time_stamp,
+                      unsigned char pt,
+                      uint32_t ssrc)
+{
+  const uint16_t seq_nr_network = htons(seq_nr);
+  const uint32_t ts_network = htonl(time_stamp);
+  const uint32_t ssrc_network = htonl(ssrc);
+  memcpy(buf, "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 12);
+  memcpy(buf + 1, &pt, 1);
+  memcpy(buf + 2, &seq_nr_network, 2);
+  memcpy(buf + 4, &ts_network, 4);
+  memcpy(buf + 8, &ssrc_network, 4);
+}
+} // namespace
 
-Encoder::Encoder(const std::string& y4m_path, uint16_t fps)
-  : fps_(fps)
+Encoder::Encoder(const std::string& y4m_path,
+                 uint16_t fps,
+                 ScreamV2Tx* screamTx,
+                 pthread_mutex_t* lock_scream,
+                 RtpQueue* rtp_queue,
+                 pthread_mutex_t* lock_rtp_queue,
+                 uint32_t ssrc,
+                 bool keyframe_unacked)
+  : fps_(fps),
+    periodic_keyframes_enabled_(true),
+    keyframe_interval_frames_(std::max<uint16_t>(fps_, 30)),
+    rtp_queue_(rtp_queue),
+    lock_rtp_queue_(lock_rtp_queue),
+    screamTx_(screamTx),
+    lock_scream_(lock_scream),
+    ssrc_(ssrc),
+    keyframe_unacked_(keyframe_unacked),
+    last_triggered_seq_(0)
 {
   fp_ = fopen(y4m_path.c_str(), "rb");
   if (!fp_) {
@@ -155,6 +193,7 @@ void Encoder::disable_periodic_keyframes()
 
 bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 int mtu,
+                                uint32_t time_ntp,
                                 std::vector<std::vector<uint8_t>>& payloads,
                                 bool* is_key_frame,
                                 bool force_key_frame)
@@ -187,13 +226,45 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
   raw.stride[VPX_PLANE_V] = width_ / 2;
 
   vpx_enc_frame_flags_t encode_flags = 0;
-
   if (frame_id_ == 0 ||
       (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
   if (force_key_frame) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
+  }
+  else if (keyframe_unacked_ && screamTx_ && lock_scream_ && lock_rtp_queue_) {
+    const uint32_t kOneSecondQ16 = 65536u;
+    uint16_t oldest_unacked_seq = 0;
+    uint32_t oldest_unacked_tx_ntp = 0;
+    pthread_mutex_lock(lock_scream_);
+    const bool has_oldest_unacked = screamTx_->getOldestUnacked(ssrc_, oldest_unacked_seq, oldest_unacked_tx_ntp);
+    bool should_force_recovery_keyframe = false;
+    if (has_oldest_unacked) {
+      uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
+      if (age_ntp > kOneSecondQ16) {
+        if (last_triggered_seq_ != oldest_unacked_seq) {
+          should_force_recovery_keyframe = true;
+          encode_flags |= VPX_EFLAG_FORCE_KF;
+          last_triggered_seq_ = oldest_unacked_seq;
+        }
+      }
+    }
+    if (should_force_recovery_keyframe) {
+      /*
+       * Keep SCReAM state reset atomic vs TX/RTP queue threads.
+       */
+      pthread_mutex_lock(lock_rtp_queue_);
+      uint32_t rtp_queue_cleared = 0;
+      uint32_t tx_packets_cleared = 0;
+      uint32_t bytes_in_flight_cleared = 0;
+      screamTx_->resetStreamForRecoveryKeyframe(ssrc_,
+                                                rtp_queue_cleared,
+                                                tx_packets_cleared,
+                                                bytes_in_flight_cleared);
+      pthread_mutex_unlock(lock_rtp_queue_);
+    }
+    pthread_mutex_unlock(lock_scream_);
   }
 
   if (vpx_codec_encode(&ctx_, &raw, frame_id_, 1, encode_flags, VPX_DL_REALTIME) != VPX_CODEC_OK) {
@@ -221,6 +292,90 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   frame_id_++;
   return !payloads.empty();
+}
+
+bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
+                                            int mtu,
+                                            uint32_t ssrc,
+                                            uint16_t& seq_nr,
+                                            uint32_t rtp_timestamp,
+                                            float enqueue_ts_s,
+                                            EnqueueResult& result,
+                                            bool force_key_frame,
+                                            bool include_video_extension)
+{
+  result.enqueued_packets.clear();
+  result.is_key_frame = false;
+  result.dropped_packets = 0;
+  if (mtu <= 0 || !rtp_queue_ || !lock_rtp_queue_) {
+    return false;
+  }
+
+  std::vector<std::vector<uint8_t>> payloads;
+  bool is_key_frame = false;
+  const uint32_t time_ntp = static_cast<uint32_t>(enqueue_ts_s * 65536.0f);
+  if (!encode_next_frame(target_bitrate_bps, mtu, time_ntp, payloads, &is_key_frame, force_key_frame)) {
+    return false;
+  }
+  if (payloads.size() > 0xFFFFu) {
+    return false;
+  }
+
+  result.is_key_frame = is_key_frame;
+  const uint16_t frame_id = static_cast<uint16_t>(frame_id_ - 1);
+  const uint16_t frag_cnt = static_cast<uint16_t>(payloads.size());
+
+  for (size_t i = 0; i < payloads.size(); i++) {
+    const bool is_mark = (i + 1 == payloads.size());
+    const int packet_size = static_cast<int>(payloads[i].size()) + 12 +
+                            (include_video_extension ? static_cast<int>(kRtpVideoExtensionTotalBytes) : 0);
+    unsigned char pt = 98;
+    if (is_mark) {
+      pt |= 0x80;
+    }
+
+    uint8_t* buf_rtp = static_cast<uint8_t*>(malloc(packet_size));
+    if (!buf_rtp) {
+      return false;
+    }
+    write_rtp_header(buf_rtp, seq_nr, rtp_timestamp, pt, ssrc);
+
+    size_t payload_offset = 12;
+    if (include_video_extension) {
+      RtpVideoExtension ext;
+      ext.frame_is_keyframe = is_key_frame;
+      ext.frame_id = frame_id;
+      ext.frag_id = static_cast<uint16_t>(i);
+      ext.frag_cnt = frag_cnt;
+      if (!write_rtp_video_extension(buf_rtp, static_cast<std::size_t>(packet_size), ext)) {
+        free(buf_rtp);
+        result.dropped_packets++;
+        seq_nr++;
+        continue;
+      }
+      payload_offset += kRtpVideoExtensionTotalBytes;
+    }
+
+    memcpy(buf_rtp + payload_offset, payloads[i].data(), payloads[i].size());
+
+    pthread_mutex_lock(lock_rtp_queue_);
+    const bool pushed = rtp_queue_->push(buf_rtp, packet_size, ssrc, seq_nr, is_mark, enqueue_ts_s, rtp_timestamp);
+    pthread_mutex_unlock(lock_rtp_queue_);
+
+    if (pushed) {
+      EnqueuedPacketInfo packet_info;
+      packet_info.size_bytes = packet_size;
+      packet_info.is_mark = is_mark;
+      result.enqueued_packets.push_back(packet_info);
+    } else {
+      free(buf_rtp);
+      result.dropped_packets++;
+    }
+
+    seq_nr++;
+  }
+
+  return true;
 }
 
 } // namespace bwvideo

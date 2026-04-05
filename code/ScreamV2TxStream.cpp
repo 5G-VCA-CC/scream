@@ -348,3 +348,15 @@ bool ScreamV2Tx::Stream::isLossEpoch() {
 	lossEpoch = false;
 	return tmp;
 }
+bool ScreamV2Tx::Stream::getOldestUnacked(uint16_t& seqNr, uint32_t& timeTx_ntp) {
+	for (int i = kMaxTxPackets - 1; i >= 0; --i) {
+		uint16_t seq = hiSeqTx - i;
+		int ix = seq % kMaxTxPackets;
+		if (txPackets[ix].isUsed && !txPackets[ix].isAcked) {
+			seqNr = txPackets[ix].seqNr;
+			timeTx_ntp = txPackets[ix].timeTx_ntp;
+			return true;
+		}
+	}
+	return false;
+}

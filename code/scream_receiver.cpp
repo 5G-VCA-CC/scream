@@ -14,8 +14,10 @@
 #include <pthread.h>
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
 #include <stdexcept>
 #include "Decoder.h"
+#include "rtp_video_extension.h"
 using namespace std;
 
 #define BUFSIZE 2048
@@ -454,10 +456,11 @@ int main(int argc, char* argv[])
 		if (recvlen > 1) {
 			if (buf[1] == 0x7F) {
 				// Packet contains statistics
-				recvlen -= 2; // 2 bytes
+				const int statsLen = recvlen - 2; // 2 bytes header
 				char s[1000];
-				memcpy(s, &buf[2], recvlen);
-				s[recvlen] = 0x00;
+				const size_t copyLen = std::min(static_cast<size_t>(std::max(0, statsLen)), sizeof(s) - 1);
+				memcpy(s, &buf[2], copyLen);
+				s[copyLen] = 0x00;
 				cout << s << endl;
 			}
 			else {
@@ -481,7 +484,30 @@ int main(int argc, char* argv[])
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
 				if (videoMode && recvlen > 12 && videoDecoder) {
-					videoDecoder->add_rtp_payload(seqNr, ts, buf + 12, recvlen - 12, isMark);
+					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
+					bwvideo::RtpVideoExtension ext {};
+					bwvideo::RtpVideoExtension* extPtr = nullptr;
+					const bool hasRtpExtension = (buf[0] & 0x10) != 0;
+					if (!bwvideo::parse_rtp_video_extension(buf, recvlen, &ext, &payloadOffset)) {
+						if (hasRtpExtension) {
+							// Drop malformed extension packets instead of feeding legacy path.
+							continue;
+						}
+						// Fallback to legacy payload parsing for non-extension RTP packets.
+						payloadOffset = bwvideo::kRtpFixedHeaderSize;
+					}
+					if (ext.frag_cnt != 0) {
+						extPtr = &ext;
+					}
+					if (payloadOffset > static_cast<std::size_t>(recvlen)) {
+						continue;
+					}
+					videoDecoder->add_rtp_payload(seqNr,
+						ts,
+						buf + payloadOffset,
+						recvlen - payloadOffset,
+						isMark,
+						extPtr);
 				}
 				uint16_t diff = seqNr - lastSn;
 				if (diff > 1) {

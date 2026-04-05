@@ -22,8 +22,10 @@
 #include <cstdlib>
 #include <cstdint>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 #include "Encoder.h"
+#include "rtp_video_extension.h"
 struct itimerval timer;
 struct sigaction sa;
 
@@ -54,6 +56,7 @@ float FPS = 50.0f; // Frames per second
 bool videoMode = false;
 const char* videoPath = nullptr;
 bool keyframeOnLossEpoch = false;
+bool keyframeUnacked = false;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -136,6 +139,15 @@ pthread_mutex_t lock_pace;
 
 FILE* fp_log = 0;
 FILE* fp_txrxlog = 0;
+
+struct RtxScheduleState {
+	std::vector<uint8_t> payload;
+	uint8_t numRtx = 0;
+	uint32_t lastSend_ntp = 0;
+};
+
+static const uint8_t kMaxNumRtx = 3;
+static std::unordered_map<uint16_t, RtxScheduleState> retransmitStateBySeq;
 
 char* ifname = 0;
 
@@ -255,6 +267,75 @@ void writeRtp(unsigned char* buf, uint16_t seqNr, uint32_t timeStamp, unsigned c
 	buf[0] = 0x80;
 }
 
+static void clearSenderRetransmitState() {
+	retransmitStateBySeq.clear();
+}
+
+static void pruneRetransmitStateFromScream() {
+	for (auto it = retransmitStateBySeq.begin(); it != retransmitStateBySeq.end();) {
+		uint32_t txTime_ntp = 0;
+		if (screamTx->isTxPacketInFlight(SSRC, it->first, txTime_ntp)) {
+			++it;
+			continue;
+		}
+		it = retransmitStateBySeq.erase(it);
+	}
+}
+
+static bool isSeqBefore(uint16_t lhs, uint16_t rhs) {
+	return static_cast<int16_t>(lhs - rhs) < 0;
+}
+
+static void scheduleRetransmissionsForAck(uint32_t time_ntp, uint16_t ackedSeq, uint32_t rttSpacing_ntp) {
+	for (auto it = retransmitStateBySeq.begin(); it != retransmitStateBySeq.end(); ++it) {
+		const uint16_t seqCandidate = it->first;
+		RtxScheduleState& rtxState = it->second;
+		if (!isSeqBefore(seqCandidate, ackedSeq)) {
+			continue;
+		}
+		uint32_t lastTx_ntp = 0;
+		if (!screamTx->isTxPacketInFlight(SSRC, seqCandidate, lastTx_ntp)) {
+			continue;
+		}
+		if (rtxState.payload.empty()) {
+			continue;
+		}
+		if (rtxState.numRtx >= kMaxNumRtx) {
+			continue;
+		}
+		const uint32_t spacingBase_ntp = std::max(lastTx_ntp, rtxState.lastSend_ntp);
+		if (time_ntp - spacingBase_ntp < rttSpacing_ntp) {
+			continue;
+		}
+
+		uint8_t* pkt = (uint8_t*)malloc(rtxState.payload.size());
+		if (pkt == nullptr) {
+			continue;
+		}
+		memcpy(pkt, rtxState.payload.data(), rtxState.payload.size());
+		uint16_t seqNr = 0;
+		uint32_t ts = 0;
+		unsigned char pt = 0;
+		parseRtp(pkt, &seqNr, &ts, &pt);
+		const bool isMark = (pt & 0x80) != 0;
+		pthread_mutex_lock(&lock_rtp_queue);
+		const bool pushed = rtpQueue->pushFront(pkt,
+												(int)rtxState.payload.size(),
+												SSRC,
+												seqNr,
+												isMark,
+												time_ntp / 65536.0f,
+												ts);
+		pthread_mutex_unlock(&lock_rtp_queue);
+		if (!pushed) {
+			packet_free(pkt, SSRC);
+			break;
+		}
+		rtxState.numRtx++;
+		rtxState.lastSend_ntp = time_ntp;
+	}
+}
+
 
 void sendPacket(void* buf, int size) {
 	if (ipv6)
@@ -273,17 +354,16 @@ void* transmitRtpThread(void* arg) {
 	uint16_t seqNr;
 	uint32_t ts;
 	bool isMark;
-	char buf[2000];
 	uint32_t time_ntp = getTimeInNtp();
 	float retVal = 0.0f;
 	struct timeval start, end;
 	useconds_t diff = 0;
-
 	accumulatedPaceTime = 0.0;
 	int nTx = 0;
 
 	for (;;) {
 		if (stopThread) {
+			clearSenderRetransmitState();
 			return NULL;
 		}
 		retVal = -1.0f;
@@ -291,6 +371,7 @@ void* transmitRtpThread(void* arg) {
 		while (retVal == -1.0f) {
 			pthread_mutex_lock(&lock_scream);
 			time_ntp = getTimeInNtp();
+			pruneRetransmitStateFromScream();
 			retVal = screamTx->isOkToTransmit(time_ntp, SSRC);
 			pthread_mutex_unlock(&lock_scream);
 			if (retVal == -1.0f) {
@@ -322,18 +403,34 @@ void* transmitRtpThread(void* arg) {
 		pthread_mutex_lock(&lock_rtp_queue);
 		float rtpQueueDelay = 0.0f;
 		rtpQueueDelay = rtpQueue->getDelay((time_ntp) / 65536.0f);
-		rtpQueue->pop(&buf, size, ssrc_unused, seqNr, isMark, ts);
-		sendPacket(buf, size);
-		nTx++;
+		const bool popped = rtpQueue->pop(&buf, size, ssrc_unused, seqNr, isMark, ts);
 		pthread_mutex_unlock(&lock_rtp_queue);
+		if (popped && buf != NULL) {
+			sendPacket(buf, size);
+			nTx++;
+		}
 
-		packet_free(buf, SSRC);
-		buf = NULL;
+		if (!popped || buf == NULL) {
+			usleep(50);
+			continue;
+		}
 
 		pthread_mutex_lock(&lock_scream);
+		uint32_t txTime_ntp = 0;
+		const bool wasInFlight = screamTx->isTxPacketInFlight(SSRC, seqNr, txTime_ntp);
 		time_ntp = getTimeInNtp();
 		retVal = screamTx->addTransmitted(time_ntp, SSRC, size, seqNr, isMark, rtpQueueDelay, ts);
 		pthread_mutex_unlock(&lock_scream);
+		RtxScheduleState& state = retransmitStateBySeq[seqNr];
+		state.payload.resize(size);
+		memcpy(state.payload.data(), buf, size);
+		if (!wasInFlight) {
+			state.numRtx = 0;
+		}
+		state.lastSend_ntp = time_ntp;
+
+		packet_free(buf, SSRC);
+		buf = NULL;
 
 		if (!disablePacing && retVal > 0.0) {
 			accumulatedPaceTime += retVal;
@@ -397,14 +494,21 @@ void* createRtpThread(void* arg) {
 	uint32_t dT_us = (uint32_t)(1e6 / FPS);
 	unsigned char PT = 98;
 	struct periodicInfo info;
-	std::vector<std::vector<uint8_t>> encodedPayloads;
 	bwvideo::Encoder* videoEncoder = nullptr;
 	float lastVideoRateTx = initRate * 1000.0f;
 	float lastLossEpochTime = -1.0f;
+	uint16_t videoFrameId = 0;
 
 	if (videoMode) {
 		try {
-			videoEncoder = new bwvideo::Encoder(videoPath, (uint16_t)std::max(1.0f, FPS));
+			videoEncoder = new bwvideo::Encoder(videoPath,
+												(uint16_t)std::max(1.0f, FPS),
+												screamTx,
+												&lock_scream,
+												pushTraffic ? nullptr : rtpQueue,
+												&lock_rtp_queue,
+												SSRC,
+												keyframeUnacked);
 			if (periodicKeyFrameMode) {
 				videoEncoder->set_periodic_keyframe_interval(periodicKeyFrameInterval);
 			}
@@ -435,7 +539,12 @@ void* createRtpThread(void* arg) {
 		uint32_t ts = (uint32_t)(time_ntp / 65536.0 * 90000);
 		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
 		float rateTx = targetRate * rateScale;
-		bool requestKeyFrame = videoMode && targetRate < 0.0f;
+		bool requestKeyFrame = false;
+		if (videoMode && targetRate < 0.0f) {
+			requestKeyFrame = true;
+			cerr << "* Recovery: requesting keyframe because getTargetBitrate() is negative ("
+				 << targetRate << ")" << endl;
+		}
 		if (videoMode) {
 			float time_s = time_ntp / 65536.0f;
 			if (keyframeOnLossEpoch) {
@@ -456,7 +565,6 @@ void* createRtpThread(void* arg) {
 		}
 
 		mtu = screamTx->getRecommendedMss(time_ntp);
-
 		screamTx->setCwndMinLow((mtu+12)*2);
 
 		float randVal = float(rand()) / RAND_MAX - 0.5;
@@ -490,37 +598,73 @@ void* createRtpThread(void* arg) {
 
 		if (videoMode) {
 			bool encodedKeyFrame = false;
-			if (videoEncoder &&
-				videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx), mtu, encodedPayloads, &encodedKeyFrame, requestKeyFrame)) {
-				if (encodedKeyFrame) {
-					lastKeyFrameT_ntp = time_ntp;
-				}
-				for (size_t i = 0; i < encodedPayloads.size(); i++) {
-					const bool isMark = (i + 1 == encodedPayloads.size());
-					const int recvlen = (int)encodedPayloads[i].size() + 12;
-					unsigned char pt = PT;
-					if (isMark) {
-						pt |= 0x80;
+			if (videoEncoder && !pushTraffic) {
+				bwvideo::Encoder::EnqueueResult enqueueResult;
+				if (videoEncoder->encode_next_frame_and_enqueue((uint32_t)std::max(0.0f, rateTx),
+																mtu,
+																SSRC,
+																seqNr,
+																ts,
+																(time_ntp) / 65536.0f,
+																enqueueResult,
+																requestKeyFrame,
+																true)) {
+					encodedKeyFrame = enqueueResult.is_key_frame;
+					if (encodedKeyFrame) {
+						lastKeyFrameT_ntp = time_ntp;
 					}
-					uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
-					writeRtp(buf_rtp, seqNr, ts, pt);
-					memcpy(buf_rtp + 12, encodedPayloads[i].data(), encodedPayloads[i].size());
 
-					if (pushTraffic) {
-						sendPacket(buf_rtp, recvlen);
-						packet_free(buf_rtp, SSRC);
-					}
-					else {
-						pthread_mutex_lock(&lock_rtp_queue);
-						rtpQueue->push(buf_rtp, recvlen, SSRC, seqNr, isMark, (time_ntp) / 65536.0f, ts);
-						pthread_mutex_unlock(&lock_rtp_queue);
-
+					for (const auto& packetInfo : enqueueResult.enqueued_packets) {
 						pthread_mutex_lock(&lock_scream);
 						time_ntp = getTimeInNtp();
-						screamTx->newMediaFrame(time_ntp, SSRC, recvlen, isMark);
+						screamTx->newMediaFrame(time_ntp, SSRC, packetInfo.size_bytes, packetInfo.is_mark);
 						pthread_mutex_unlock(&lock_scream);
 					}
-					seqNr++;
+				}
+			}
+			else if (videoEncoder && pushTraffic) {
+				std::vector<std::vector<uint8_t>> encodedPayloads;
+				if (videoEncoder->encode_next_frame((uint32_t)std::max(0.0f, rateTx),
+													mtu,
+													time_ntp,
+													encodedPayloads,
+													&encodedKeyFrame,
+													requestKeyFrame)) {
+					if (encodedKeyFrame) {
+						lastKeyFrameT_ntp = time_ntp;
+					}
+					if (encodedPayloads.size() > 0xFFFFu) {
+						cerr << "Encoded frame fragmented into too many packets, dropping frame" << endl;
+						waitPeriod(&info);
+						continue;
+					}
+					const uint16_t frameId = videoFrameId++;
+					const uint16_t fragCnt = static_cast<uint16_t>(encodedPayloads.size());
+					for (size_t i = 0; i < encodedPayloads.size(); i++) {
+						const bool isMark = (i + 1 == encodedPayloads.size());
+						const int recvlen = (int)encodedPayloads[i].size() + 12 + (int)bwvideo::kRtpVideoExtensionTotalBytes;
+						unsigned char pt = PT;
+						if (isMark) {
+							pt |= 0x80;
+						}
+						uint8_t* buf_rtp = (uint8_t*)malloc(recvlen);
+						writeRtp(buf_rtp, seqNr, ts, pt);
+						bwvideo::RtpVideoExtension ext;
+						ext.frame_is_keyframe = encodedKeyFrame;
+						ext.frame_id = frameId;
+						ext.frag_id = static_cast<uint16_t>(i);
+						ext.frag_cnt = fragCnt;
+						if (!bwvideo::write_rtp_video_extension(buf_rtp, recvlen, ext)) {
+							packet_free(buf_rtp, SSRC);
+							cerr << "Failed to write RTP video extension, dropping packet" << endl;
+							seqNr++;
+							continue;
+						}
+						memcpy(buf_rtp + 12 + bwvideo::kRtpVideoExtensionTotalBytes, encodedPayloads[i].data(), encodedPayloads[i].size());
+						sendPacket(buf_rtp, recvlen);
+						packet_free(buf_rtp, SSRC);
+						seqNr++;
+					}
 				}
 			}
 		}
@@ -598,6 +742,12 @@ void* readRtcpThread(void* arg) {
 			screamTx->setTimeString(s);
 
 			screamTx->incomingStandardizedFeedback(time_ntp, buf_rtcp, recvlen);
+			pruneRetransmitStateFromScream();
+			uint16_t hiSeqAck = 0;
+			if (screamTx->getHighestAcked(SSRC, hiSeqAck)) {
+				const uint32_t rttSpacing_ntp = std::max(1u, (uint32_t)(screamTx->getSRtt() * 65536.0f));
+				scheduleRetransmissionsForAck(time_ntp, hiSeqAck, rttSpacing_ntp);
+			}
 
 			pthread_mutex_unlock(&lock_scream);
 			rtcp_rx_time_ntp = time_ntp;
@@ -831,6 +981,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
 		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
+		cerr << "     -keyframe-unacked        Force keyframe if our last unacked packet is still unacked after 1s, also sends on loss, but never forces more than 1 keyframe each 250ms (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -1009,6 +1160,11 @@ int main(int argc, char* argv[]) {
 			ix++;
 			continue;
 		}
+		if (strcmp(opt, "-keyframe-unacked") == 0) {
+			keyframeUnacked = true;
+			ix++;
+			continue;
+		}
 		if (strcmp(opt, "-rand") == 0) {
 			float randPct = 0.0f;
 			requireArgsOrExit(argc, ix, 1, opt);
@@ -1143,6 +1299,14 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : -keyframe-on-loss requires -video" << endl;
 		exit(-1);
 	}
+	if (keyframeUnacked && !videoMode) {
+		cerr << "Error : -keyframe-unacked requires -video" << endl;
+		exit(-1);
+	}
+	if (keyframeUnacked && keyframeOnLossEpoch) {
+		cerr << "Error : -keyframe-unacked and -keyframe-on-loss cannot be used together" << endl;
+		exit(-1);
+	}
 	if (logFile) {
 		if (append)
 			fp_log = fopen(logFile, "a");
@@ -1215,7 +1379,6 @@ int main(int argc, char* argv[]) {
 					float time_s = time_ntp / 65536.0f;
 					char s[500];
 					screamTx->getStatistics(time_s, s);
-
 					cout << s << ", MTU = " << mtu <<endl;
 				}
 				lastLogT_ntp = time_ntp;
@@ -1234,10 +1397,12 @@ int main(int argc, char* argv[]) {
 					* Send statistics to receiver this can be used to
 					* verify reliability of remote control
 					*/
-					s1[0] = 0x80;
-					s1[1] = 0x7F; // Set PT = 0x7F for statistics packet
-					memcpy(&s1[2], s, strlen(s));
-					sendPacket(s1, strlen(s) + 2);
+					const size_t statsLen = strlen(s);
+					std::vector<unsigned char> statsPacket(statsLen + 2);
+					statsPacket[0] = 0x80;
+					statsPacket[1] = 0x7F; // Set PT = 0x7F for statistics packet
+					memcpy(statsPacket.data() + 2, s, statsLen);
+					sendPacket(statsPacket.data(), (int)statsPacket.size());
 				}
 				lastLogTv_ntp = time_ntp;
 			}
@@ -1247,9 +1412,29 @@ int main(int argc, char* argv[]) {
 	}
 	usleep(500000);
 	close(fd_outgoing_rtp);
+
+	if (create_rtp_thread) {
+		pthread_join(create_rtp_thread, NULL);
+	}
+	if (!pushTraffic) {
+		if (rtcp_thread) {
+			pthread_join(rtcp_thread, NULL);
+		}
+		if (transmit_rtp_thread) {
+			pthread_join(transmit_rtp_thread, NULL);
+		}
+	}
+
 	if (fp_log)
 		fclose(fp_log);
 	if (fp_txrxlog)
 		fclose(fp_txrxlog);
 	screamTx->printFinalSummary();
+	delete screamTx;
+	screamTx = nullptr;
+	delete rtpQueue;
+	rtpQueue = nullptr;
+	pthread_mutex_destroy(&lock_scream);
+	pthread_mutex_destroy(&lock_rtp_queue);
+	pthread_mutex_destroy(&lock_pace);
 }

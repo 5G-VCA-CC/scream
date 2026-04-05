@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 #endif
 
-
 // === Some good to have features, SCReAM works also
 //     with these disabled
 // Fast start can resume if little or no congestion detected
@@ -2199,4 +2198,76 @@ int ScreamV2Tx::getRecommendedMss(uint32_t time_ntp) {
 	return mssList[mssIndex];
 }
 
+bool ScreamV2Tx::getOldestUnacked(uint32_t ssrc, uint16_t& seqNr, uint32_t& txTime_ntp) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) return false;
+	return stream->getOldestUnacked(seqNr, txTime_ntp);
+}
 
+bool ScreamV2Tx::getHighestAcked(uint32_t ssrc, uint16_t& seqNr) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) {
+		return false;
+	}
+	seqNr = stream->hiSeqAck;
+	return true;
+}
+
+bool ScreamV2Tx::isTxPacketInFlight(uint32_t ssrc, uint16_t seqNr, uint32_t& lastTx_ntp) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) {
+		return false;
+	}
+	Transmitted& packet = stream->txPackets[seqNr % kMaxTxPackets];
+	if (!packet.isUsed || packet.seqNr != seqNr || packet.isAcked) {
+		return false;
+	}
+	lastTx_ntp = packet.timeTx_ntp;
+	return true;
+}
+
+bool ScreamV2Tx::resetStreamForRecoveryKeyframe(uint32_t ssrc,
+	uint32_t& rtpQueueCleared,
+	uint32_t& txPacketsCleared,
+	uint32_t& bytesInFlightCleared) {
+	int streamId;
+	ScreamV2Tx::Stream* stream = getStream(ssrc, streamId);
+	if (!stream) {
+		return false;
+	}
+
+	rtpQueueCleared = 0;
+	txPacketsCleared = 0;
+	bytesInFlightCleared = 0;
+
+	const int queue_cleared = stream->rtpQueue->clear();
+	if (queue_cleared > 0) {
+		rtpQueueCleared = static_cast<uint32_t>(queue_cleared);
+		stream->cleared += rtpQueueCleared;
+	}
+
+	int cleared_bytes = 0;
+	for (int n = 0; n < kMaxTxPackets; n++) {
+		Transmitted& packet = stream->txPackets[n];
+		if (!packet.isUsed) {
+			continue;
+		}
+		txPacketsCleared++;
+		if (!packet.isAcked) {
+			cleared_bytes += packet.size;
+		}
+		packet.isUsed = false;
+		packet.isAcked = false;
+		packet.isAfterReceivedEdge = false;
+	}
+
+	if (cleared_bytes > 0) {
+		const int bytes_to_subtract = std::min(bytesInFlight, cleared_bytes);
+		bytesInFlight -= bytes_to_subtract;
+		bytesInFlightCleared = static_cast<uint32_t>(bytes_to_subtract);
+	}
+	return true;
+}

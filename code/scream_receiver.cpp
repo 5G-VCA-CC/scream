@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
 #include <stdexcept>
 #include "Decoder.h"
 #include "rtp_video_extension.h"
@@ -455,10 +456,11 @@ int main(int argc, char* argv[])
 		if (recvlen > 1) {
 			if (buf[1] == 0x7F) {
 				// Packet contains statistics
-				recvlen -= 2; // 2 bytes
+				const int statsLen = recvlen - 2; // 2 bytes header
 				char s[1000];
-				memcpy(s, &buf[2], recvlen);
-				s[recvlen] = 0x00;
+				const size_t copyLen = std::min(static_cast<size_t>(std::max(0, statsLen)), sizeof(s) - 1);
+				memcpy(s, &buf[2], copyLen);
+				s[copyLen] = 0x00;
 				cout << s << endl;
 			}
 			else {

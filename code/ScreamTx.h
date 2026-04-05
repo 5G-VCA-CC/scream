@@ -394,14 +394,14 @@ extern "C" {
 		}
 
 		void setTimeString(char* s) {
-			strcpy(timeString, s);
+			snprintf(timeString, sizeof(timeString), "%s", s ? s : "");
 		}
 
 		/*
 		* extra data to be appended to detailed log
 		*/
 		void setDetailedLogExtraData(char* s) {
-			strcpy(detailedLogExtraData, s);
+			snprintf(detailedLogExtraData, sizeof(detailedLogExtraData), "%s", s ? s : "");
 		}
 
 		/*

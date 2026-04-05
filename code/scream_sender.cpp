@@ -1397,10 +1397,12 @@ int main(int argc, char* argv[]) {
 					* Send statistics to receiver this can be used to
 					* verify reliability of remote control
 					*/
-					s1[0] = 0x80;
-					s1[1] = 0x7F; // Set PT = 0x7F for statistics packet
-					memcpy(&s1[2], s, strlen(s));
-					sendPacket(s1, strlen(s) + 2);
+					const size_t statsLen = strlen(s);
+					std::vector<unsigned char> statsPacket(statsLen + 2);
+					statsPacket[0] = 0x80;
+					statsPacket[1] = 0x7F; // Set PT = 0x7F for statistics packet
+					memcpy(statsPacket.data() + 2, s, statsLen);
+					sendPacket(statsPacket.data(), (int)statsPacket.size());
 				}
 				lastLogTv_ntp = time_ntp;
 			}

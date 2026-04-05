@@ -56,6 +56,7 @@ float FPS = 50.0f; // Frames per second
 bool videoMode = false;
 const char* videoPath = nullptr;
 bool keyframeOnLossEpoch = false;
+bool keyframeOnTarget = false;
 bool keyframeUnacked = false;
 uint32_t SSRC = 100;
 int fixedRate = 0;
@@ -540,7 +541,7 @@ void* createRtpThread(void* arg) {
 		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
 		float rateTx = targetRate * rateScale;
 		bool requestKeyFrame = false;
-		if (videoMode && targetRate < 0.0f) {
+		if (videoMode && keyframeOnTarget && targetRate < 0.0f) {
 			requestKeyFrame = true;
 			cerr << "* Recovery: requesting keyframe because getTargetBitrate() is negative ("
 				 << targetRate << ")" << endl;
@@ -980,6 +981,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
 		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
+		cerr << "     -keyframe-on-target      Force keyframe when getTargetBitrate() is negative (video mode only)" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
 		cerr << "     -keyframe-unacked        Force keyframe if our last unacked packet is still unacked after 1s, also sends on loss, but never forces more than 1 keyframe each 250ms (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
@@ -1160,6 +1162,11 @@ int main(int argc, char* argv[]) {
 			ix++;
 			continue;
 		}
+		if (strcmp(opt, "-keyframe-on-target") == 0) {
+			keyframeOnTarget = true;
+			ix++;
+			continue;
+		}
 		if (strcmp(opt, "-keyframe-unacked") == 0) {
 			keyframeUnacked = true;
 			ix++;
@@ -1297,6 +1304,10 @@ int main(int argc, char* argv[]) {
 	}
 	if (keyframeOnLossEpoch && !videoMode) {
 		cerr << "Error : -keyframe-on-loss requires -video" << endl;
+		exit(-1);
+	}
+	if (keyframeOnTarget && !videoMode) {
+		cerr << "Error : -keyframe-on-target requires -video" << endl;
 		exit(-1);
 	}
 	if (keyframeUnacked && !videoMode) {

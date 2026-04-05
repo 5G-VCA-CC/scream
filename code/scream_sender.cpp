@@ -1303,10 +1303,6 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : -keyframe-unacked requires -video" << endl;
 		exit(-1);
 	}
-	if (keyframeUnacked && keyframeOnLossEpoch) {
-		cerr << "Error : -keyframe-unacked and -keyframe-on-loss cannot be used together" << endl;
-		exit(-1);
-	}
 	if (logFile) {
 		if (append)
 			fp_log = fopen(logFile, "a");

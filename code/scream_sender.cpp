@@ -980,10 +980,10 @@ int main(int argc, char* argv[]) {
 		cerr << "     -mulincrease val         Multiplicative increase factor for (default 0.05)" << endl;
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
-		cerr << "     -periodic-key-frame val  Periodic keyframe interval [s] in video mode" << endl;
+		cerr << "     -periodic-keyframe val  Periodic keyframe interval [s] in video mode" << endl;
 		cerr << "     -keyframe-on-target      Force keyframe when getTargetBitrate() is negative (video mode only)" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
-		cerr << "     -keyframe-unacked        Force keyframe if our last unacked packet is still unacked after 1s, also sends on loss, but never forces more than 1 keyframe each 250ms (video mode only)" << endl;
+		cerr << "     -keyframe-unacked        Force keyframe if our oldest unacked packet is still unacked after one second (video mode only)" << endl;
 		cerr << "     -clockdrift              Enable clock drift compensation for the case that the" << endl;
 		cerr << "                               receiver end clock is faster" << endl;
 		cerr << "     -verbose                 Print a more extensive log" << endl;
@@ -1107,7 +1107,7 @@ int main(int argc, char* argv[]) {
 			ix += 3;
 			continue;
 		}
-		if (strcmp(opt, "-periodic-key-frame") == 0) {
+		if (strcmp(opt, "-periodic-keyframe") == 0) {
 			requireArgsOrExit(argc, ix, 1, opt);
 			periodicKeyFrameMode = true;
 			parseFloatOrExit(argv[ix + 1], periodicKeyFrameInterval, opt);
@@ -1299,7 +1299,7 @@ int main(int argc, char* argv[]) {
 		exit(-1);
 	}
 	if (periodicKeyFrameMode && !videoMode) {
-		cerr << "Error : -periodic-key-frame requires -video" << endl;
+		cerr << "Error : -periodic-keyframe requires -video" << endl;
 		exit(-1);
 	}
 	if (keyframeOnLossEpoch && !videoMode) {

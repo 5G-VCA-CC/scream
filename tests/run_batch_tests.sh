@@ -220,7 +220,7 @@ run_test() {
     if [ "$MODE" = "video" ]; then
         mm-delay "$DELAY_MS" \
             mm-loss uplink "$LOSS_PCT" \
-            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100" \
+            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]" \
             "$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" \
             -- bash "$HELPER_SCRIPT" \
                 "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION" \

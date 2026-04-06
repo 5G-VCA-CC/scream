@@ -16,6 +16,8 @@
 #include <cstdlib>
 #include <algorithm>
 #include <stdexcept>
+#include <csignal>
+#include <cerrno>
 #include "Decoder.h"
 #include "rtp_video_extension.h"
 using namespace std;
@@ -72,6 +74,11 @@ bool ipv6 = false;
 bool videoMode = false;
 int videoWidth = 0;
 int videoHeight = 0;
+static volatile sig_atomic_t g_stop = 0;
+
+static void on_stop(int) {
+	g_stop = 1;
+}
 
 /*
 * Time in 32 bit NTP format
@@ -120,7 +127,7 @@ void* rtcpPeriodicThread(void* arg) {
 	unsigned char buf[BUFSIZE];
 	int rtcpSize;
 	uint32_t rtcpFbInterval_ntp = screamRx->getRtcpFbInterval();
-	for (;;) {
+	for (; !g_stop;) {
 		if (getTimeInNtp() - lastPunchNatT_ntp > 32768) { // 500ms in Q16
 			/*
 			* Send a small packet just to punch open a hole in the NAT,
@@ -156,6 +163,7 @@ void* rtcpPeriodicThread(void* arg) {
 		}
 		usleep(500);
 	}
+	return NULL;
 }
 
 int main(int argc, char* argv[])
@@ -221,6 +229,12 @@ int main(int argc, char* argv[])
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
 	t0 = (tp.tv_sec + tp.tv_usec * 1e-6) - 1e-3;
+
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = on_stop;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 
 	screamRx = new ScreamRx(10, ackDiff, nReportedRtpPackets);
 	if (videoMode) {
@@ -328,6 +342,13 @@ int main(int argc, char* argv[])
 			cerr << "Listen on port " << INCOMING_RTP_PORT << " to receive RTP from sender " << endl;
 		}
 	}
+
+	struct timeval rcv_to;
+	rcv_to.tv_sec = 0;
+	rcv_to.tv_usec = 200000; // 200ms timeout enables graceful shutdown checks
+	if (setsockopt(fd_incoming_rtp, SOL_SOCKET, SO_RCVTIMEO, &rcv_to, sizeof(rcv_to)) < 0) {
+		perror("setsockopt(SO_RCVTIMEO) failed");
+	}
 	else {
 		if (bind(fd_incoming_rtp, (struct sockaddr*)&incoming_rtp_addr, sizeof(incoming_rtp_addr)) < 0) {
 			perror("bind incoming_rtp_addr failed");
@@ -348,6 +369,10 @@ int main(int argc, char* argv[])
 
 	uint32_t last_received_time_ntp = 0;
 	uint32_t receivedRtp = 0;
+	uint64_t rxBytes = 0;
+	uint64_t framesCompleted = 0;
+	uint32_t firstPacketT_ntp = 0;
+	uint32_t lastPacketT_ntp = 0;
 
 	/*
 	* Send a small packet just to punmax distance in received RTPs to send an ACKch open a hole in the NAT,
@@ -392,7 +417,7 @@ int main(int argc, char* argv[])
 	rcv_msg.msg_control = rcv_ctrl_data;
 	rcv_msg.msg_controllen = MAX_CTRL_SIZE;
 
-	for (;;) {
+	for (; !g_stop;) {
 		//usleep(1);
 		/*
 		* Wait for incoing RTP packet, this call can be blocking
@@ -407,9 +432,11 @@ int main(int argc, char* argv[])
 		rcv_msg.msg_controllen = MAX_CTRL_SIZE;
 		int recvlen = recvmsg(fd_incoming_rtp, &rcv_msg, 0);
 		if (recvlen == -1) {
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
 			perror("recvmsg()");
-			close(fd_incoming_rtp);
-			return EXIT_FAILURE;
+			break;
 		}
 		else {
 			if (rcv_msg.msg_namelen > 0) {
@@ -464,6 +491,11 @@ int main(int argc, char* argv[])
 				cout << s << endl;
 			}
 			else {
+				rxBytes += static_cast<uint64_t>(recvlen);
+				if (firstPacketT_ntp == 0) {
+					firstPacketT_ntp = time_ntp;
+				}
+				lastPacketT_ntp = time_ntp;
 				if (time_ntp - last_received_time_ntp > 2 * 65536) { // 2 sec in Q16
 					/*
 					* It's been more than 2 seconds since we last received an RTP packet
@@ -483,6 +515,9 @@ int main(int argc, char* argv[])
 				uint32_t ts;
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
+				if (isMark) {
+					framesCompleted++;
+				}
 				if (videoMode && recvlen > 12 && videoDecoder) {
 					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
 					bwvideo::RtpVideoExtension ext {};
@@ -566,4 +601,39 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+
+	g_stop = 1;
+	pthread_join(rtcp_thread, NULL);
+
+	if (screamRx && screamRx->getStatistics()) {
+		double rateMbps = 0.0;
+		if (firstPacketT_ntp != 0 && lastPacketT_ntp > firstPacketT_ntp) {
+			double elapsedSec = (lastPacketT_ntp - firstPacketT_ntp) / 65536.0;
+			if (elapsedSec > 0.0) {
+				rateMbps = (rxBytes * 8.0) / (elapsedSec * 1e6);
+			}
+		}
+		screamRx->getStatistics()->addInterval(
+			getTimeInNtp(),
+			rateMbps,
+			0.0,
+			framesCompleted,
+			framesCompleted,
+			0,
+			0.0);
+		screamRx->printFinalSummary();
+	}
+
+	if (videoDecoder) {
+		delete videoDecoder;
+		videoDecoder = 0;
+	}
+
+	if (screamRx) {
+		delete screamRx;
+		screamRx = 0;
+	}
+
+	close(fd_incoming_rtp);
+	return 0;
 }

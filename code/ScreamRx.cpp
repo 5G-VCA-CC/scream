@@ -7,8 +7,10 @@
 #endif
 #include <string.h>
 #include <climits>
+#include <limits>
 #include <algorithm>
 #include <iostream>
+#include <cstdio>
 using namespace std;
 
 static const int kMaxRtcpSize = 900;
@@ -18,6 +20,80 @@ static const float kMaxRtcpInterval = 0.04f;
 // Time stamp scale
 static const int kTimeStampAtoScale = 1024;
 static const float ntp2SecScaleFactor = 1.0 / 65536;
+
+ScreamRx::Statistics::Statistics()
+	: nIntervals_(0),
+	  rateMinMbps_(std::numeric_limits<double>::infinity()),
+	  rateMaxMbps_(0.0),
+	  rateSumMbps_(0.0),
+	  ifddMinS_(std::numeric_limits<double>::infinity()),
+	  ifddMaxS_(0.0),
+	  ifddSumS_(0.0),
+	  datagramsTotal_(0),
+	  bytesTotal_(0),
+	  lastFramesRenderedTotal_(0),
+	  lastFreezeCountTotal_(0),
+	  lastFreezeDurationTotalS_(0.0),
+	  framesCompletedTotal_(0),
+	  framesRenderedTotal_(0),
+	  freezeCountTotal_(0),
+	  freezeDurationTotalS_(0.0) {}
+
+void ScreamRx::Statistics::addPacket(int size_bytes) {
+	datagramsTotal_++;
+	if (size_bytes > 0) bytesTotal_ += (uint64_t)size_bytes;
+}
+
+void ScreamRx::Statistics::addInterval(uint32_t /*time_ntp*/,
+	double receive_rate_mbps,
+	double inter_frame_delay_difference_s,
+	uint64_t frames_completed_interval,
+	uint64_t frames_rendered_total,
+	uint64_t freeze_count_total,
+	double freeze_duration_total_s) {
+	nIntervals_++;
+
+	rateMinMbps_ = std::min(rateMinMbps_, receive_rate_mbps);
+	rateMaxMbps_ = std::max(rateMaxMbps_, receive_rate_mbps);
+	rateSumMbps_ += receive_rate_mbps;
+
+	ifddMinS_ = std::min(ifddMinS_, inter_frame_delay_difference_s);
+	ifddMaxS_ = std::max(ifddMaxS_, inter_frame_delay_difference_s);
+	ifddSumS_ += inter_frame_delay_difference_s;
+
+	framesCompletedTotal_ += frames_completed_interval;
+	framesRenderedTotal_ = frames_rendered_total;
+	freezeCountTotal_ = freeze_count_total;
+	freezeDurationTotalS_ = freeze_duration_total_s;
+
+	lastFramesRenderedTotal_ = frames_rendered_total;
+	lastFreezeCountTotal_ = freeze_count_total;
+	lastFreezeDurationTotalS_ = freeze_duration_total_s;
+}
+
+void ScreamRx::Statistics::printFinalSummary() const {
+	std::printf("\n=================== Receiver Summary ===================\n");
+	if (nIntervals_ == 0) {
+		std::printf(" No receiver statistics intervals recorded\n");
+		std::printf("========================================================\n");
+		return;
+	}
+	std::printf(" Receive rate min/max/avg [Mbps]       : %5.2f/%5.2f/%5.2f\n",
+		rateMinMbps_, rateMaxMbps_, rateSumMbps_ / (double)nIntervals_);
+	std::printf(" IF delay diff min/max/avg [s]         : %2.6f/%2.6f/%2.6f\n",
+		ifddMinS_, ifddMaxS_, ifddSumS_ / (double)nIntervals_);
+	std::printf(" Datagrams total                       : %lu\n", (unsigned long)datagramsTotal_);
+	std::printf(" Bytes total                           : %lu\n", (unsigned long)bytesTotal_);
+	std::printf(" Frames completed total                : %lu\n", (unsigned long)framesCompletedTotal_);
+	std::printf(" Frames rendered total                 : %lu\n", (unsigned long)framesRenderedTotal_);
+	std::printf(" Freeze count total                    : %lu\n", (unsigned long)freezeCountTotal_);
+	std::printf(" Total freeze duration [s]             : %2.3f\n", freezeDurationTotalS_);
+	std::printf("========================================================\n");
+}
+
+void ScreamRx::printFinalSummary() {
+	if (statistics_) statistics_->printFinalSummary();
+}
 
 ScreamRx::Stream::Stream(uint32_t ssrc_) {
 	ssrc = ssrc_;
@@ -363,6 +439,7 @@ ScreamRx::ScreamRx(uint32_t ssrc_, int ackDiff_, int nReportedRtpPackets_) {
 		ackDiff = ackDiff_;
 	else
 		ackDiff = std::max(1, nReportedRtpPackets / 2);
+	statistics_ = new Statistics();
 
 }
 
@@ -372,6 +449,8 @@ ScreamRx::~ScreamRx() {
 			delete (*it);
 		}
 	}
+	delete statistics_;
+	statistics_ = nullptr;
 }
 
 bool ScreamRx::checkIfFlushAck() {
@@ -406,6 +485,9 @@ void ScreamRx::receive(uint32_t time_ntp,
 	uint8_t ceBits,
 	bool isMark,
 	uint32_t timeStamp) {
+	if (statistics_) {
+		statistics_->addPacket(size);
+	}
 
 	bytesReceived += size;
 	if (lastRateComputeT_ntp == 0)

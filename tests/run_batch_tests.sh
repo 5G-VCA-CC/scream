@@ -6,20 +6,20 @@
 # Video parameters are optional; if provided, the script runs in video mode.
 #
 # Usage:
-#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [keyframe_mode] [video_fps]
+#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
 #
 # Required:
 #   l4s_enabled     : 0 or 1 to disable/enable L4S ECT marking
 #   num_iterations  : number of test runs to perform
 #   delay_ms        : link delay in milliseconds (e.g., 5)
 #   loss_pct        : uplink packet loss rate as decimal (e.g., 0.01 for 1%)
-#   trace_file      : path to mahimahi trace file
+#   uplink_trace_file   : path to mahimahi uplink trace file
+#   downlink_trace_file : path to mahimahi downlink trace file
 #   test_duration   : test duration in seconds (e.g., 30)
 #
 # Optional (video mode):
 #   video_file       : path to input video file (.y4m)
 #   video_resolution : video resolution WxH (e.g., 704x576)
-#   keyframe_mode    : loss | time | periodic | none | ringmaster-style(alias for time)
 #   video_fps        : sender FPS (default: 30)
 #
 # Optional:
@@ -38,30 +38,23 @@ MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
 usage() {
     cat <<EOF
 Usage:
-    $0 <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [keyframe_mode] [video_fps]
-
-  keyframe_mode (video mode only, optional):
-        loss                 Use -losskey
-        time                 Use -timekey 1.0
-        periodic             Use -periodickey 2.0 5.0
-        none                 Disable forced keyframes
-        ringmaster-style     Alias for time
+    $0 <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
 
     video_fps (video mode only, optional):
         Positive number, e.g. 24, 29.97, 30, 60
 
 Examples:
   # Fake traffic
-  $0 1 5 5 0.01 traces/trace_key.txt 30
-  $0 0 3 25 0.00 traces/trace_flat.txt 60 /tmp/results
+    $0 1 5 5 0.01 traces/up.txt traces/down.txt 30
+    $0 0 3 25 0.00 traces/up.txt traces/down.txt 60 /tmp/results
 
   # Video traffic
-    $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576
-    $0 1 3 5 0.01 traces/trace_key.txt 30 input.y4m 704x576 /tmp/results loss 30
+        $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576
+        $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576 /tmp/results 30
 EOF
 }
 
-if [ $# -lt 6 ]; then
+if [ $# -lt 7 ]; then
     usage
     exit 1
 fi
@@ -70,22 +63,15 @@ L4S_ENABLED="$1"
 NUM_ITERATIONS="$2"
 DELAY_MS="$3"
 LOSS_PCT="$4"
-TRACE_FILE="$5"
-TEST_DURATION="$6"
-shift 6
+UPLINK_TRACE_FILE="$5"
+DOWNLINK_TRACE_FILE="$6"
+TEST_DURATION="$7"
+shift 7
 
 VIDEO_FILE=""
 VIDEO_RESOLUTION=""
 OUTPUT_DIR=""
-KEYFRAME_MODE="loss"
 VIDEO_FPS="30"
-
-is_keyframe_mode() {
-    case "$1" in
-        loss|time|periodic|none|ringmaster-style) return 0 ;;
-        *) return 1 ;;
-    esac
-}
 
 # Detect video mode by [video_file] [video_resolution]
 if [ $# -ge 2 ] && [[ "$2" =~ ^[0-9]+x[0-9]+$ ]]; then
@@ -96,14 +82,8 @@ fi
 
 if [ -n "$VIDEO_FILE" ]; then
     # Optional output_dir
-    if [ $# -ge 1 ] && ! is_keyframe_mode "$1" && ! [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    if [ $# -ge 1 ] && ! [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
         OUTPUT_DIR="$1"
-        shift 1
-    fi
-
-    # Optional keyframe_mode
-    if [ $# -ge 1 ] && is_keyframe_mode "$1"; then
-        KEYFRAME_MODE="$1"
         shift 1
     fi
 
@@ -125,10 +105,6 @@ else
     fi
 fi
 
-if [ "$KEYFRAME_MODE" = "ringmaster-style" ]; then
-    KEYFRAME_MODE="time"
-fi
-
 if [ $# -ne 0 ]; then
     echo "ERROR: Too many arguments"
     usage
@@ -140,8 +116,13 @@ if [[ "$L4S_ENABLED" != "0" && "$L4S_ENABLED" != "1" ]]; then
     exit 1
 fi
 
-if [ ! -f "$TRACE_FILE" ]; then
-    echo "ERROR: Trace file not found: $TRACE_FILE"
+if [ ! -f "$UPLINK_TRACE_FILE" ]; then
+    echo "ERROR: Uplink trace file not found: $UPLINK_TRACE_FILE"
+    exit 1
+fi
+
+if [ ! -f "$DOWNLINK_TRACE_FILE" ]; then
+    echo "ERROR: Downlink trace file not found: $DOWNLINK_TRACE_FILE"
     exit 1
 fi
 
@@ -197,12 +178,13 @@ echo "L4S enabled: $L4S_ENABLED"
 echo "Iterations: $NUM_ITERATIONS"
 echo "Delay: ${DELAY_MS}ms"
 echo "Loss: ${LOSS_PCT}"
-echo "Trace file: $TRACE_FILE"
+echo "Uplink trace file: $UPLINK_TRACE_FILE"
+echo "Downlink trace file: $DOWNLINK_TRACE_FILE"
 echo "Test duration: ${TEST_DURATION}s"
 if [ "$MODE" = "video" ]; then
     echo "Video file: $VIDEO_FILE"
     echo "Video resolution: $VIDEO_RESOLUTION"
-    echo "Keyframe mode: $KEYFRAME_MODE"
+    echo "Keyframe policy: hardcoded (-keyframe-on-target -keyframe-unacked)"
     echo "Video FPS: $VIDEO_FPS"
 fi
 echo "Output directory: $OUTPUT_DIR"
@@ -220,6 +202,7 @@ cleanup_scream() {
 run_test() {
     local iteration="$1"
     local log_prefix="${OUTPUT_DIR}/test_${iteration}"
+    local mm_log="${log_prefix}_mm.log"
     local signal_start="/tmp/mahimahi_start_rx_$$"
     local signal_rx_ready="/tmp/mahimahi_rx_ready_$$"
     local signal_done="/tmp/mahimahi_done_$$"
@@ -238,23 +221,23 @@ run_test() {
         mm-delay "$DELAY_MS" \
             mm-loss uplink "$LOSS_PCT" \
             mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100" \
-            "$TRACE_FILE" "$TRACE_FILE" \
+            "$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" \
             -- bash "$HELPER_SCRIPT" \
                 "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION" \
                 "$VIDEO_FILE" "$TEST_DURATION" "$log_prefix" \
                 "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
-                "$KEYFRAME_MODE" "$VIDEO_FPS" \
-            > /dev/null 2>&1 &
+                "$VIDEO_FPS" \
+            > "$mm_log" 2>&1 &
     else
         mm-delay "$DELAY_MS" \
             mm-loss uplink "$LOSS_PCT" \
             mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]" \
-            "$TRACE_FILE" "$TRACE_FILE" \
+            "$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" \
             -- bash "$HELPER_SCRIPT" \
                 "$RX_IP" "$TX_IP" "$PORT" \
                 "$TEST_DURATION" "$log_prefix" \
                 "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
-            > /dev/null 2>&1 &
+            > "$mm_log" 2>&1 &
     fi
 
     local MAHIMAHI_PID=$!
@@ -270,9 +253,9 @@ run_test() {
 
     echo "Mahimahi ready, starting receiver..."
     if [ "$MODE" = "video" ]; then
-        "$SCREAM_RX" -video "$VIDEO_RESOLUTION" "$RX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
+        "$SCREAM_RX" -video "$VIDEO_RESOLUTION" "$TX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
     else
-        "$SCREAM_RX" "$RX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
+        "$SCREAM_RX" "$TX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
     fi
 
     local RX_PID=$!
@@ -282,7 +265,22 @@ run_test() {
     touch "$signal_rx_ready"
     echo "Receiver ready, sender will start..."
 
-    wait "$MAHIMAHI_PID" || true
+    local wait_timeout
+    wait_timeout="$(awk -v d="$TEST_DURATION" 'BEGIN { w=int(d+30); if (w < 30) w=30; print w }')"
+    local waited=0
+    while kill -0 "$MAHIMAHI_PID" 2>/dev/null; do
+        sleep 1
+        waited=$((waited + 1))
+        if [ "$waited" -ge "$wait_timeout" ]; then
+            echo "Mahimahi timed out after ${wait_timeout}s, killing it (see $mm_log)"
+            kill -TERM "$MAHIMAHI_PID" 2>/dev/null || true
+            sleep 1
+            kill -KILL "$MAHIMAHI_PID" 2>/dev/null || true
+            break
+        fi
+    done
+
+    wait "$MAHIMAHI_PID" 2>/dev/null || true
 
     echo "Mahimahi shell exited, stopping receiver..."
     kill -TERM "$RX_PID" 2>/dev/null || true
@@ -334,7 +332,7 @@ mkdir -p "$SENDER_PLOTS_DIR" "$RECEIVER_PLOTS_DIR"
 export MPLBACKEND=Agg
 
 HIST_CMD=(python3 "${SCRIPT_DIR}/plot_scream_histogram.py" \
-    "$L4S_ENABLED" "$DELAY_MS" "$LOSS_PCT" "$TRACE_FILE" \
+    "$L4S_ENABLED" "$DELAY_MS" "$LOSS_PCT" "$UPLINK_TRACE_FILE" \
     "$OUTPUT_DIR" "$PLOTS_DIR/sender" \
     --no-show)
 

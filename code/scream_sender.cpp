@@ -1294,6 +1294,10 @@ int main(int argc, char* argv[]) {
 		cerr << "Error : pushtraffic can only be used with fixedrate" << endl;
 		exit(-1);
 	}
+	if (pushTraffic && (keyframeOnLossEpoch || keyframeOnTarget || keyframeUnacked)) {
+		cerr << "Error : -pushtraffic cannot be combined with -keyframe-on-loss, -keyframe-on-target or -keyframe-unacked" << endl;
+		exit(-1);
+	}
 	if (videoMode && videoPath == nullptr) {
 		cerr << "Error : -video requires a Y4M file path" << endl;
 		exit(-1);

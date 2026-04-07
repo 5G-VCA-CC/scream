@@ -92,7 +92,7 @@ uint16_t seqNr = 0;
 uint32_t lastKeyFrameT_ntp = 0;
 
 float runTime = -1.0;
-bool stopThread = false;
+volatile sig_atomic_t stopThread = 0;
 pthread_t create_rtp_thread = 0;
 pthread_t transmit_rtp_thread = 0;
 pthread_t rtcp_thread = 0;
@@ -371,6 +371,10 @@ void* transmitRtpThread(void* arg) {
 		retVal = -1.0f;
 
 		while (retVal == -1.0f) {
+			if (stopThread) {
+				clearSenderRetransmitState();
+				return NULL;
+			}
 			pthread_mutex_lock(&lock_scream);
 			time_ntp = getTimeInNtp();
 			pruneRetransmitStateFromScream();
@@ -522,7 +526,7 @@ void* createRtpThread(void* arg) {
 		}
 		catch (const std::exception& e) {
 			cerr << "Failed to initialize video encoder: " << e.what() << endl;
-			stopThread = true;
+			stopThread = 1;
 			return NULL;
 		}
 	}
@@ -739,6 +743,19 @@ void* readRtcpThread(void* arg) {
 		else {
 			recvlen = recvfrom(fd_outgoing_rtp, buf_rtcp, BUFSIZE, 0, (struct sockaddr*)&incoming_rtcp_addr, &addrlen_incoming_rtcp);
 		}
+		if (recvlen < 0) {
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+				if (stopThread) {
+					return NULL;
+				}
+				continue;
+			}
+			if (stopThread) {
+				return NULL;
+			}
+			perror("recvfrom RTCP");
+			return NULL;
+		}
 		if (stopThread)
 			return NULL;
 		if (recvlen > KEEP_ALIVE_PKT_SIZE) {
@@ -874,6 +891,12 @@ int setup() {
 	}
 	int tmp = 0;
 #endif
+	struct timeval rcv_to;
+	rcv_to.tv_sec = 0;
+	rcv_to.tv_usec = 200000; // 200ms timeout enables graceful shutdown checks
+	if (setsockopt(fd_outgoing_rtp, SOL_SOCKET, SO_RCVTIMEO, &rcv_to, sizeof(rcv_to)) < 0) {
+		perror("setsockopt(SO_RCVTIMEO) failed");
+	}
 	char buf[10];
 	if (fixedRate > 0) {
 		screamTx = new ScreamV2Tx(
@@ -946,7 +969,7 @@ volatile sig_atomic_t done = 0;
 
 void stopAll(int signum)
 {
-	stopThread = true;
+	stopThread = 1;
 }
 
 int main(int argc, char* argv[]) {
@@ -1393,7 +1416,7 @@ int main(int argc, char* argv[]) {
 		while (!stopThread && (runTime < 0 || getTimeInNtp() < runTime * 65536.0f)) {
 			usleep(50000);
 		}
-		stopThread = true;
+		stopThread = 1;
 
 	}
 	else {
@@ -1444,7 +1467,7 @@ int main(int argc, char* argv[]) {
 			}
 			usleep(50000);
 		};
-		stopThread = true;
+		stopThread = 1;
 	}
 	usleep(500000);
 	close(fd_outgoing_rtp);

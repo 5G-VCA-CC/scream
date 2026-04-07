@@ -16,6 +16,9 @@
 #include <cstdlib>
 #include <algorithm>
 #include <stdexcept>
+#include <cmath>
+#include <csignal>
+#include <cerrno>
 #include "Decoder.h"
 #include "rtp_video_extension.h"
 using namespace std;
@@ -72,6 +75,11 @@ bool ipv6 = false;
 bool videoMode = false;
 int videoWidth = 0;
 int videoHeight = 0;
+static volatile sig_atomic_t g_stop = 0;
+
+static void on_stop(int) {
+	g_stop = 1;
+}
 
 /*
 * Time in 32 bit NTP format
@@ -115,12 +123,14 @@ uint16_t lastFbSn = 0;
 uint64_t lastPunchNatT_ntp = 0;
 uint32_t SSRC = 100; // We don't bother with SSRC yet, this is for experiments only so far.
 #define KEEP_ALIVE_PKT_SIZE 1
+static const uint32_t kStatsInterval_ntp = 2 * 65536; // 2s periodic summary
+static const double kNtpToSec = 1.0 / 65536.0;
 
 void* rtcpPeriodicThread(void* arg) {
 	unsigned char buf[BUFSIZE];
 	int rtcpSize;
 	uint32_t rtcpFbInterval_ntp = screamRx->getRtcpFbInterval();
-	for (;;) {
+	for (; !g_stop;) {
 		if (getTimeInNtp() - lastPunchNatT_ntp > 32768) { // 500ms in Q16
 			/*
 			* Send a small packet just to punch open a hole in the NAT,
@@ -156,6 +166,7 @@ void* rtcpPeriodicThread(void* arg) {
 		}
 		usleep(500);
 	}
+	return NULL;
 }
 
 int main(int argc, char* argv[])
@@ -221,6 +232,12 @@ int main(int argc, char* argv[])
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
 	t0 = (tp.tv_sec + tp.tv_usec * 1e-6) - 1e-3;
+
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = on_stop;
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 
 	screamRx = new ScreamRx(10, ackDiff, nReportedRtpPackets);
 	if (videoMode) {
@@ -328,6 +345,13 @@ int main(int argc, char* argv[])
 			cerr << "Listen on port " << INCOMING_RTP_PORT << " to receive RTP from sender " << endl;
 		}
 	}
+
+	struct timeval rcv_to;
+	rcv_to.tv_sec = 0;
+	rcv_to.tv_usec = 200000; // 200ms timeout enables graceful shutdown checks
+	if (setsockopt(fd_incoming_rtp, SOL_SOCKET, SO_RCVTIMEO, &rcv_to, sizeof(rcv_to)) < 0) {
+		perror("setsockopt(SO_RCVTIMEO) failed");
+	}
 	else {
 		if (bind(fd_incoming_rtp, (struct sockaddr*)&incoming_rtp_addr, sizeof(incoming_rtp_addr)) < 0) {
 			perror("bind incoming_rtp_addr failed");
@@ -348,6 +372,72 @@ int main(int argc, char* argv[])
 
 	uint32_t last_received_time_ntp = 0;
 	uint32_t receivedRtp = 0;
+	uint64_t rxBytes = 0;
+	uint64_t framesCompleted = 0;
+	uint32_t firstPacketT_ntp = 0;
+	uint32_t lastPacketT_ntp = 0;
+
+	/*
+	 * Periodic stats state
+	 */
+	uint32_t intervalStart_ntp = 0;
+	uint64_t intervalBytes = 0;
+	uint64_t intervalFramesCompleted = 0;
+	double intervalIfddSum_s = 0.0;
+	uint64_t intervalIfddCount = 0;
+
+	bool havePrevFrame = false;
+	uint32_t lastFrameArrival_ntp = 0;
+	uint32_t lastFrameRtpTs = 0;
+
+	uint64_t freezeCountTotal = 0;
+	double freezeDurationTotal_s = 0.0;
+
+	auto flush_interval_stats = [&](uint32_t now_ntp, bool periodic_print) {
+		if (!screamRx || !screamRx->getStatistics()) {
+			return;
+		}
+		if (intervalStart_ntp == 0 || now_ntp <= intervalStart_ntp) {
+			return;
+		}
+
+		double elapsed_s = (now_ntp - intervalStart_ntp) * kNtpToSec;
+		if (elapsed_s <= 0.0) {
+			return;
+		}
+
+		double receive_rate_mbps = (intervalBytes * 8.0) / (elapsed_s * 1e6);
+		double ifdd_avg_s = 0.0;
+		if (intervalIfddCount > 0) {
+			ifdd_avg_s = intervalIfddSum_s / double(intervalIfddCount);
+		}
+
+		screamRx->getStatistics()->addInterval(
+			now_ntp,
+			receive_rate_mbps,
+			ifdd_avg_s,
+			intervalFramesCompleted,
+			framesCompleted,
+			freezeCountTotal,
+			freezeDurationTotal_s);
+
+		if (periodic_print) {
+			fprintf(stdout,
+				"RX periodic (2s): rate=%6.3f Mbps, IFDD(avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
+				receive_rate_mbps,
+				ifdd_avg_s,
+				(unsigned long)intervalFramesCompleted,
+				(unsigned long)freezeCountTotal,
+				freezeDurationTotal_s);
+			fflush(stdout);
+		}
+
+		intervalStart_ntp = now_ntp;
+		intervalBytes = 0;
+		intervalFramesCompleted = 0;
+		intervalIfddSum_s = 0.0;
+		intervalIfddCount = 0;
+	};
 
 	/*
 	* Send a small packet just to punmax distance in received RTPs to send an ACKch open a hole in the NAT,
@@ -392,7 +482,7 @@ int main(int argc, char* argv[])
 	rcv_msg.msg_control = rcv_ctrl_data;
 	rcv_msg.msg_controllen = MAX_CTRL_SIZE;
 
-	for (;;) {
+	for (; !g_stop;) {
 		//usleep(1);
 		/*
 		* Wait for incoing RTP packet, this call can be blocking
@@ -405,11 +495,17 @@ int main(int argc, char* argv[])
 #ifdef ECN_CAPABLE
 		rcv_msg.msg_namelen = sizeof(peer_addr);
 		rcv_msg.msg_controllen = MAX_CTRL_SIZE;
-		int recvlen = recvmsg(fd_incoming_rtp, &rcv_msg, 0);
+		recvlen = recvmsg(fd_incoming_rtp, &rcv_msg, 0);
 		if (recvlen == -1) {
+			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+				uint32_t now_ntp = getTimeInNtp();
+				if (intervalStart_ntp != 0 && (now_ntp - intervalStart_ntp) >= kStatsInterval_ntp) {
+					flush_interval_stats(now_ntp, true);
+				}
+				continue;
+			}
 			perror("recvmsg()");
-			close(fd_incoming_rtp);
-			return EXIT_FAILURE;
+			break;
 		}
 		else {
 			if (rcv_msg.msg_namelen > 0) {
@@ -453,6 +549,12 @@ int main(int argc, char* argv[])
 		}
 #endif
 		uint32_t time_ntp = getTimeInNtp();
+		if (intervalStart_ntp == 0) {
+			intervalStart_ntp = time_ntp;
+		}
+		if ((time_ntp - intervalStart_ntp) >= kStatsInterval_ntp) {
+			flush_interval_stats(time_ntp, true);
+		}
 		if (recvlen > 1) {
 			if (buf[1] == 0x7F) {
 				// Packet contains statistics
@@ -464,15 +566,18 @@ int main(int argc, char* argv[])
 				cout << s << endl;
 			}
 			else {
+				rxBytes += static_cast<uint64_t>(recvlen);
+				intervalBytes += static_cast<uint64_t>(recvlen);
+				if (firstPacketT_ntp == 0) {
+					firstPacketT_ntp = time_ntp;
+				}
+				lastPacketT_ntp = time_ntp;
 				if (time_ntp - last_received_time_ntp > 2 * 65536) { // 2 sec in Q16
 					/*
-					* It's been more than 2 seconds since we last received an RTP packet
-					*  let's reset everything to be on the safe side
+					* Idle gap: keep cumulative stats intact across run.
 					*/
 					receivedRtp = 0;
-					delete screamRx;
-					screamRx = new ScreamRx(10, ackDiff, nReportedRtpPackets);
-					cerr << "Receiver state reset due to idle input" << endl;
+					cerr << "Receiver idle gap >2s (state kept)" << endl;
 				}
 				last_received_time_ntp = time_ntp;
 				receivedRtp++;
@@ -483,6 +588,31 @@ int main(int argc, char* argv[])
 				uint32_t ts;
 				parseRtp(buf, &seqNr, &ts);
 				bool isMark = (buf[1] & 0x80) != 0;
+				if (isMark) {
+					framesCompleted++;
+					intervalFramesCompleted++;
+
+					if (havePrevFrame) {
+						double arrival_delta_s = (time_ntp - lastFrameArrival_ntp) * kNtpToSec;
+						double media_delta_s = double(ts - lastFrameRtpTs) / 90000.0;
+						if (!(media_delta_s > 0.0 && media_delta_s < 1.0)) {
+							media_delta_s = 1.0 / 30.0;
+						}
+						double ifdd_s = std::fabs(arrival_delta_s - media_delta_s);
+						intervalIfddSum_s += ifdd_s;
+						intervalIfddCount++;
+
+						double freeze_threshold_s = std::max(0.150, 2.5 * media_delta_s);
+						if (arrival_delta_s > freeze_threshold_s) {
+							freezeCountTotal++;
+							freezeDurationTotal_s += std::max(0.0, arrival_delta_s - media_delta_s);
+						}
+					}
+
+					havePrevFrame = true;
+					lastFrameArrival_ntp = time_ntp;
+					lastFrameRtpTs = ts;
+				}
 				if (videoMode && recvlen > 12 && videoDecoder) {
 					std::size_t payloadOffset = bwvideo::kRtpFixedHeaderSize;
 					bwvideo::RtpVideoExtension ext {};
@@ -566,4 +696,25 @@ int main(int argc, char* argv[])
 			}
 		}
 	}
+
+	g_stop = 1;
+	pthread_join(rtcp_thread, NULL);
+	flush_interval_stats(getTimeInNtp(), false);
+
+	if (screamRx && screamRx->getStatistics()) {
+		screamRx->printFinalSummary();
+	}
+
+	if (videoDecoder) {
+		delete videoDecoder;
+		videoDecoder = 0;
+	}
+
+	if (screamRx) {
+		delete screamRx;
+		screamRx = 0;
+	}
+
+	close(fd_incoming_rtp);
+	return 0;
 }

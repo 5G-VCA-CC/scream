@@ -28,6 +28,12 @@ _SUMMARY_KEYS = [
     "ifdd_min_s",
     "ifdd_max_s",
     "ifdd_avg_s",
+    "ifraw_min_s",
+    "ifraw_max_s",
+    "ifraw_avg_s",
+    "total_inter_frame_delay_s",
+    "total_squared_inter_frame_delay_s2",
+    "inter_frame_delay_variance_s2",
     "datagrams_total",
     "bytes_total",
     "frames_completed_total",
@@ -61,6 +67,10 @@ def parse_final_summary(logfile: str | Path) -> dict[str, float | str] | None:
     Expected lines (from ScreamRx::Statistics::printFinalSummary):
       Receive rate min/max/avg [Mbps]       : a/b/c
       IF delay diff min/max/avg [s]         : a/b/c
+        IF arrival  min/max/avg [s]           : a/b/c
+        Total inter-frame delay [s]           : x
+        Total squared inter-frame delay [s^2] : x
+        Inter-frame delay variance [s^2]      : x
       Datagrams total                       : x
       Bytes total                           : x
       Frames completed total                : x
@@ -77,6 +87,13 @@ def parse_final_summary(logfile: str | Path) -> dict[str, float | str] | None:
         r"IF delay diff min/max/avg \[s\]\s*:\s*"
         r"(?P<min>[\d.eE+-]+)\s*/\s*(?P<max>[\d.eE+-]+)\s*/\s*(?P<avg>[\d.eE+-]+)"
     )
+    ifraw_re = re.compile(
+        r"IF arrival\s+min/max/avg \[s\]\s*:\s*"
+        r"(?P<min>[\d.eE+-]+)\s*/\s*(?P<max>[\d.eE+-]+)\s*/\s*(?P<avg>[\d.eE+-]+)"
+    )
+    total_if_re = re.compile(r"Total inter-frame delay \[s\]\s*:\s*(?P<v>[\d.eE+-]+)")
+    total_sq_if_re = re.compile(r"Total squared inter-frame delay \[s\^2\]\s*:\s*(?P<v>[\d.eE+-]+)")
+    var_if_re = re.compile(r"Inter-frame delay variance \[s\^2\]\s*:\s*(?P<v>[\d.eE+-]+)")
     dgrams_re = re.compile(r"Datagrams total\s*:\s*(?P<v>[\d.eE+-]+)")
     bytes_re = re.compile(r"Bytes total\s*:\s*(?P<v>[\d.eE+-]+)")
     fcomp_re = re.compile(r"Frames completed total\s*:\s*(?P<v>[\d.eE+-]+)")
@@ -102,6 +119,24 @@ def parse_final_summary(logfile: str | Path) -> dict[str, float | str] | None:
         result["ifdd_min_s"] = float(m_ifdd.group("min"))
         result["ifdd_max_s"] = float(m_ifdd.group("max"))
         result["ifdd_avg_s"] = float(m_ifdd.group("avg"))
+
+    m_ifraw = ifraw_re.search(text)
+    if m_ifraw:
+        result["ifraw_min_s"] = float(m_ifraw.group("min"))
+        result["ifraw_max_s"] = float(m_ifraw.group("max"))
+        result["ifraw_avg_s"] = float(m_ifraw.group("avg"))
+
+    m_total_if = total_if_re.search(text)
+    if m_total_if:
+        result["total_inter_frame_delay_s"] = float(m_total_if.group("v"))
+
+    m_total_sq_if = total_sq_if_re.search(text)
+    if m_total_sq_if:
+        result["total_squared_inter_frame_delay_s2"] = float(m_total_sq_if.group("v"))
+
+    m_var_if = var_if_re.search(text)
+    if m_var_if:
+        result["inter_frame_delay_variance_s2"] = float(m_var_if.group("v"))
 
     for key, rex in [
         ("datagrams_total", dgrams_re),
@@ -205,41 +240,77 @@ def plot_histograms(data: dict[str, list[Any]] | None, outdir: Path, show_plots:
     fig3.tight_layout()
     _save_fig(fig3, outdir, "receiver_hist_avg_ifdd_ms.png")
 
-    # 4) Freeze duration total
-    frz_dur = [float(v) for v in data["freeze_duration_total_s"] if not np.isnan(v)]
+    # 4) Avg IF raw inter-frame arrival delay (ms)
+    ifraw_ms = [1000.0 * float(v) for v in data["ifraw_avg_s"] if not np.isnan(v)]
     fig4, ax4 = plt.subplots(figsize=(12, 6))
-    ax4.hist(frz_dur, bins=_adaptive_bins(frz_dur), color="red", alpha=0.75, edgecolor="black")
-    ax4.set_xlabel("Total Freeze Duration (s)")
+    ax4.hist(ifraw_ms, bins=_adaptive_bins(ifraw_ms), color="slateblue", alpha=0.75, edgecolor="black")
+    ax4.set_xlabel("Average IF Raw Arrival Delay (ms)")
     ax4.set_ylabel("Frequency (runs)")
     ax4.grid(True, axis="y", alpha=0.3)
-    _title(ax4, "Receiver Total Freeze Duration Distribution")
-    _annotate_mean(ax4, frz_dur, "s", ".3f")
+    _title(ax4, "Receiver Average IF Raw Arrival Delay Distribution")
+    _annotate_mean(ax4, ifraw_ms, "ms", ".3f")
     fig4.tight_layout()
-    _save_fig(fig4, outdir, "receiver_hist_total_freeze_duration_s.png")
+    _save_fig(fig4, outdir, "receiver_hist_avg_ifraw_ms.png")
 
-    # 5) Freeze count total
-    frz_cnt = [float(v) for v in data["freeze_count_total"] if not np.isnan(v)]
+    # 5) Total inter-frame delay (s)
+    total_if = [float(v) for v in data["total_inter_frame_delay_s"] if not np.isnan(v)]
     fig5, ax5 = plt.subplots(figsize=(12, 6))
-    ax5.hist(frz_cnt, bins=_adaptive_bins(frz_cnt), color="steelblue", alpha=0.75, edgecolor="black")
-    ax5.set_xlabel("Total Freeze Count")
+    ax5.hist(total_if, bins=_adaptive_bins(total_if), color="mediumpurple", alpha=0.75, edgecolor="black")
+    ax5.set_xlabel("Total Inter-frame Delay (s)")
     ax5.set_ylabel("Frequency (runs)")
     ax5.grid(True, axis="y", alpha=0.3)
-    _title(ax5, "Receiver Total Freeze Count Distribution")
-    _annotate_mean(ax5, frz_cnt, "", ".2f")
+    _title(ax5, "Receiver Total Inter-frame Delay Distribution")
+    _annotate_mean(ax5, total_if, "s", ".3f")
     fig5.tight_layout()
-    _save_fig(fig5, outdir, "receiver_hist_total_freeze_count.png")
+    _save_fig(fig5, outdir, "receiver_hist_total_interframe_delay_s.png")
 
-    # 6) Bytes total (MB)
-    bytes_mb = [float(v) / 1e6 for v in data["bytes_total"] if not np.isnan(v)]
+    # 6) Inter-frame delay variance (ms^2)
+    if_var_ms2 = [1e6 * float(v) for v in data["inter_frame_delay_variance_s2"] if not np.isnan(v)]
     fig6, ax6 = plt.subplots(figsize=(12, 6))
-    ax6.hist(bytes_mb, bins=_adaptive_bins(bytes_mb), color="teal", alpha=0.75, edgecolor="black")
-    ax6.set_xlabel("Total Bytes Received (MB)")
+    ax6.hist(if_var_ms2, bins=_adaptive_bins(if_var_ms2), color="indigo", alpha=0.75, edgecolor="black")
+    ax6.set_xlabel("Inter-frame Delay Variance (ms^2)")
     ax6.set_ylabel("Frequency (runs)")
     ax6.grid(True, axis="y", alpha=0.3)
-    _title(ax6, "Receiver Total Bytes Distribution")
-    _annotate_mean(ax6, bytes_mb, "MB", ".2f")
+    _title(ax6, "Receiver Inter-frame Delay Variance Distribution")
+    _annotate_mean(ax6, if_var_ms2, "ms^2", ".3f")
     fig6.tight_layout()
-    _save_fig(fig6, outdir, "receiver_hist_total_bytes_mb.png")
+    _save_fig(fig6, outdir, "receiver_hist_interframe_delay_variance_ms2.png")
+
+    # 7) Freeze duration total
+    frz_dur = [float(v) for v in data["freeze_duration_total_s"] if not np.isnan(v)]
+    fig7, ax7 = plt.subplots(figsize=(12, 6))
+    ax7.hist(frz_dur, bins=_adaptive_bins(frz_dur), color="red", alpha=0.75, edgecolor="black")
+    ax7.set_xlabel("Total Freeze Duration (s)")
+    ax7.set_ylabel("Frequency (runs)")
+    ax7.grid(True, axis="y", alpha=0.3)
+    _title(ax7, "Receiver Total Freeze Duration Distribution")
+    _annotate_mean(ax7, frz_dur, "s", ".3f")
+    fig7.tight_layout()
+    _save_fig(fig7, outdir, "receiver_hist_total_freeze_duration_s.png")
+
+    # 8) Freeze count total
+    frz_cnt = [float(v) for v in data["freeze_count_total"] if not np.isnan(v)]
+    fig8, ax8 = plt.subplots(figsize=(12, 6))
+    ax8.hist(frz_cnt, bins=_adaptive_bins(frz_cnt), color="steelblue", alpha=0.75, edgecolor="black")
+    ax8.set_xlabel("Total Freeze Count")
+    ax8.set_ylabel("Frequency (runs)")
+    ax8.grid(True, axis="y", alpha=0.3)
+    _title(ax8, "Receiver Total Freeze Count Distribution")
+    _annotate_mean(ax8, frz_cnt, "", ".2f")
+    fig8.tight_layout()
+    _save_fig(fig8, outdir, "receiver_hist_total_freeze_count.png")
+
+    # 9) Bytes total (MB)
+    bytes_mb = [float(v) / 1e6 for v in data["bytes_total"] if not np.isnan(v)]
+    fig9, ax9 = plt.subplots(figsize=(12, 6))
+    ax9.hist(bytes_mb, bins=_adaptive_bins(bytes_mb), color="teal", alpha=0.75, edgecolor="black")
+    ax9.set_xlabel("Total Bytes Received (MB)")
+    ax9.set_ylabel("Frequency (runs)")
+    ax9.grid(True, axis="y", alpha=0.3)
+    _title(ax9, "Receiver Total Bytes Distribution")
+    _annotate_mean(ax9, bytes_mb, "MB", ".2f")
+    fig9.tight_layout()
+    _save_fig(fig9, outdir, "receiver_hist_total_bytes_mb.png")
 
     if show_plots:
         plt.show()

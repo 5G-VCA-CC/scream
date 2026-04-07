@@ -23,12 +23,20 @@ static const float ntp2SecScaleFactor = 1.0 / 65536;
 
 ScreamRx::Statistics::Statistics()
 	: nIntervals_(0),
+	  nIfddIntervals_(0),
+	  nIfRawIntervals_(0),
 	  rateMinMbps_(std::numeric_limits<double>::infinity()),
 	  rateMaxMbps_(0.0),
 	  rateSumMbps_(0.0),
 	  ifddMinS_(std::numeric_limits<double>::infinity()),
 	  ifddMaxS_(0.0),
 	  ifddSumS_(0.0),
+	  ifRawMinS_(std::numeric_limits<double>::infinity()),
+	  ifRawMaxS_(0.0),
+	  ifRawSumS_(0.0),
+	  totalInterFrameDelayS_(0.0),
+	  totalSquaredInterFrameDelayS2_(0.0),
+	  totalInterFrameDelaySamples_(0),
 	  datagramsTotal_(0),
 	  bytesTotal_(0),
 	  lastFramesRenderedTotal_(0),
@@ -47,6 +55,10 @@ void ScreamRx::Statistics::addPacket(int size_bytes) {
 void ScreamRx::Statistics::addInterval(uint32_t /*time_ntp*/,
 	double receive_rate_mbps,
 	double inter_frame_delay_difference_s,
+	double inter_frame_arrival_delay_s,
+	double inter_frame_arrival_delay_sum_s,
+	double inter_frame_arrival_delay_sq_sum_s2,
+	uint64_t inter_frame_arrival_samples,
 	uint64_t frames_completed_interval,
 	uint64_t frames_rendered_total,
 	uint64_t freeze_count_total,
@@ -57,9 +69,25 @@ void ScreamRx::Statistics::addInterval(uint32_t /*time_ntp*/,
 	rateMaxMbps_ = std::max(rateMaxMbps_, receive_rate_mbps);
 	rateSumMbps_ += receive_rate_mbps;
 
-	ifddMinS_ = std::min(ifddMinS_, inter_frame_delay_difference_s);
-	ifddMaxS_ = std::max(ifddMaxS_, inter_frame_delay_difference_s);
-	ifddSumS_ += inter_frame_delay_difference_s;
+	if (inter_frame_delay_difference_s >= 0.0) {
+		ifddMinS_ = std::min(ifddMinS_, inter_frame_delay_difference_s);
+		ifddMaxS_ = std::max(ifddMaxS_, inter_frame_delay_difference_s);
+		ifddSumS_ += inter_frame_delay_difference_s;
+		nIfddIntervals_++;
+	}
+
+	if (inter_frame_arrival_delay_s >= 0.0) {
+		ifRawMinS_ = std::min(ifRawMinS_, inter_frame_arrival_delay_s);
+		ifRawMaxS_ = std::max(ifRawMaxS_, inter_frame_arrival_delay_s);
+		ifRawSumS_ += inter_frame_arrival_delay_s;
+		nIfRawIntervals_++;
+	}
+
+	if (inter_frame_arrival_samples > 0) {
+		totalInterFrameDelayS_ += inter_frame_arrival_delay_sum_s;
+		totalSquaredInterFrameDelayS2_ += inter_frame_arrival_delay_sq_sum_s2;
+		totalInterFrameDelaySamples_ += inter_frame_arrival_samples;
+	}
 
 	framesCompletedTotal_ += frames_completed_interval;
 	framesRenderedTotal_ = frames_rendered_total;
@@ -78,10 +106,35 @@ void ScreamRx::Statistics::printFinalSummary() const {
 		std::printf("========================================================\n");
 		return;
 	}
+	const double ifddMin = (nIfddIntervals_ > 0) ? ifddMinS_ : 0.0;
+	const double ifddMax = (nIfddIntervals_ > 0) ? ifddMaxS_ : 0.0;
+	const double ifddAvg = (nIfddIntervals_ > 0) ? (ifddSumS_ / (double)nIfddIntervals_) : 0.0;
+
+	const double ifRawMin = (nIfRawIntervals_ > 0) ? ifRawMinS_ : 0.0;
+	const double ifRawMax = (nIfRawIntervals_ > 0) ? ifRawMaxS_ : 0.0;
+	const double ifRawAvg = (nIfRawIntervals_ > 0) ? (ifRawSumS_ / (double)nIfRawIntervals_) : 0.0;
+
+	double interFrameDelayVarianceS2 = 0.0;
+	const double nForVariance = (framesRenderedTotal_ > 0)
+		? static_cast<double>(framesRenderedTotal_)
+		: static_cast<double>(totalInterFrameDelaySamples_);
+	if (nForVariance > 0.0) {
+		interFrameDelayVarianceS2 =
+			(totalSquaredInterFrameDelayS2_ -
+			(totalInterFrameDelayS_ * totalInterFrameDelayS_) / nForVariance) /
+			nForVariance;
+		interFrameDelayVarianceS2 = std::max(0.0, interFrameDelayVarianceS2);
+	}
+
 	std::printf(" Receive rate min/max/avg [Mbps]       : %5.2f/%5.2f/%5.2f\n",
 		rateMinMbps_, rateMaxMbps_, rateSumMbps_ / (double)nIntervals_);
 	std::printf(" IF delay diff min/max/avg [s]         : %2.6f/%2.6f/%2.6f\n",
-		ifddMinS_, ifddMaxS_, ifddSumS_ / (double)nIntervals_);
+		ifddMin, ifddMax, ifddAvg);
+	std::printf(" IF arrival  min/max/avg [s]           : %2.6f/%2.6f/%2.6f\n",
+		ifRawMin, ifRawMax, ifRawAvg);
+	std::printf(" Total inter-frame delay [s]           : %2.6f\n", totalInterFrameDelayS_);
+	std::printf(" Total squared inter-frame delay [s^2] : %2.6f\n", totalSquaredInterFrameDelayS2_);
+	std::printf(" Inter-frame delay variance [s^2]      : %2.6f\n", interFrameDelayVarianceS2);
 	std::printf(" Datagrams total                       : %lu\n", (unsigned long)datagramsTotal_);
 	std::printf(" Bytes total                           : %lu\n", (unsigned long)bytesTotal_);
 	std::printf(" Frames completed total                : %lu\n", (unsigned long)framesCompletedTotal_);

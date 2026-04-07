@@ -23,9 +23,9 @@ static const float ntp2SecScaleFactor = 1.0 / 65536;
 
 ScreamRx::Statistics::Statistics()
 	: nIntervals_(0),
-	  rateMinMbps_(std::numeric_limits<double>::infinity()),
-	  rateMaxMbps_(0.0),
-	  rateSumMbps_(0.0),
+	  rateMinKbps_(std::numeric_limits<double>::infinity()),
+	  rateMaxKbps_(0.0),
+	  rateSumKbps_(0.0),
 	  ifddMinS_(std::numeric_limits<double>::infinity()),
 	  ifddMaxS_(0.0),
 	  ifddSumS_(0.0),
@@ -45,7 +45,7 @@ void ScreamRx::Statistics::addPacket(int size_bytes) {
 }
 
 void ScreamRx::Statistics::addInterval(uint32_t /*time_ntp*/,
-	double receive_rate_mbps,
+	double receive_rate_kbps,
 	double inter_frame_delay_difference_s,
 	uint64_t frames_completed_interval,
 	uint64_t frames_rendered_total,
@@ -53,9 +53,9 @@ void ScreamRx::Statistics::addInterval(uint32_t /*time_ntp*/,
 	double freeze_duration_total_s) {
 	nIntervals_++;
 
-	rateMinMbps_ = std::min(rateMinMbps_, receive_rate_mbps);
-	rateMaxMbps_ = std::max(rateMaxMbps_, receive_rate_mbps);
-	rateSumMbps_ += receive_rate_mbps;
+	rateMinKbps_ = std::min(rateMinKbps_, receive_rate_kbps);
+	rateMaxKbps_ = std::max(rateMaxKbps_, receive_rate_kbps);
+	rateSumKbps_ += receive_rate_kbps;
 
 	ifddMinS_ = std::min(ifddMinS_, inter_frame_delay_difference_s);
 	ifddMaxS_ = std::max(ifddMaxS_, inter_frame_delay_difference_s);
@@ -78,8 +78,8 @@ void ScreamRx::Statistics::printFinalSummary() const {
 		std::printf("========================================================\n");
 		return;
 	}
-	std::printf(" Receive rate min/max/avg [Mbps]       : %5.2f/%5.2f/%5.2f\n",
-		rateMinMbps_, rateMaxMbps_, rateSumMbps_ / (double)nIntervals_);
+	std::printf(" Receive rate min/max/avg [kbps]       : %5.2f/%5.2f/%5.2f\n",
+		rateMinKbps_, rateMaxKbps_, rateSumKbps_ / (double)nIntervals_);
 	std::printf(" IF delay diff min/max/avg [s]         : %2.6f/%2.6f/%2.6f\n",
 		ifddMinS_, ifddMaxS_, ifddSumS_ / (double)nIntervals_);
 	std::printf(" Datagrams total                       : %lu\n", (unsigned long)datagramsTotal_);

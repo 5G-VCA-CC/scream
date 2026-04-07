@@ -251,6 +251,11 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
           should_force_recovery_keyframe = true;
           encode_flags |= VPX_EFLAG_FORCE_KF;
           last_triggered_seq_ = oldest_unacked_seq;
+          std::fprintf(stderr,
+                       "* Recovery: requesting keyframe because -keyframe-unacked was triggered"
+                       " (oldest unacked seq: %u, age: %.3f s)\n",
+                       static_cast<unsigned>(oldest_unacked_seq),
+                       age_ntp / 65536.0);
         }
       }
     }

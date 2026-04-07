@@ -38,7 +38,7 @@ public:
 		Statistics();
 
 		void addInterval(uint32_t time_ntp,
-			double receive_rate_mbps,
+			double receive_rate_kbps,
 			double inter_frame_delay_difference_s,
 			uint64_t frames_completed_interval,
 			uint64_t frames_rendered_total,
@@ -52,9 +52,9 @@ public:
 	private:
 		uint64_t nIntervals_;
 
-		double rateMinMbps_;
-		double rateMaxMbps_;
-		double rateSumMbps_;
+		double rateMinKbps_;
+		double rateMaxKbps_;
+		double rateSumKbps_;
 
 		double ifddMinS_;
 		double ifddMaxS_;

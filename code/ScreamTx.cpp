@@ -141,7 +141,7 @@ void ScreamTx::Statistics::printFinalSummary() {
 
 void ScreamTx::Statistics::getSummary(float time, char s[]) {
 	int tmp = std::max(1, nEcn);
-	sprintf(s, "%s summary %5.1f  Transmit rate = %5.0fkbps, PLR = %5.2f%%(%5.2f%%), CE = %5.2f%%(%5.2f%%)[%4.1f%%, %4.1f%%, %4.1f%%, %4.1f%%], RTT = %5.3fs, Queue delay = %5.3fs",
+	sprintf(s, "%s summary %5.1f  Transmit rate = %5.0fkbps, PLR = %6.3f%%(%6.3f%%), CE = %5.2f%%(%5.2f%%)[%4.1f%%, %4.1f%%, %4.1f%%, %4.1f%%], RTT = %5.3fs, Queue delay = %5.3fs",
 		parent->logTag,
 		time,
 		avgRateTx / 1000.0f,

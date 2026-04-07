@@ -406,7 +406,7 @@ int main(int argc, char* argv[])
 			return;
 		}
 
-		double receive_rate_mbps = (intervalBytes * 8.0) / (elapsed_s * 1e6);
+		double receive_rate_kbps = (intervalBytes * 8.0) / (elapsed_s * 1e3);
 		double ifdd_avg_s = 0.0;
 		if (intervalIfddCount > 0) {
 			ifdd_avg_s = intervalIfddSum_s / double(intervalIfddCount);
@@ -414,7 +414,7 @@ int main(int argc, char* argv[])
 
 		screamRx->getStatistics()->addInterval(
 			now_ntp,
-			receive_rate_mbps,
+			receive_rate_kbps,
 			ifdd_avg_s,
 			intervalFramesCompleted,
 			framesCompleted,
@@ -423,8 +423,8 @@ int main(int argc, char* argv[])
 
 		if (periodic_print) {
 			fprintf(stdout,
-				"RX periodic (2s): rate=%6.3f Mbps, IFDD(avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
-				receive_rate_mbps,
+				"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
+				receive_rate_kbps,
 				ifdd_avg_s,
 				(unsigned long)intervalFramesCompleted,
 				(unsigned long)freezeCountTotal,

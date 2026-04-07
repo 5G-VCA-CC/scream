@@ -554,6 +554,8 @@ void* createRtpThread(void* arg) {
 				}
 				if (lastLossEpochTime > 0.0f && time_s - lastLossEpochTime > 0.1f) {
 					requestKeyFrame = true;
+					cerr << "* Recovery: requesting keyframe because -keyframe-on-loss was triggered"
+						 << " (time since loss epoch: " << (time_s - lastLossEpochTime) << " s)" << endl;
 					lastLossEpochTime = -1.0f;
 				}
 			}

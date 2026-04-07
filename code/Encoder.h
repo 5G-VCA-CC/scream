@@ -46,7 +46,8 @@ public:
                          uint32_t time_ntp,
                          std::vector<std::vector<uint8_t>>& payloads,
                          bool* is_key_frame = nullptr,
-                         bool force_key_frame = false);
+                         bool force_key_frame = false,
+                         bool allow_keyframe_force = true);
   bool encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
                                      int mtu,
                                      uint32_t ssrc,
@@ -55,7 +56,8 @@ public:
                                      float enqueue_ts_s,
                                      EnqueueResult& result,
                                      bool force_key_frame = false,
-                                     bool include_video_extension = false);
+                                     bool include_video_extension = false,
+                                     bool allow_keyframe_force = true);
   void set_periodic_keyframe_interval(float interval_s);
   void disable_periodic_keyframes();
 

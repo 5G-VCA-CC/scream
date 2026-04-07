@@ -196,7 +196,8 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
                                 uint32_t time_ntp,
                                 std::vector<std::vector<uint8_t>>& payloads,
                                 bool* is_key_frame,
-                                bool force_key_frame)
+                                bool force_key_frame,
+                                bool allow_keyframe_force)
 {
   payloads.clear();
   if (is_key_frame) {
@@ -227,10 +228,13 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
 
   vpx_enc_frame_flags_t encode_flags = 0;
   if (frame_id_ == 0 ||
-      (periodic_keyframes_enabled_ && keyframe_interval_frames_ > 0 && (frame_id_ % keyframe_interval_frames_ == 0))) {
+      (allow_keyframe_force &&
+       periodic_keyframes_enabled_ &&
+       keyframe_interval_frames_ > 0 &&
+       (frame_id_ % keyframe_interval_frames_ == 0))) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
-  if (force_key_frame) {
+  if (force_key_frame && allow_keyframe_force) {
     encode_flags |= VPX_EFLAG_FORCE_KF;
   }
   else if (keyframe_unacked_ && screamTx_ && lock_scream_ && lock_rtp_queue_) {
@@ -242,7 +246,7 @@ bool Encoder::encode_next_frame(uint32_t target_bitrate_bps,
     bool should_force_recovery_keyframe = false;
     if (has_oldest_unacked) {
       uint32_t age_ntp = time_ntp - oldest_unacked_tx_ntp;
-      if (age_ntp > kOneSecondQ16) {
+      if (age_ntp > kOneSecondQ16 && allow_keyframe_force) {
         if (last_triggered_seq_ != oldest_unacked_seq) {
           should_force_recovery_keyframe = true;
           encode_flags |= VPX_EFLAG_FORCE_KF;
@@ -302,7 +306,8 @@ bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
                                             float enqueue_ts_s,
                                             EnqueueResult& result,
                                             bool force_key_frame,
-                                            bool include_video_extension)
+                                            bool include_video_extension,
+                                            bool allow_keyframe_force)
 {
   result.enqueued_packets.clear();
   result.is_key_frame = false;
@@ -314,7 +319,13 @@ bool Encoder::encode_next_frame_and_enqueue(uint32_t target_bitrate_bps,
   std::vector<std::vector<uint8_t>> payloads;
   bool is_key_frame = false;
   const uint32_t time_ntp = static_cast<uint32_t>(enqueue_ts_s * 65536.0f);
-  if (!encode_next_frame(target_bitrate_bps, mtu, time_ntp, payloads, &is_key_frame, force_key_frame)) {
+  if (!encode_next_frame(target_bitrate_bps,
+                         mtu,
+                         time_ntp,
+                         payloads,
+                         &is_key_frame,
+                         force_key_frame,
+                         allow_keyframe_force)) {
     return false;
   }
   if (payloads.size() > 0xFFFFu) {

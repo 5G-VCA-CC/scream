@@ -58,6 +58,7 @@ const char* videoPath = nullptr;
 bool keyframeOnLossEpoch = false;
 bool keyframeOnTarget = false;
 bool keyframeUnacked = false;
+float keyframeIntervalSeconds = 0.1f;
 uint32_t SSRC = 100;
 int fixedRate = 0;
 bool isKeyFrame = false;
@@ -487,6 +488,7 @@ static void waitPeriod(struct periodicInfo* info)
 
 void* createRtpThread(void* arg) {
 	uint32_t keyFrameInterval_ntp = (uint32_t)(keyFrameInterval * 65536.0f);
+	uint32_t keyframeMinInterval_ntp = (uint32_t)(keyframeIntervalSeconds * 65536.0f);
 	float rateScale = 1.0f;
 	if (isKeyFrame) {
 		rateScale = 1.0f + 0.0 * keyFrameSize / (FPS * keyFrameInterval) / 2.0;
@@ -541,10 +543,16 @@ void* createRtpThread(void* arg) {
 		float targetRate = screamTx->getTargetBitrate(time_ntp, SSRC);
 		float rateTx = targetRate * rateScale;
 		bool requestKeyFrame = false;
+		const bool keyframeCooldownElapsed =
+			(keyframeMinInterval_ntp == 0u) ||
+			(lastKeyFrameT_ntp == 0u) ||
+			(time_ntp - lastKeyFrameT_ntp >= keyframeMinInterval_ntp);
 		if (videoMode && keyframeOnTarget && targetRate < 0.0f) {
-			requestKeyFrame = true;
-			cerr << "* Recovery: requesting keyframe because getTargetBitrate() is negative ("
-				 << targetRate << ")" << endl;
+			if (keyframeCooldownElapsed) {
+				requestKeyFrame = true;
+				cerr << "* Recovery: requesting keyframe because getTargetBitrate() is negative ("
+					 << targetRate << ")" << endl;
+			}
 		}
 		if (videoMode) {
 			float time_s = time_ntp / 65536.0f;
@@ -553,10 +561,12 @@ void* createRtpThread(void* arg) {
 					lastLossEpochTime = time_s;
 				}
 				if (lastLossEpochTime > 0.0f && time_s - lastLossEpochTime > 0.1f) {
-					requestKeyFrame = true;
-					cerr << "* Recovery: requesting keyframe because -keyframe-on-loss was triggered"
-						 << " (time since loss epoch: " << (time_s - lastLossEpochTime) << " s)" << endl;
-					lastLossEpochTime = -1.0f;
+					if (keyframeCooldownElapsed) {
+						requestKeyFrame = true;
+						cerr << "* Recovery: requesting keyframe because -keyframe-on-loss was triggered"
+							 << " (time since loss epoch: " << (time_s - lastLossEpochTime) << " s)" << endl;
+						lastLossEpochTime = -1.0f;
+					}
 				}
 			}
 			if (targetRate > 0.0f) {
@@ -611,7 +621,8 @@ void* createRtpThread(void* arg) {
 																(time_ntp) / 65536.0f,
 																enqueueResult,
 																requestKeyFrame,
-																true)) {
+																true,
+																keyframeCooldownElapsed)) {
 					encodedKeyFrame = enqueueResult.is_key_frame;
 					if (encodedKeyFrame) {
 						lastKeyFrameT_ntp = time_ntp;
@@ -632,7 +643,8 @@ void* createRtpThread(void* arg) {
 													time_ntp,
 													encodedPayloads,
 													&encodedKeyFrame,
-													requestKeyFrame)) {
+													requestKeyFrame,
+													keyframeCooldownElapsed)) {
 					if (encodedKeyFrame) {
 						lastKeyFrameT_ntp = time_ntp;
 					}
@@ -983,6 +995,7 @@ int main(int argc, char* argv[]) {
 		cerr << "     -fps value               Set the frame rate (default 50)" << endl;
 		cerr << "     -video file.y4m          Enable VP9 video mode from a Y4M file" << endl;
 		cerr << "     -periodic-keyframe val  Periodic keyframe interval [s] in video mode" << endl;
+		cerr << "     -keyframe-interval val  Minimum time between keyframes [s], default 0.1" << endl;
 		cerr << "     -keyframe-on-target      Force keyframe when getTargetBitrate() is negative (video mode only)" << endl;
 		cerr << "     -keyframe-on-loss        Force keyframe 100ms after SCReAM loss epoch (video mode only)" << endl;
 		cerr << "     -keyframe-unacked        Force keyframe if our oldest unacked packet is still unacked after one second (video mode only)" << endl;
@@ -1114,6 +1127,16 @@ int main(int argc, char* argv[]) {
 			periodicKeyFrameMode = true;
 			parseFloatOrExit(argv[ix + 1], periodicKeyFrameInterval, opt);
 			ix += 2;
+			continue;
+		}
+		if (strcmp(opt, "-keyframe-interval") == 0) {
+			requireArgsOrExit(argc, ix, 1, opt);
+			parseFloatOrExit(argv[ix + 1], keyframeIntervalSeconds, opt);
+			ix += 2;
+			if (keyframeIntervalSeconds < 0.0f) {
+				cerr << "Error : -keyframe-interval must be >= 0.0" << endl;
+				exit(-1);
+			}
 			continue;
 		}
 		if (strcmp(opt, "-key") == 0) {

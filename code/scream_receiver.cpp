@@ -385,6 +385,9 @@ int main(int argc, char* argv[])
 	uint64_t intervalFramesCompleted = 0;
 	double intervalIfddSum_s = 0.0;
 	uint64_t intervalIfddCount = 0;
+	double intervalIfRawSum_s = 0.0;
+	uint64_t intervalIfRawCount = 0;
+	double intervalIfRawSqSum_s2 = 0.0;
 
 	bool havePrevFrame = false;
 	uint32_t lastFrameArrival_ntp = 0;
@@ -407,15 +410,23 @@ int main(int argc, char* argv[])
 		}
 
 		double receive_rate_kbps = (intervalBytes * 8.0) / (elapsed_s * 1e3);
-		double ifdd_avg_s = 0.0;
+		double ifdd_avg_s = -1.0;
 		if (intervalIfddCount > 0) {
 			ifdd_avg_s = intervalIfddSum_s / double(intervalIfddCount);
+		}
+		double ifraw_avg_s = -1.0;
+		if (intervalIfRawCount > 0) {
+			ifraw_avg_s = intervalIfRawSum_s / double(intervalIfRawCount);
 		}
 
 		screamRx->getStatistics()->addInterval(
 			now_ntp,
 			receive_rate_kbps,
 			ifdd_avg_s,
+			ifraw_avg_s,
+			intervalIfRawSum_s,
+			intervalIfRawSqSum_s2,
+			intervalIfRawCount,
 			intervalFramesCompleted,
 			framesCompleted,
 			freezeCountTotal,
@@ -423,9 +434,10 @@ int main(int argc, char* argv[])
 
 		if (periodic_print) {
 			fprintf(stdout,
-				"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
+				"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, IF(raw,avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
 				receive_rate_kbps,
 				ifdd_avg_s,
+				ifraw_avg_s,
 				(unsigned long)intervalFramesCompleted,
 				(unsigned long)freezeCountTotal,
 				freezeDurationTotal_s);
@@ -437,6 +449,9 @@ int main(int argc, char* argv[])
 		intervalFramesCompleted = 0;
 		intervalIfddSum_s = 0.0;
 		intervalIfddCount = 0;
+		intervalIfRawSum_s = 0.0;
+		intervalIfRawCount = 0;
+		intervalIfRawSqSum_s2 = 0.0;
 	};
 
 	/*
@@ -601,6 +616,9 @@ int main(int argc, char* argv[])
 						double ifdd_s = std::fabs(arrival_delta_s - media_delta_s);
 						intervalIfddSum_s += ifdd_s;
 						intervalIfddCount++;
+						intervalIfRawSum_s += arrival_delta_s;
+						intervalIfRawCount++;
+						intervalIfRawSqSum_s2 += arrival_delta_s * arrival_delta_s;
 
 						double freeze_threshold_s = std::max(0.150, 2.5 * media_delta_s);
 						if (arrival_delta_s > freeze_threshold_s) {

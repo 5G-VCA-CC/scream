@@ -40,6 +40,10 @@ public:
 		void addInterval(uint32_t time_ntp,
 			double receive_rate_kbps,
 			double inter_frame_delay_difference_s,
+			double inter_frame_arrival_delay_s,
+			double inter_frame_arrival_delay_sum_s,
+			double inter_frame_arrival_delay_sq_sum_s2,
+			uint64_t inter_frame_arrival_samples,
 			uint64_t frames_completed_interval,
 			uint64_t frames_rendered_total,
 			uint64_t freeze_count_total,
@@ -51,6 +55,8 @@ public:
 
 	private:
 		uint64_t nIntervals_;
+		uint64_t nIfddIntervals_;
+		uint64_t nIfRawIntervals_;
 
 		double rateMinKbps_;
 		double rateMaxKbps_;
@@ -59,6 +65,14 @@ public:
 		double ifddMinS_;
 		double ifddMaxS_;
 		double ifddSumS_;
+
+		double ifRawMinS_;
+		double ifRawMaxS_;
+		double ifRawSumS_;
+
+		double totalInterFrameDelayS_;
+		double totalSquaredInterFrameDelayS2_;
+		uint64_t totalInterFrameDelaySamples_;
 
 		uint64_t datagramsTotal_;
 		uint64_t bytesTotal_;

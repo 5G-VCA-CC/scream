@@ -132,7 +132,7 @@ void ScreamRx::Statistics::printFinalSummary() const {
 		ifddMin, ifddMax, ifddAvg);
 	std::printf(" IF arrival  min/max/avg [s]           : %2.6f/%2.6f/%2.6f\n",
 		ifRawMin, ifRawMax, ifRawAvg);
-	std::printf(" Total inter-frame delay [s]           : %2.6f\n", totalInterFrameDelayS_);
+	std::printf(" Total frame-span [s]                  : %2.6f\n", totalInterFrameDelayS_);
 	std::printf(" Total squared inter-frame delay [s^2] : %2.6f\n", totalSquaredInterFrameDelayS2_);
 	std::printf(" Inter-frame delay variance [s^2]      : %2.6f\n", interFrameDelayVarianceS2);
 	std::printf(" Datagrams total                       : %lu\n", (unsigned long)datagramsTotal_);

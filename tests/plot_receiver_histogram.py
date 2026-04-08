@@ -68,7 +68,7 @@ def parse_final_summary(logfile: str | Path) -> dict[str, float | str] | None:
       Receive rate min/max/avg [Mbps]       : a/b/c
       IF delay diff min/max/avg [s]         : a/b/c
         IF arrival  min/max/avg [s]           : a/b/c
-        Total inter-frame delay [s]           : x
+      Total frame-span [s]                  : x
         Total squared inter-frame delay [s^2] : x
         Inter-frame delay variance [s^2]      : x
       Datagrams total                       : x
@@ -91,7 +91,9 @@ def parse_final_summary(logfile: str | Path) -> dict[str, float | str] | None:
         r"IF arrival\s+min/max/avg \[s\]\s*:\s*"
         r"(?P<min>[\d.eE+-]+)\s*/\s*(?P<max>[\d.eE+-]+)\s*/\s*(?P<avg>[\d.eE+-]+)"
     )
-    total_if_re = re.compile(r"Total inter-frame delay \[s\]\s*:\s*(?P<v>[\d.eE+-]+)")
+    total_if_re = re.compile(
+        r"(?:Total frame-span \[s\]|Total frame-span \(sum inter-arrival\) \[s\]|Total inter-frame delay \[s\])\s*:\s*(?P<v>[\d.eE+-]+)"
+    )
     total_sq_if_re = re.compile(r"Total squared inter-frame delay \[s\^2\]\s*:\s*(?P<v>[\d.eE+-]+)")
     var_if_re = re.compile(r"Inter-frame delay variance \[s\^2\]\s*:\s*(?P<v>[\d.eE+-]+)")
     dgrams_re = re.compile(r"Datagrams total\s*:\s*(?P<v>[\d.eE+-]+)")
@@ -252,14 +254,14 @@ def plot_histograms(data: dict[str, list[Any]] | None, outdir: Path, show_plots:
     fig4.tight_layout()
     _save_fig(fig4, outdir, "receiver_hist_avg_ifraw_ms.png")
 
-    # 5) Total inter-frame delay (s)
+    # 5) Total frame-span (s)
     total_if = [float(v) for v in data["total_inter_frame_delay_s"] if not np.isnan(v)]
     fig5, ax5 = plt.subplots(figsize=(12, 6))
     ax5.hist(total_if, bins=_adaptive_bins(total_if), color="mediumpurple", alpha=0.75, edgecolor="black")
-    ax5.set_xlabel("Total Inter-frame Delay (s)")
+    ax5.set_xlabel("Total Frame-span (s)")
     ax5.set_ylabel("Frequency (runs)")
     ax5.grid(True, axis="y", alpha=0.3)
-    _title(ax5, "Receiver Total Inter-frame Delay Distribution")
+    _title(ax5, "Receiver Total Frame-span Distribution")
     _annotate_mean(ax5, total_if, "s", ".3f")
     fig5.tight_layout()
     _save_fig(fig5, outdir, "receiver_hist_total_interframe_delay_s.png")

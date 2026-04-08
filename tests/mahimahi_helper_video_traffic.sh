@@ -49,7 +49,7 @@ timeout 10 bash -c "while [ ! -f '$SIGNAL_RX_READY' ]; do sleep 0.1; done" || {
 echo "Receiver is ready, starting sender..."
 echo "Video FPS: $VIDEO_FPS, keyframe policy: -keyframe-on-target -keyframe-unacked"
 
-"$SCREAM_TX" -ect "$L4S_ENABLED" -video "$VIDEO_FILE" -fps "$VIDEO_FPS" -time "$TEST_DURATION" -keyframe-on-target -keyframe-unacked "$RX_IP" "$PORT" \
+"$SCREAM_TX" -ect "$L4S_ENABLED" -video "$VIDEO_FILE" -fps "$VIDEO_FPS" -time "$TEST_DURATION" -keyframe-on-target -keyframe-on-loss -keyframe-unacked "$RX_IP" "$PORT" \
     > "${LOG_PREFIX}_tx.log" 2>&1
 
 echo "Sender completed."

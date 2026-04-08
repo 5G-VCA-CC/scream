@@ -6,13 +6,13 @@
 # Video parameters are optional; if provided, the script runs in video mode.
 #
 # Usage:
-#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
+#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
 #
 # Required:
 #   l4s_enabled     : 0 or 1 to disable/enable L4S ECT marking
 #   num_iterations  : number of test runs to perform
 #   delay_ms        : link delay in milliseconds (e.g., 5)
-#   loss_pct        : uplink packet loss rate as decimal (e.g., 0.01 for 1%)
+#   loss_pct        : optional uplink packet loss rate as decimal (e.g., 0.01 for 1%)
 #   uplink_trace_file   : path to mahimahi uplink trace file
 #   downlink_trace_file : path to mahimahi downlink trace file
 #   test_duration   : test duration in seconds (e.g., 30)
@@ -33,28 +33,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCREAM_RX="${SCRIPT_DIR}/../bin/scream_bw_test_rx"
 SCREAM_TX="${SCRIPT_DIR}/../bin/scream_bw_test_tx"
 MM_DIR="$HOME/UCSB/mahimahi-dualpi2"
-MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
 
 usage() {
     cat <<EOF
 Usage:
-    $0 <l4s_enabled> <num_iterations> <delay_ms> <loss_pct> <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
+    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
 
     video_fps (video mode only, optional):
         Positive number, e.g. 24, 29.97, 30, 60
 
 Examples:
   # Fake traffic
+    $0 1 5 5 traces/up.txt traces/down.txt 30
     $0 1 5 5 0.01 traces/up.txt traces/down.txt 30
-    $0 0 3 25 0.00 traces/up.txt traces/down.txt 60 /tmp/results
+    $0 0 3 25 0.01 traces/up.txt traces/down.txt 60 /tmp/results
 
   # Video traffic
+        $0 1 3 5 traces/up.txt traces/down.txt 30 input.y4m 704x576
         $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576
         $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576 /tmp/results 30
 EOF
 }
 
-if [ $# -lt 7 ]; then
+if [ $# -lt 6 ]; then
     usage
     exit 1
 fi
@@ -62,11 +63,21 @@ fi
 L4S_ENABLED="$1"
 NUM_ITERATIONS="$2"
 DELAY_MS="$3"
-LOSS_PCT="$4"
-UPLINK_TRACE_FILE="$5"
-DOWNLINK_TRACE_FILE="$6"
-TEST_DURATION="$7"
-shift 7
+LOSS_PCT=""
+
+# loss_pct is optional. If arg4 looks numeric, treat it as loss.
+if [[ "$4" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    LOSS_PCT="$4"
+    UPLINK_TRACE_FILE="$5"
+    DOWNLINK_TRACE_FILE="$6"
+    TEST_DURATION="$7"
+    shift 7
+else
+    UPLINK_TRACE_FILE="$4"
+    DOWNLINK_TRACE_FILE="$5"
+    TEST_DURATION="$6"
+    shift 6
+fi
 
 VIDEO_FILE=""
 VIDEO_RESOLUTION=""
@@ -156,6 +167,12 @@ if [ ! -x "$SCREAM_TX" ]; then
     exit 1
 fi
 
+if [ -n "$LOSS_PCT" ]; then
+    MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-loss-routing.sh"
+else
+    MM_SETUP_SCRIPT="${MM_DIR}/setup-mahimahi-delay-routing.sh"
+fi
+
 if [ ! -f "$MM_SETUP_SCRIPT" ]; then
     echo "ERROR: Mahimahi setup script not found: $MM_SETUP_SCRIPT"
     exit 1
@@ -177,20 +194,33 @@ echo "Mode: $MODE"
 echo "L4S enabled: $L4S_ENABLED"
 echo "Iterations: $NUM_ITERATIONS"
 echo "Delay: ${DELAY_MS}ms"
-echo "Loss: ${LOSS_PCT}"
+if [ -n "$LOSS_PCT" ]; then
+    echo "Loss: ${LOSS_PCT}"
+else
+    echo "Loss: disabled"
+fi
 echo "Uplink trace file: $UPLINK_TRACE_FILE"
 echo "Downlink trace file: $DOWNLINK_TRACE_FILE"
 echo "Test duration: ${TEST_DURATION}s"
 if [ "$MODE" = "video" ]; then
     echo "Video file: $VIDEO_FILE"
     echo "Video resolution: $VIDEO_RESOLUTION"
-    echo "Keyframe policy: hardcoded (-keyframe-on-target -keyframe-unacked)"
+    echo "Keyframe policy: hardcoded (-keyframe-on-target -keyframe-on-loss -keyframe-unacked)"
     echo "Video FPS: $VIDEO_FPS"
 fi
 echo "Output directory: $OUTPUT_DIR"
 echo ""
 
 mkdir -p "$OUTPUT_DIR"
+CONFIG_FILE="${OUTPUT_DIR}/histogram_config.env"
+{
+    printf 'L4S_ENABLED=%q\n' "$L4S_ENABLED"
+    printf 'DELAY_MS=%q\n' "$DELAY_MS"
+    printf 'LOSS_PCT=%q\n' "$LOSS_PCT"
+    printf 'UPLINK_TRACE_FILE=%q\n' "$UPLINK_TRACE_FILE"
+    printf 'MODE=%q\n' "$MODE"
+    printf 'VIDEO_FILE=%q\n' "$VIDEO_FILE"
+} > "$CONFIG_FILE"
 
 cleanup_scream() {
     echo "Cleaning up any existing scream processes..."
@@ -217,28 +247,29 @@ run_test() {
 
     echo "Starting mahimahi shell..."
 
-    if [ "$MODE" = "video" ]; then
-        mm-delay "$DELAY_MS" \
-            mm-loss uplink "$LOSS_PCT" \
-            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]" \
-            "$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" \
-            -- bash "$HELPER_SCRIPT" \
-                "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION" \
-                "$VIDEO_FILE" "$TEST_DURATION" "$log_prefix" \
-                "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
-                "$VIDEO_FPS" \
-            > "$mm_log" 2>&1 &
-    else
-        mm-delay "$DELAY_MS" \
-            mm-loss uplink "$LOSS_PCT" \
-            mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]" \
-            "$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" \
-            -- bash "$HELPER_SCRIPT" \
-                "$RX_IP" "$TX_IP" "$PORT" \
-                "$TEST_DURATION" "$log_prefix" \
-                "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$" \
-            > "$mm_log" 2>&1 &
+    local MM_CMD=(mm-delay "$DELAY_MS")
+    if [ -n "$LOSS_PCT" ]; then
+        MM_CMD+=(mm-loss uplink "$LOSS_PCT")
     fi
+    MM_CMD+=(mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]")
+    MM_CMD+=("$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" -- bash "$HELPER_SCRIPT")
+
+    if [ "$MODE" = "video" ]; then
+        MM_CMD+=(
+            "$RX_IP" "$TX_IP" "$PORT" "$VIDEO_RESOLUTION"
+            "$VIDEO_FILE" "$TEST_DURATION" "$log_prefix"
+            "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$"
+            "$VIDEO_FPS"
+        )
+    else
+        MM_CMD+=(
+            "$RX_IP" "$TX_IP" "$PORT"
+            "$TEST_DURATION" "$log_prefix"
+            "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$"
+        )
+    fi
+
+    "${MM_CMD[@]}" > "$mm_log" 2>&1 &
 
     local MAHIMAHI_PID=$!
     echo "Mahimahi shell PID: $MAHIMAHI_PID"
@@ -319,36 +350,15 @@ echo ""
 echo "Log files:"
 ls -lh "$OUTPUT_DIR"/*.log
 
-echo ""
-echo "====================================================="
-echo "Plotting Results!"
-echo "====================================================="
-echo "Results saved in: $OUTPUT_DIR"
+# echo ""
+# echo "====================================================="
+# echo "Plotting Results!"
+# echo "====================================================="
+# echo "Results saved in: $OUTPUT_DIR"
+# bash "${SCRIPT_DIR}/histograms.sh" "$OUTPUT_DIR"
 
-PLOTS_DIR="${OUTPUT_DIR}/plots"
-SENDER_PLOTS_DIR="${PLOTS_DIR}/sender"
-RECEIVER_PLOTS_DIR="${PLOTS_DIR}/receiver"
-mkdir -p "$SENDER_PLOTS_DIR" "$RECEIVER_PLOTS_DIR"
-export MPLBACKEND=Agg
-
-HIST_CMD=(python3 "${SCRIPT_DIR}/plot_scream_histogram.py" \
-    "$L4S_ENABLED" "$DELAY_MS" "$LOSS_PCT" "$UPLINK_TRACE_FILE" \
-    "$OUTPUT_DIR" "$PLOTS_DIR/sender" \
-    --no-show)
-
-if [ "$MODE" = "video" ]; then
-    HIST_CMD+=(--video "$VIDEO_FILE")
-fi
-
-"${HIST_CMD[@]}"
-
-python3 "${SCRIPT_DIR}/plot_receiver_histogram.py" \
-    "$OUTPUT_DIR" \
-    "${PLOTS_DIR}/receiver_summary" \
-    --no-show
-
-echo ""
-echo "To analyze CWND data from all tests:"
-echo "  for log in $OUTPUT_DIR/*_tx.log; do"
-echo "    python3 tests/plot_scream_cwnd.py \"\$log\""
-echo "  done"
+# echo ""
+# echo "To analyze CWND data from all tests:"
+# echo "  for log in $OUTPUT_DIR/*_tx.log; do"
+# echo "    python3 tests/plot_scream_cwnd.py \"\$log\""
+# echo "  done"

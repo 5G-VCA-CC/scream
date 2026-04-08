@@ -3,27 +3,34 @@
 # Unified automated batch testing script for SCReAM with Mahimahi.
 #
 # Supports both "fake traffic" (rate-based sender) and "video traffic" (sender with video encoder).
-# Video parameters are optional; if provided, the script runs in video mode.
+# Video mode is enabled only when BOTH video_file and video_resolution are provided.
 #
 # Usage:
-#   ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
+#   Fake traffic:
+#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir]
+#   Video traffic:
+#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
 #
 # Required:
 #   l4s_enabled     : 0 or 1 to disable/enable L4S ECT marking
 #   num_iterations  : number of test runs to perform
 #   delay_ms        : link delay in milliseconds (e.g., 5)
-#   loss_pct        : optional uplink packet loss rate as decimal (e.g., 0.01 for 1%)
 #   uplink_trace_file   : path to mahimahi uplink trace file
 #   downlink_trace_file : path to mahimahi downlink trace file
 #   test_duration   : test duration in seconds (e.g., 30)
+#
+# Optional (all modes):
+#   loss_pct         : optional uplink packet loss rate as decimal (e.g., 0.01 for 1%)
+#   output_dir       : directory for logs (default: auto-generated)
 #
 # Optional (video mode):
 #   video_file       : path to input video file (.y4m)
 #   video_resolution : video resolution WxH (e.g., 704x576)
 #   video_fps        : sender FPS (default: 30)
-#
-# Optional:
-#   output_dir      : directory for logs (default: auto-generated)
+# Notes:
+#   - video_file and video_resolution must be provided together to enable video mode.
+#   - In video mode, if the argument after video_resolution is numeric, it is interpreted as video_fps.
+#     To specify output_dir before video_fps, pass output_dir first, then video_fps.
 #
 
 set -e
@@ -37,10 +44,33 @@ MM_DIR="$HOME/UCSB/mahimahi-dualpi2"
 usage() {
     cat <<EOF
 Usage:
-    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [video_file] [video_resolution] [output_dir] [video_fps]
+  Fake traffic:
+    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir]
+  Video traffic:
+    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
 
-    video_fps (video mode only, optional):
-        Positive number, e.g. 24, 29.97, 30, 60
+Arguments:
+  Required:
+    l4s_enabled         0 or 1 (disable/enable L4S ECT marking)
+    num_iterations      number of test runs
+    delay_ms            link delay in milliseconds
+    uplink_trace_file   path to mahimahi uplink trace file
+    downlink_trace_file path to mahimahi downlink trace file
+    test_duration       duration in seconds
+
+  Optional (all modes):
+    loss_pct            uplink packet loss as decimal (e.g., 0.01 for 1%)
+    output_dir          directory for logs (default: auto-generated)
+
+  Optional (video mode):
+    video_file          path to input video file (.y4m)
+    video_resolution    WxH (e.g., 704x576)
+    video_fps           positive number (e.g., 24, 29.97, 30, 60)
+
+Notes:
+  - Video mode is enabled only when both video_file and video_resolution are provided.
+  - In video mode, a numeric argument after video_resolution is treated as video_fps.
+    To pass both output_dir and video_fps, pass output_dir first, then video_fps.
 
 Examples:
   # Fake traffic
@@ -49,9 +79,10 @@ Examples:
     $0 0 3 25 0.01 traces/up.txt traces/down.txt 60 /tmp/results
 
   # Video traffic
-        $0 1 3 5 traces/up.txt traces/down.txt 30 input.y4m 704x576
-        $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576
-        $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576 /tmp/results 30
+    $0 1 3 5 traces/up.txt traces/down.txt 30 input.y4m 704x576
+    $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576
+    $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576 60
+    $0 1 3 5 0.01 traces/up.txt traces/down.txt 30 input.y4m 704x576 /tmp/results 30
 EOF
 }
 
@@ -111,6 +142,13 @@ if [ -n "$VIDEO_FILE" ]; then
 else
     # Fake traffic mode: only optional output_dir is supported
     if [ $# -ge 1 ]; then
+        # Guard against accidental numeric args being treated as output_dir.
+        # This commonly indicates a misplaced/extra positional argument.
+        if [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            echo "ERROR: Ambiguous numeric output_dir '$1'"
+            echo "If you intended an output directory, use a non-numeric path (e.g., ./results or /tmp/results)."
+            exit 1
+        fi
         OUTPUT_DIR="$1"
         shift 1
     fi
@@ -251,7 +289,7 @@ run_test() {
     if [ -n "$LOSS_PCT" ]; then
         MM_CMD+=(mm-loss uplink "$LOSS_PCT")
     fi
-    MM_CMD+=(mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100[, l4s_max_threshold=10]")
+    MM_CMD+=(mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100, l4s_max_threshold=10")
     MM_CMD+=("$UPLINK_TRACE_FILE" "$DOWNLINK_TRACE_FILE" -- bash "$HELPER_SCRIPT")
 
     if [ "$MODE" = "video" ]; then
@@ -348,7 +386,14 @@ echo "====================================================="
 echo "Results saved in: $OUTPUT_DIR"
 echo ""
 echo "Log files:"
-ls -lh "$OUTPUT_DIR"/*.log
+shopt -s nullglob
+logs=( "$OUTPUT_DIR"/*.log )
+if [ "${#logs[@]}" -eq 0 ]; then
+    echo "No .log files found in $OUTPUT_DIR"
+else
+    ls -lh "${logs[@]}"
+fi
+shopt -u nullglob
 
 # echo ""
 # echo "====================================================="

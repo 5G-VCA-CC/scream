@@ -130,7 +130,7 @@ def load_receiver_group(directory: str | Path) -> dict[str, list[float]]:
 # ----------------------------- Plotting -----------------------------
 
 def make_boxplot(
-    non_l4s: list[float],
+    classic: list[float],
     l4s: list[float],
     ylabel: str,
     title: str,
@@ -139,8 +139,8 @@ def make_boxplot(
 ) -> None:
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.boxplot(
-        [non_l4s, l4s],
-        tick_labels=["Non-L4S", "L4S"],
+        [classic, l4s],
+        tick_labels=["Classic", "L4S"],
         showmeans=True,
         showfliers=show_fliers,
     )
@@ -154,9 +154,9 @@ def make_boxplot(
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description="Final-summary boxplots for sender+receiver (Non-L4S vs L4S)"
+        description="Final-summary boxplots for sender+receiver (Classic vs L4S)"
     )
-    p.add_argument("non_l4s_dir", help="Directory containing Non-L4S *_tx.log and *_rx.log")
+    p.add_argument("classic_dir", help="Directory containing Classic *_tx.log and *_rx.log")
     p.add_argument("l4s_dir", help="Directory containing L4S *_tx.log and *_rx.log")
     p.add_argument("output_dir", help="Directory where plots are written")
     p.add_argument("--show-fliers", action="store_true", help="Show outlier circles")
@@ -165,9 +165,9 @@ def main() -> None:
 
     out = Path(args.output_dir)
 
-    non_tx = load_sender_group(args.non_l4s_dir)
+    non_tx = load_sender_group(args.classic_dir)
     l4s_tx = load_sender_group(args.l4s_dir)
-    non_rx = load_receiver_group(args.non_l4s_dir)
+    non_rx = load_receiver_group(args.classic_dir)
     l4s_rx = load_receiver_group(args.l4s_dir)
 
     sender_plots = [

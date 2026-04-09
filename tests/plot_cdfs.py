@@ -136,11 +136,11 @@ def ecdf(vals: list[float]) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def make_cdf(non_l4s: list[float], l4s: list[float], xlabel: str, title: str, outpath: Path) -> None:
+def make_cdf(classic: list[float], l4s: list[float], xlabel: str, title: str, outpath: Path) -> None:
     fig, ax = plt.subplots(figsize=(8, 5))
-    x0, y0 = ecdf(non_l4s)
+    x0, y0 = ecdf(classic)
     x1, y1 = ecdf(l4s)
-    ax.plot(x0, y0, label="Non-L4S", linewidth=2.0, color="tab:orange")
+    ax.plot(x0, y0, label="Classic", linewidth=2.0, color="tab:orange")
     ax.plot(x1, y1, label="L4S", linewidth=2.0, color="tab:blue")
     ax.set_xlabel(xlabel)
     ax.set_ylabel("CDF")
@@ -154,9 +154,9 @@ def make_cdf(non_l4s: list[float], l4s: list[float], xlabel: str, title: str, ou
 
 def main() -> None:
     p = argparse.ArgumentParser(
-        description="Final-summary CDF plots for sender+receiver (Non-L4S vs L4S)"
+        description="Final-summary CDF plots for sender+receiver (Classic vs L4S)"
     )
-    p.add_argument("non_l4s_dir", help="Directory containing Non-L4S *_tx.log and *_rx.log")
+    p.add_argument("classic_dir", help="Directory containing Classic *_tx.log and *_rx.log")
     p.add_argument("l4s_dir", help="Directory containing L4S *_tx.log and *_rx.log")
     p.add_argument("output_dir", help="Directory where plots are written")
     p.add_argument("--no-show", action="store_true", help="Do not display plots")
@@ -164,9 +164,9 @@ def main() -> None:
 
     out = Path(args.output_dir)
 
-    non_tx = load_sender_group(args.non_l4s_dir)
+    non_tx = load_sender_group(args.classic_dir)
     l4s_tx = load_sender_group(args.l4s_dir)
-    non_rx = load_receiver_group(args.non_l4s_dir)
+    non_rx = load_receiver_group(args.classic_dir)
     l4s_rx = load_receiver_group(args.l4s_dir)
 
     sender_plots = [

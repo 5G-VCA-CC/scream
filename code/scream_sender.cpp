@@ -377,7 +377,9 @@ void* transmitRtpThread(void* arg) {
 			}
 			pthread_mutex_lock(&lock_scream);
 			time_ntp = getTimeInNtp();
-			pruneRetransmitStateFromScream();
+			if (videoMode) {
+				pruneRetransmitStateFromScream();
+			}
 			retVal = screamTx->isOkToTransmit(time_ntp, SSRC);
 			pthread_mutex_unlock(&lock_scream);
 			if (retVal == -1.0f) {
@@ -423,17 +425,22 @@ void* transmitRtpThread(void* arg) {
 
 		pthread_mutex_lock(&lock_scream);
 		uint32_t txTime_ntp = 0;
-		const bool wasInFlight = screamTx->isTxPacketInFlight(SSRC, seqNr, txTime_ntp);
+		bool wasInFlight = false;
+		if (videoMode) {
+			wasInFlight = screamTx->isTxPacketInFlight(SSRC, seqNr, txTime_ntp);
+		}
 		time_ntp = getTimeInNtp();
 		retVal = screamTx->addTransmitted(time_ntp, SSRC, size, seqNr, isMark, rtpQueueDelay, ts);
 		pthread_mutex_unlock(&lock_scream);
-		RtxScheduleState& state = retransmitStateBySeq[seqNr];
-		state.payload.resize(size);
-		memcpy(state.payload.data(), buf, size);
-		if (!wasInFlight) {
-			state.numRtx = 0;
+		if (videoMode) {
+			RtxScheduleState& state = retransmitStateBySeq[seqNr];
+			state.payload.resize(size);
+			memcpy(state.payload.data(), buf, size);
+			if (!wasInFlight) {
+				state.numRtx = 0;
+			}
+			state.lastSend_ntp = time_ntp;
 		}
-		state.lastSend_ntp = time_ntp;
 
 		packet_free(buf, SSRC);
 		buf = NULL;
@@ -774,11 +781,13 @@ void* readRtcpThread(void* arg) {
 			screamTx->setTimeString(s);
 
 			screamTx->incomingStandardizedFeedback(time_ntp, buf_rtcp, recvlen);
-			pruneRetransmitStateFromScream();
-			uint16_t hiSeqAck = 0;
-			if (screamTx->getHighestAcked(SSRC, hiSeqAck)) {
-				const uint32_t rttSpacing_ntp = std::max(1u, (uint32_t)(screamTx->getSRtt() * 65536.0f));
-				scheduleRetransmissionsForAck(time_ntp, hiSeqAck, rttSpacing_ntp);
+			if (videoMode) {
+				pruneRetransmitStateFromScream();
+				uint16_t hiSeqAck = 0;
+				if (screamTx->getHighestAcked(SSRC, hiSeqAck)) {
+					const uint32_t rttSpacing_ntp = std::max(1u, (uint32_t)(screamTx->getSRtt() * 65536.0f));
+					scheduleRetransmissionsForAck(time_ntp, hiSeqAck, rttSpacing_ntp);
+				}
 			}
 
 			pthread_mutex_unlock(&lock_scream);

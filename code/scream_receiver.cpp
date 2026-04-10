@@ -433,14 +433,24 @@ int main(int argc, char* argv[])
 			freezeDurationTotal_s);
 
 		if (periodic_print) {
-			fprintf(stdout,
-				"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, IF(raw,avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
-				receive_rate_kbps,
-				ifdd_avg_s,
-				ifraw_avg_s,
-				(unsigned long)intervalFramesCompleted,
-				(unsigned long)freezeCountTotal,
-				freezeDurationTotal_s);
+			if (videoMode) {
+				fprintf(stdout,
+					"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, IF(raw,avg)=%2.6f s, frames=%lu, freeze_count=%lu, freeze_duration=%2.3f s\n",
+					receive_rate_kbps,
+					ifdd_avg_s,
+					ifraw_avg_s,
+					(unsigned long)intervalFramesCompleted,
+					(unsigned long)freezeCountTotal,
+					freezeDurationTotal_s);
+			}
+			else {
+				fprintf(stdout,
+					"RX periodic (2s): rate=%8.3f kbps, IFDD(avg)=%2.6f s, IF(raw,avg)=%2.6f s, frames=%lu\n",
+					receive_rate_kbps,
+					ifdd_avg_s,
+					ifraw_avg_s,
+					(unsigned long)intervalFramesCompleted);
+			}
 			fflush(stdout);
 		}
 
@@ -588,11 +598,23 @@ int main(int argc, char* argv[])
 				}
 				lastPacketT_ntp = time_ntp;
 				if (time_ntp - last_received_time_ntp > 2 * 65536) { // 2 sec in Q16
-					/*
-					* Idle gap: keep cumulative stats intact across run.
-					*/
-					receivedRtp = 0;
-					cerr << "Receiver idle gap >2s (state kept)" << endl;
+					if (videoMode) {
+						/*
+						* Idle gap: keep cumulative stats intact across run.
+						*/
+						receivedRtp = 0;
+						cerr << "Receiver idle gap >2s (state kept)" << endl;
+					}
+					else {
+						/*
+						* It's been more than 2 seconds since we last received an RTP packet
+						*  let's reset everything to be on the safe side
+						*/
+						receivedRtp = 0;
+						delete screamRx;
+						screamRx = new ScreamRx(10, ackDiff, nReportedRtpPackets);
+						cerr << "Receiver state reset due to idle input" << endl;
+					}
 				}
 				last_received_time_ntp = time_ntp;
 				receivedRtp++;
@@ -620,10 +642,12 @@ int main(int argc, char* argv[])
 						intervalIfRawCount++;
 						intervalIfRawSqSum_s2 += arrival_delta_s * arrival_delta_s;
 
-						double freeze_threshold_s = std::max(0.150, 2.5 * media_delta_s);
-						if (arrival_delta_s > freeze_threshold_s) {
-							freezeCountTotal++;
-							freezeDurationTotal_s += std::max(0.0, arrival_delta_s - media_delta_s);
+						if (videoMode) {
+							double freeze_threshold_s = std::max(0.150, 2.5 * media_delta_s);
+							if (arrival_delta_s > freeze_threshold_s) {
+								freezeCountTotal++;
+								freezeDurationTotal_s += std::max(0.0, arrival_delta_s - media_delta_s);
+							}
 						}
 					}
 

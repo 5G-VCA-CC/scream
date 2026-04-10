@@ -7,7 +7,7 @@
 #
 # Usage:
 #   Fake traffic:
-#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir]
+#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir] [fake_fps]
 #   Video traffic:
 #     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
 #
@@ -27,6 +27,9 @@
 #   video_file       : path to input video file (.y4m)
 #   video_resolution : video resolution WxH (e.g., 704x576)
 #   video_fps        : sender FPS (default: 30)
+#
+# Optional (fake mode):
+#   fake_fps         : sender FPS (default: 50)
 # Notes:
 #   - video_file and video_resolution must be provided together to enable video mode.
 #   - In video mode, if the argument after video_resolution is numeric, it is interpreted as video_fps.
@@ -45,7 +48,7 @@ usage() {
     cat <<EOF
 Usage:
   Fake traffic:
-    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir]
+    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir] [fake_fps]
   Video traffic:
     $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
 
@@ -67,6 +70,9 @@ Arguments:
     video_resolution    WxH (e.g., 704x576)
     video_fps           positive number (e.g., 24, 29.97, 30, 60)
 
+  Optional (fake mode):
+    fake_fps            positive number (default: 50)
+
 Notes:
   - Video mode is enabled only when both video_file and video_resolution are provided.
   - In video mode, a numeric argument after video_resolution is treated as video_fps.
@@ -77,6 +83,7 @@ Examples:
     $0 1 5 5 traces/up.txt traces/down.txt 30
     $0 1 5 5 0.01 traces/up.txt traces/down.txt 30
     $0 0 3 25 0.01 traces/up.txt traces/down.txt 60 /tmp/results
+    $0 1 3 5 traces/up.txt traces/down.txt 30 /tmp/results 60
 
   # Video traffic
     $0 1 3 5 traces/up.txt traces/down.txt 30 input.y4m 704x576
@@ -114,6 +121,7 @@ VIDEO_FILE=""
 VIDEO_RESOLUTION=""
 OUTPUT_DIR=""
 VIDEO_FPS="30"
+FAKE_FPS="50"
 
 # Detect video mode by [video_file] [video_resolution]
 if [ $# -ge 2 ] && [[ "$2" =~ ^[0-9]+x[0-9]+$ ]]; then
@@ -140,17 +148,28 @@ if [ -n "$VIDEO_FILE" ]; then
         fi
     fi
 else
-    # Fake traffic mode: only optional output_dir is supported
+    # Fake traffic mode: optional output_dir and fake_fps
     if [ $# -ge 1 ]; then
-        # Guard against accidental numeric args being treated as output_dir.
-        # This commonly indicates a misplaced/extra positional argument.
         if [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-            echo "ERROR: Ambiguous numeric output_dir '$1'"
-            echo "If you intended an output directory, use a non-numeric path (e.g., ./results or /tmp/results)."
-            exit 1
+            FAKE_FPS="$1"
+            shift 1
+        else
+            OUTPUT_DIR="$1"
+            shift 1
+            if [ $# -ge 1 ]; then
+                if [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                    FAKE_FPS="$1"
+                    shift 1
+                else
+                    echo "ERROR: Invalid fake_fps '$1' (expected positive number)"
+                    exit 1
+                fi
+            fi
         fi
-        OUTPUT_DIR="$1"
-        shift 1
+    fi
+    if ! awk "BEGIN { exit !($FAKE_FPS > 0) }"; then
+        echo "ERROR: fake_fps must be > 0 (got: '$FAKE_FPS')"
+        exit 1
     fi
 fi
 
@@ -223,8 +242,8 @@ if [ -n "$VIDEO_FILE" ]; then
     HELPER_SCRIPT="${SCRIPT_DIR}/mahimahi_helper_video_traffic.sh"
 fi
 
-RX_IP="10.0.0.2"
-TX_IP="10.0.0.1"
+RX_IP="10.0.0.1"
+TX_IP="10.0.0.2"
 PORT=8080
 
 echo "=== SCReAM Batch Test Runner ==="
@@ -245,6 +264,8 @@ if [ "$MODE" = "video" ]; then
     echo "Video resolution: $VIDEO_RESOLUTION"
     echo "Keyframe policy: hardcoded (-keyframe-on-target -keyframe-on-loss -keyframe-unacked)"
     echo "Video FPS: $VIDEO_FPS"
+else
+    echo "Fake FPS: $FAKE_FPS"
 fi
 echo "Output directory: $OUTPUT_DIR"
 echo ""
@@ -304,6 +325,7 @@ run_test() {
             "$RX_IP" "$TX_IP" "$PORT"
             "$TEST_DURATION" "$log_prefix"
             "$SCREAM_RX" "$SCREAM_TX" "$L4S_ENABLED" "$MM_SETUP_SCRIPT" "$$"
+            "$FAKE_FPS"
         )
     fi
 
@@ -313,7 +335,7 @@ run_test() {
     echo "Mahimahi shell PID: $MAHIMAHI_PID"
 
     echo "Waiting for mahimahi setup to complete..."
-    timeout 15 bash -c "while [ ! -f '$signal_start' ]; do sleep 0.1; done" || {
+    timeout 30 bash -c "while [ ! -f '$signal_start' ]; do sleep 0.1; done" || {
         echo "ERROR: Mahimahi setup timeout!"
         kill "$MAHIMAHI_PID" 2>/dev/null || true
         cleanup_scream

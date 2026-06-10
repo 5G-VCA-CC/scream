@@ -9,7 +9,7 @@
 #   Fake traffic:
 #     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir] [fake_fps]
 #   Video traffic:
-#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
+#     ./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps] [--save-video]
 #
 # Required:
 #   l4s_enabled     : 0 or 1 to disable/enable L4S ECT marking
@@ -27,6 +27,7 @@
 #   video_file       : path to input video file (.y4m)
 #   video_resolution : video resolution WxH (e.g., 704x576)
 #   video_fps        : sender FPS (default: 30)
+#   --save-video     : save each iteration as test_<n>_received.y4m
 #
 # Optional (fake mode):
 #   fake_fps         : sender FPS (default: 50)
@@ -50,7 +51,7 @@ Usage:
   Fake traffic:
     $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir] [fake_fps]
   Video traffic:
-    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps]
+    $0 <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps] [--save-video]
 
 Arguments:
   Required:
@@ -69,6 +70,8 @@ Arguments:
     video_file          path to input video file (.y4m)
     video_resolution    WxH (e.g., 704x576)
     video_fps           positive number (e.g., 24, 29.97, 30, 60)
+    --save-video        save each run as test_<n>_received.y4m
+                        otherwise each run overwrites OUTPUT_DIR/received.y4m
 
   Optional (fake mode):
     fake_fps            positive number (default: 50)
@@ -77,6 +80,7 @@ Notes:
   - Video mode is enabled only when both video_file and video_resolution are provided.
   - In video mode, a numeric argument after video_resolution is treated as video_fps.
     To pass both output_dir and video_fps, pass output_dir first, then video_fps.
+  - In video mode, --save-video must be passed as the final argument.
 
 Examples:
   # Fake traffic
@@ -122,6 +126,13 @@ VIDEO_RESOLUTION=""
 OUTPUT_DIR=""
 VIDEO_FPS="30"
 FAKE_FPS="50"
+SAVE_VIDEO_PER_RUN="0"
+
+# Optional trailing flag that applies to video output behavior.
+if [ $# -ge 1 ] && [ "${!#}" = "--save-video" ]; then
+    SAVE_VIDEO_PER_RUN="1"
+    set -- "${@:1:$(($# - 1))}"
+fi
 
 # Detect video mode by [video_file] [video_resolution]
 if [ $# -ge 2 ] && [[ "$2" =~ ^[0-9]+x[0-9]+$ ]]; then
@@ -148,6 +159,12 @@ if [ -n "$VIDEO_FILE" ]; then
         fi
     fi
 else
+    if [ "$SAVE_VIDEO_PER_RUN" = "1" ]; then
+        echo "ERROR: --save-video is only valid in video mode"
+        usage
+        exit 1
+    fi
+
     # Fake traffic mode: optional output_dir and fake_fps
     if [ $# -ge 1 ]; then
         if [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
@@ -211,7 +228,7 @@ if [ -n "$VIDEO_FILE" ]; then
 fi
 
 if [ -z "$OUTPUT_DIR" ]; then
-    OUTPUT_DIR="${SCRIPT_DIR}/logs/bw_test_results_$(date +%Y%m%d_%H%M)"
+    OUTPUT_DIR="${SCRIPT_DIR}/logs/test_results_$(date +%Y%m%d_%H%M)"
 fi
 
 if [ ! -x "$SCREAM_RX" ]; then
@@ -264,6 +281,11 @@ if [ "$MODE" = "video" ]; then
     echo "Video resolution: $VIDEO_RESOLUTION"
     echo "Keyframe policy: hardcoded (-keyframe-on-target -keyframe-on-loss -keyframe-unacked)"
     echo "Video FPS: $VIDEO_FPS"
+    if [ "$SAVE_VIDEO_PER_RUN" = "1" ]; then
+        echo "Save per-iteration received videos: enabled"
+    else
+        echo "Save per-iteration received videos: disabled (received.y4m will be overwritten)"
+    fi
 else
     echo "Fake FPS: $FAKE_FPS"
 fi
@@ -279,6 +301,7 @@ CONFIG_FILE="${OUTPUT_DIR}/histogram_config.env"
     printf 'UPLINK_TRACE_FILE=%q\n' "$UPLINK_TRACE_FILE"
     printf 'MODE=%q\n' "$MODE"
     printf 'VIDEO_FILE=%q\n' "$VIDEO_FILE"
+    printf 'SAVE_VIDEO_PER_RUN=%q\n' "$SAVE_VIDEO_PER_RUN"
 } > "$CONFIG_FILE"
 
 cleanup_scream() {
@@ -292,6 +315,8 @@ run_test() {
     local iteration="$1"
     local log_prefix="${OUTPUT_DIR}/test_${iteration}"
     local mm_log="${log_prefix}_mm.log"
+    local default_rx_video_file="${OUTPUT_DIR}/received.y4m"
+    local run_rx_video_file="${log_prefix}_received.y4m"
     local signal_start="/tmp/mahimahi_start_rx_$$"
     local signal_rx_ready="/tmp/mahimahi_rx_ready_$$"
     local signal_done="/tmp/mahimahi_done_$$"
@@ -303,6 +328,9 @@ run_test() {
 
     cleanup_scream
     rm -f "$signal_start" "$signal_rx_ready" "$signal_done"
+    if [ "$MODE" = "video" ]; then
+        rm -f "$default_rx_video_file"
+    fi
 
     echo "Starting mahimahi shell..."
 
@@ -344,7 +372,10 @@ run_test() {
 
     echo "Mahimahi ready, starting receiver..."
     if [ "$MODE" = "video" ]; then
-        "$SCREAM_RX" -video "$VIDEO_RESOLUTION" "$TX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
+        (
+            cd "$OUTPUT_DIR"
+            "$SCREAM_RX" -video "$VIDEO_RESOLUTION" "$TX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1
+        ) &
     else
         "$SCREAM_RX" "$TX_IP" "$PORT" > "${log_prefix}_rx.log" 2>&1 &
     fi
@@ -391,6 +422,15 @@ run_test() {
         echo "Receiver did not exit in time, forcing kill"
         kill -KILL "$RX_PID" 2>/dev/null || true
         wait "$RX_PID" 2>/dev/null || true
+    fi
+
+    if [ "$MODE" = "video" ] && [ "$SAVE_VIDEO_PER_RUN" = "1" ]; then
+        if [ -f "$default_rx_video_file" ]; then
+            mv "$default_rx_video_file" "$run_rx_video_file"
+            echo "Saved received video: $run_rx_video_file"
+        else
+            echo "WARNING: No received video file produced for iteration $iteration"
+        fi
     fi
 }
 

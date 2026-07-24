@@ -6,7 +6,7 @@
 #   ./histograms.sh <output_dir>
 #
 # Expects optional metadata in:
-#   <output_dir>/histogram_config.env
+#   <output_dir>/config.env
 #
 # If metadata is missing, receiver histograms are still generated.
 
@@ -29,7 +29,7 @@ if [ ! -d "$OUTPUT_DIR" ]; then
     exit 1
 fi
 
-CONFIG_FILE="${OUTPUT_DIR}/histogram_config.env"
+CONFIG_FILE="${OUTPUT_DIR}/config.env"
 
 # Optional defaults; populated from config when available.
 L4S_ENABLED=""

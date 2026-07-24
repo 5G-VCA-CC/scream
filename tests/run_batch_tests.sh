@@ -293,7 +293,7 @@ echo "Output directory: $OUTPUT_DIR"
 echo ""
 
 mkdir -p "$OUTPUT_DIR"
-CONFIG_FILE="${OUTPUT_DIR}/histogram_config.env"
+CONFIG_FILE="${OUTPUT_DIR}/config.env"
 {
     printf 'L4S_ENABLED=%q\n' "$L4S_ENABLED"
     printf 'DELAY_MS=%q\n' "$DELAY_MS"

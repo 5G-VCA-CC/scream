@@ -1,20 +1,226 @@
+# Video-augmented BW Tool
+
+This section describes how to run the SCReAM BW tool in video-augmented mode with Mahimahi + DualPI2.
+The original SCReAM README follows after this section.
+
+## Prerequisites
+
+1. Build the BW test application
+  Follow the existing `## Build` section in this README.
+2. Install Mahimahi with the DualPI2 module for L4S-enabled video tests
+  Use the Mahimahi fork at [5G-VCA-CC/mahimahi](https://github.com/5G-VCA-CC/mahimahi). Make sure you are on the `dualpi2` branch.
+
+## Run a Single Sender-Receiver Flow
+
+Use two terminals.
+
+1. **Terminal A (host namespace): start receiver**
+
+Usage:
+
+```bash
+cd <scream_repo_root>
+./bin/scream_bw_test_rx -video <video_resolution> <tx_ip_inside_mahimahi> <port>
+```
+
+Example:
+
+```bash
+cd /path/to/scream
+./bin/scream_bw_test_rx -video 704x576 10.0.0.2 8080
+```
+
+1. **Terminal B: start Mahimahi shell**
+
+Usage (nested delay and link shells):
+
+```bash
+cd <scream_repo_root>
+mm-delay <delay_ms> \
+  mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100, l4s_max_threshold=10" \
+  <uplink_trace_file> \
+  <downlink_trace_file>
+```
+
+Example:
+
+```bash
+cd /path/to/scream
+mm-delay 20 \
+  mm-link --uplink-queue=dualPI2 --uplink-queue-args="packets=100, l4s_max_threshold=10" \
+  ../../mahimahi/traces/Verizon-LTE-short.up \
+  ../../mahimahi/traces/Verizon-LTE-short.down
+```
+
+Optionally, you can use the `--meter-all` option to display live graphs of throughput and delay.
+
+1. **Inside the Mahimahi shell: run routing + sender**
+
+Usage:
+
+```bash
+# Run routing script to enabled traffic through the nested Mahimahi shells
+$mahimahi/setup-mahimahi-delay-routing.sh
+
+# Start the SCReAM sender
+./bin/scream_bw_test_tx -ect <0|1> -video <video_file.y4m> -fps <fps> -time <duration_s> -keyframe-on-target -keyframe-on-loss -keyframe-unacked <rx_ip_outside_mahimahi> <port>
+```
+
+Example:
+
+```bash
+$mahimahi/setup-mahimahi-delay-routing.sh
+./bin/scream_bw_test_tx -ect 1 -video /path/to/input.y4m -fps 30 -time 30 -keyframe-on-target -keyframe-on-loss -keyframe-unacked 10.0.0.1 8080
+```
+
+Notes:
+
+- You do not need to run the routing script if your Mahimahi setting only has one link shell (no nesting).
+- `-ect 1` enables L4S mode; use `-ect 0` for classic ECN (non-L4S), or omit it entirely for non-ECN traffic.
+- Keep receiver in Terminal A running before starting sender in Terminal B.
+- To include uplink loss, use `mm-loss uplink <loss_pct>`. This could be used in addition to `mm-delay` and `mm-link`. In case of three nested shells, use the corresponding Mahimahi routing script:
+`$mahimahi/setup-mahimahi-delay-loss-routing.sh`.
+
+Expected output:
+
+- Receiver prints runtime statistics to stdout and writes the received video stream to `received.y4m` in the receiver working directory.
+- Sender prints bitrate/congestion-control progress and exits after `-time <duration_s>`.
+- Mahimahi shell stays active until sender finishes; then you can exit it with `exit`.
+
+
+
+## Run Batch Tests
+
+The batch runner supports synthetic RTP traffic and video traffic modes:
+
+```bash
+cd tests
+# For fake RTP traffic
+./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> [output_dir] [fake_fps]
+
+# For video traffic
+./run_batch_tests.sh <l4s_enabled> <num_iterations> <delay_ms> [loss_pct] <uplink_trace_file> <downlink_trace_file> <test_duration> <video_file> <video_resolution> [output_dir] [video_fps] [--save-video]
+```
+
+Examples:
+
+```bash
+# Fake traffic, 5 runs
+cd tests
+./run_batch_tests.sh 1 5 20 ../../mahimahi/traces/Verizon-LTE-short.up ../../mahimahi/traces/Verizon-LTE-short.down 30 ./logs/l4s_fake_5runs 50
+
+# Video traffic, 10 runs, save per-run received videos
+cd tests
+./run_batch_tests.sh 1 10 20 ../../mahimahi/traces/Verizon-LTE-short.up ../../mahimahi/traces/Verizon-LTE-short.down 30 /path/to/input.y4m 704x576 ./logs/l4s_video_10runs 30 --save-video
+```
+
+Expected output:
+
+- A log directory is created (either `output_dir` or auto-generated under `tests/logs/`).
+- Per iteration logs are generated: `test_<n>_mm.log`, `test_<n>_tx.log`, and `test_<n>_rx.log`.
+- A `config.env` file is generated in the output directory.
+- In video mode, `received.y4m` is overwritten each run unless `--save-video` is used (then files are saved as `test_<n>_received.y4m`).
+
+
+
+### Plotting the Batch Results
+
+The `tests` directory includes two plotting scripts that read the batch output logs above.
+
+1. `tests/plots.py`
+  Compares a Classic run directory vs an L4S run directory for one experiment setup.
+   It reads `*_tx.log` and `*_rx.log` files (for example `test_1_tx.log`, `test_1_rx.log`) and generates summary PDF plots such as queue delay, rate, packet loss, and freeze metrics.
+
+Usage:
+
+```bash
+python3 tests/plots.py <classic_dir> <l4s_dir> <output_dir> [--no-show]
+```
+
+Example:
+
+```bash
+python3 tests/plots.py \
+  tests/logs/classic_fake_5runs \
+  tests/logs/l4s_fake_5runs \
+  tests/graphs \
+  --no-show
+```
+
+1. `tests/plots_video_regimes.py`
+  Generates plots across low/medium/high motion video regimes (and can also generate per-run Tx/Rx time series).
+   It reads `test_<n>_tx.log` and `test_<n>_rx.log` from each regime directory and writes outputs under `<output_dir>/video_regimes/`.
+
+Usage (regime comparison mode):
+
+```bash
+python3 tests/plots_video_regimes.py <low_motion_dir> <medium_motion_dir> <high_motion_dir> <output_dir> [--no-show]
+```
+
+Example (regime comparison mode):
+
+```bash
+python3 tests/plots_video_regimes.py \
+  tests/logs/lowmo \
+  tests/logs/medmo \
+  tests/logs/highmo \
+  tests/graphs \
+  --no-show
+```
+
+Usage (single-run Tx/Rx time-series mode):
+
+```bash
+python3 tests/plots_video_regimes.py --tx-rx-timeseries --classic-dir <classic_dir> --l4s-dir <l4s_dir> --run-number <n> <output_dir> [--no-show]
+```
+
+Example (single-run Tx/Rx time-series mode):
+
+```bash
+python3 tests/plots_video_regimes.py \
+  --tx-rx-timeseries \
+  --classic-dir tests/logs/classic_video_10runs \
+  --l4s-dir tests/logs/l4s_video_10runs \
+  --run-number 1 \
+  tests/graphs \
+  --no-show
+```
+
+
+
+### Common Pitfalls and Interpretation Notes
+
+- `video_file` and `video_resolution` must be provided together; otherwise `run_batch_tests.sh` runs in fake-traffic mode.
+- Video tests assume a valid `.y4m` input. Keep the configured FPS and resolution aligned with the input content to avoid misleading freeze and quality behavior.
+- In video mode, sender keyframe triggers are enabled (`-keyframe-on-target`, `-keyframe-on-loss`, `-keyframe-unacked`), which can significantly affect bitrate, latency, and freeze outcomes.
+- Without `--save-video`, `received.y4m` is overwritten on each run; use `--save-video` to keep per-run files (`test_<n>_received.y4m`).
+- Use `-ect 1` for L4S mode and `-ect 0` for classic ECN mode when comparing behaviors under the same network conditions.
+- Match the routing script to your Mahimahi setup (`setup-mahimahi-delay-routing.sh` or `setup-mahimahi-delay-loss-routing.sh`), especially when adding `mm-loss`.
+- For fair Classic vs L4S comparisons, keep traces, delay/loss, duration, input video, and FPS identical across both runs.
+- Start debugging with `test_<n>_mm.log` for shell/routing issues, then inspect `test_<n>_tx.log` and `test_<n>_rx.log` for sender/receiver behavior.
+- Plot scripts parse specific log patterns; if log print formats change, some metrics may be skipped.
+- Some scripts filter invalid samples (for example negative IF values), so plotted sample counts can be lower than total run count.
+
+---
 
 # SCReAM
+
 This project includes an implementation of SCReAM, a mobile optimised congestion control algorithm for realtime interactive media.
 
 ## News
+
 - 2026-03-04 :
   - Calculation of queueDelayDev changed. 
   - Configurable estimatedJitter with function setEstimatedJitter
   - Build date for BW test tool sender changed
 - 2026-01-21 :
   - Calculation of queueDelayDev modified to be less sensitive to scheduling jitter
-   - Additional restrition of window headroom and rate increase applied when CWND/MSS is low
+  - Additional restrition of window headroom and rate increase applied when CWND/MSS is low
   - RTCP adjusted for slightly less frequent feedback  
-  - Build date for BW test tool sender/receiver changed  
+  - Build date for BW test tool sender/receiver changed
 - 2025-11-10 :
   - virtual L4S backoff made faster
-  - Build date for BW test tool sender changed  
+  - Build date for BW test tool sender changed
 - 2025-11-04 - 06 :
   - l4sAlpha calculation use fast attack slow decay filter
   - Reference window headroom made adaptive based on queue delay variation
@@ -33,14 +239,14 @@ This project includes an implementation of SCReAM, a mobile optimised congestion
 - 2025-09-27 - 28 :
   - Delay based congestion control (default enabled) can be selectable with function enableDelayBasedCongestionControl. With this change, delay based congestion congtrol (if enabled) runs fully in parallel with L4S. 
   - Option -nodelaycc added BW test tool to disable delay based congestion control.  
-	- Build date for BW test tool changed
+    - Build date for BW test tool changed
 - 2025-08-08 :
-  - Reordering time (packet reodering margin) is made configurable 
+  - Reordering time (packet reodering margin) is made configurable
 - 2025-05-09 : 
   - Added new user guide for the SCReAM BW test tool with examples
-  - SCReAM BW test, added end of session summary 
+  - SCReAM BW test, added end of session summary
 - 2025-04-17 :
-  - Added option -txrxlog that logs time, sequence_number, tx_time, rx_time, rx_time-tx_time for each RTP packet.   
+  - Added option -txrxlog that logs time, sequence_number, tx_time, rx_time, rx_time-tx_time for each RTP packet.
 - 2025-01-29 :
   - -relaxedpacing option added. Enables increased pacing rate when max rate reached
   - -postcongestiondelay option removed, replaced with a constant
@@ -48,11 +254,12 @@ This project includes an implementation of SCReAM, a mobile optimised congestion
   - More conservative CWND increase when max rate reached
   - Bytes inflight restriction to target rate enabled only when queue detected
   - Max feedback interval set to 10ms (was 5ms) 
-  - Release dates for SCReAM BW test changed 
+  - Release dates for SCReAM BW test changed
 
-  
-Older version history is found here https://github.com/EricssonResearch/scream/blob/master/version-history.md 
+Older version history is found here [https://github.com/EricssonResearch/scream/blob/master/version-history.md](https://github.com/EricssonResearch/scream/blob/master/version-history.md) 
+
 ## What is SCReAM
+
 SCReAM (**S**elf-**C**locked **R**at**e** **A**daptation for **M**ultimedia) is a congestion control algorithm devised mainly for Video.
 Congestion control for WebRTC media is currently being standardized in the IETF RMCAT WG, the scope of the working group was to define requirements for congestion control and also to standardize a few candidate solutions.
 SCReAM is a congestion control candidate solution for WebRTC developed at Ericsson Research and optimized for good performance in wireless access.  
@@ -61,24 +268,26 @@ The algorithm is an IETF experimental standard [1], a Sigcomm paper [2] and [3] 
 
 As mentioned above, SCReAM was originally devised for WebRTC but is sofar not incorporated into that platform. Instead, SCReAM has found use as congestion control for remote controlled vehicles, cloud gaming demos and benchmarking of 5G networks with and without L4S support.
 
-Since standardization in RFC8298, SCReAM has undergone changes and a new V2 is described in https://datatracker.ietf.org/doc/draft-johansson-ccwg-rfc8298bis-screamv2/
+Since standardization in RFC8298, SCReAM has undergone changes and a new V2 is described in [https://datatracker.ietf.org/doc/draft-johansson-ccwg-rfc8298bis-screamv2/](https://datatracker.ietf.org/doc/draft-johansson-ccwg-rfc8298bis-screamv2/)
 
-Test report(s) for SCReAM V2 is found here https://github.com/EricssonResearch/scream/blob/master/test-record.md 
+Test report(s) for SCReAM V2 is found here [https://github.com/EricssonResearch/scream/blob/master/test-record.md](https://github.com/EricssonResearch/scream/blob/master/test-record.md) 
 
 A test report at CableLabs L4S interop test in november 2024 shows that SCReAM V2 works fine when subject to competing flows over the same bottleneck. 
-https://github.com/EricssonResearch/scream/blob/master/CableLabs-L4S-interop-nov-2024-Ericsson.pdf 
+[https://github.com/EricssonResearch/scream/blob/master/CableLabs-L4S-interop-nov-2024-Ericsson.pdf](https://github.com/EricssonResearch/scream/blob/master/CableLabs-L4S-interop-nov-2024-Ericsson.pdf) 
 
 ## What is L4S ?
+
 L4S is short for **L**ow **L**atency **L**ow **L**oss **S**calable thorughput, L4S is specified in [4]. A network node that is L4S capable can remark packets that have the ECT(1) code point set to CE. The marking threshold is set very low (milliseconds).
 
 A sender that is L4S capable sets the ECT(1) code point on outgoing packets. If CE packets are detected, then the sender should reduce the transmission rate in proportion to the amount of packets that are marked. A document that highlights how L4S improves performance for low latency applications is found in [https://github.com/EricssonResearch/scream/blob/master/L4S-Results.pdf](https://github.com/EricssonResearch/scream/blob/master/L4S-Results.pdf?raw=true)
 
-In steady state, 2 packets per RTT should be marked. The expected rate then becomes <br> rate = (2.0/pMark) * MSS * 8/RTT [bps]    
-How SCReAM (V2) manages this is illustrated in the figure below ![SCReAM V2 mark probability vs bitrate, RTT=25ms, 1360byte packets](https://github.com/EricssonResearch/scream/blob/master/images/SCReAM-V2-RTT-25ms-1360B.png)  
+In steady state, 2 packets per RTT should be marked. The expected rate then becomes   
+ rate = (2.0/pMark) * MSS * 8/RTT [bps]  
+How SCReAM (V2) manages this is illustrated in the figure below SCReAM V2 mark probability vs bitrate, RTT=25ms, 1360byte packets  
 Figure 1 : SCReAM V2 bitrate as function of packet marking probability. RTT = 25ms, MSS=1360B. Dotted is theoretical, blue is actual
 
-
 ### The more nitty gritty details
+
 Unlike many other congestion control algorithms that are rate based i.e. they estimate the network throughput and adjust the media bitrate accordingly, SCReAM is self-clocked which essentially means that the algorithm does not send in more data into a network than what actually exits the network.
 
 To achieve this, SCReAM implements a feedback protocol over RTCP that acknowledges received RTP packets.
@@ -88,12 +297,13 @@ SCReAM is optimized in house in a state of the art LTE system simulator for opti
 The fact that SCReAM maintains a RTP queue on the sender side opens up for further optimizations to congestion, for instance it is possible to discard the contents of the RTP queue and replace with an I frame in order to refresh the video quickly at congestion.
 
 ### SCReAM performance and behavior
-SCReAM has been evaluated in a number of experiments over the years. Some of these are exemplified below.
 
+SCReAM has been evaluated in a number of experiments over the years. Some of these are exemplified below.
 
 A short [video](https://www.youtube.com/watch?v=_jBFu-Y0wwo) exemplifies the use of SCReAM in a small vehicle, remote controlled over a public LTE network. [8] explains the rationale behind the use of SCReAM in remote controlled applications over LTE/5G.
 
 #### ECN (Explicit Congestion Notification)
+
 SCReAM supports "classic" ECN, i.e. that the sending rate is reduced as a result of one or more ECN marked RTP packets in one RTT, similar to the guidelines in RFC3168. .
 
 In addition SCReAM also supports L4S, i.e that the sending rate is reduced proportional to the fraction of the RTP packets that are ECN-CE marked. This enables lower network queue delay.  
@@ -102,64 +312,66 @@ Below is shown two simulation examples with a simple 50Mbps 25ms. The video trac
 
 L4S gives a somewhat lower media rate, the reason is that a larger headroom is added to ensure the low delay, considering the varying output rate of the video encoder. This is self-adjusting by inherent design because the larger frames hit the L4S enabled queue more and thus causes more marking. The average bitrate would increase if the frame size variations are smaller.
 
-![Simple bottleneck simulation SCReAM no L4S support](https://github.com/EricssonResearch/scream/blob/master/images/SCReAM-V2-noL4S.png)
+Simple bottleneck simulation SCReAM no L4S support
 Figure 2 : SCReAM V2 without L4S support
 
-![Simple bottleneck simulation SCReAM with L4S support](https://github.com/EricssonResearch/scream/blob/master/images/SCReAM-V2-L4S.png)
+Simple bottleneck simulation SCReAM with L4S support
 Figure 3 : SCReAM V2 with L4S support. L4S ramp-marker (Th_low=2ms, Th_high=10ms)
 
 Another example with the SCreAM BW test tool over a 50Mbps, 25ms bottleneck with DualPi2 AQM 
-![SCReAM V2 no L4S support](https://github.com/EricssonResearch/scream/blob/master/images/SCReAM-DualPi2-50Mbps-25ms-noL4S.png)
+SCReAM V2 no L4S support
 Figure 4 : SCReAM V2 without L4S support, 50Mbps, 25ms bottleneck with DualPi2 AQM 
 
-![SCReAM V2 L4S support](https://github.com/EricssonResearch/scream/blob/master/images/SCReAM-DualPi2-50Mbps-25ms-L4S.png)
+SCReAM V2 L4S support
 Figure 5 : SCReAM V2 with L4S support, 50Mbps, 25ms bottleneck with DualPi2 AQM 
 
 SCReAM is also implemented in a remote controlled car prototype. The two videos below show how it works in different situations
-- [Boliden Kankberg mine](https://www.youtube.com/watch?v=r7QxdTP3jB0 "Boliden Kankberg mine")
-- [Winter wonderland](https://www.youtube.com/watch?v=eU1crtEvMv4 "Winter wonderland")
 
-SCReAM V2 was also implemented for MWC 2023 demo in collaboration between Ericsson, DT and Vay. https://vay.io/press-release/mwc-ericsson-deutsche-telekom-and-vay-show-live-teledrive-technology-demo-with-5g/
+- [Boliden Kankberg mine](https://www.youtube.com/watch?v=r7QxdTP3jB0)
+- [Winter wonderland](https://www.youtube.com/watch?v=eU1crtEvMv4)
 
-----------
+SCReAM V2 was also implemented for MWC 2023 demo in collaboration between Ericsson, DT and Vay. [https://vay.io/press-release/mwc-ericsson-deutsche-telekom-and-vay-show-live-teledrive-technology-demo-with-5g/](https://vay.io/press-release/mwc-ericsson-deutsche-telekom-and-vay-show-live-teledrive-technology-demo-with-5g/)
+
+---
 
 A older comparison against GCC (Google Congestion Control) is shown in [5]. Final presentations are found in [6] and [7].that show how SCReAM performs
-
 
 SCReAM has been successfully be used on more recent experiments, examples will be added later.
 
 ## Build
+
 The SCReAM code comes in two (three) applications
 
 - Windows based test application : This application implements a simple bottleneck and does only local simulation. Open the scream.sln application in Visual studio and build.
-- Linux based BW test application :  Makes in possible to benchmark the throughput live networks and test beds. The tool models a video encoder. See https://github.com/EricssonResearch/scream/blob/master/SCReAM-description.pptx for further instructions.
+- Linux based BW test application :  Makes in possible to benchmark the throughput live networks and test beds. The tool models a video encoder. See [https://github.com/EricssonResearch/scream/blob/master/SCReAM-description.pptx](https://github.com/EricssonResearch/scream/blob/master/SCReAM-description.pptx) for further instructions.
 - multicam version :  See ./multicam/README.md for details.
 - gstreamer plugin :  See ./gstscream/README.md for details.
 
+
+
 ### The code
+
 The main SCReAM algorithm components are found in the C++ classes:
 
 - ScreamTx : SCReAM sender algorithm
   - ScreamV1Tx : Older version, removed
   - ScreamV2Tx, ScreamV2Stream : Version
-
 - ScreamRx : SCReAM receiver algorithm
-
 - RtpQueue : Rudimentary RTP packet queue
 
 A few support classes for experimental use are implemented in:
 
 - VideoEnc : A very simple model of a Video encoder
-
-
 - NetQueue : Simple delay and bandwidth limitation
 
 For more information on how to use the code in multimedia clients or in experimental platforms, please see [https://github.com/EricssonResearch/scream/blob/master/SCReAM-description.pptx](https://github.com/EricssonResearch/scream/blob/master/SCReAM-description.pptx?raw=true)
 
 ### Feedback format
+
 The feedback format is according to [9]. The feedback interval depends heavily on the media bitrate.
 
 ### Build SCReAM BW test tool
+
 The SCReAM BW test application runs on e.g Ubuntu 16.04 and later. The build steps are:
 
 ```
@@ -171,22 +383,22 @@ You need git, cmake, make and g++ installed
 
 A SCReAM BW test tool user guide is found at [https://github.com/EricssonResearch/scream/blob/master/SCReAM-BW-test-tool.docx](https://github.com/EricssonResearch/scream/blob/master/SCReAM-BW-test-tool.docx?raw=true)
 
-
 # References
-[1] https://tools.ietf.org/html/rfc8298
 
-[2] Sigcomm paper http://dl.acm.org/citation.cfm?id=2631976
+[1] [https://tools.ietf.org/html/rfc8298](https://tools.ietf.org/html/rfc8298)
 
-[3] Sigcomm presentation http://conferences.sigcomm.org/sigcomm/2014/doc/slides/150.pdf
+[2] Sigcomm paper [http://dl.acm.org/citation.cfm?id=2631976](http://dl.acm.org/citation.cfm?id=2631976)
 
-[4] https://tools.ietf.org/html/rfc9331
+[3] Sigcomm presentation [http://conferences.sigcomm.org/sigcomm/2014/doc/slides/150.pdf](http://conferences.sigcomm.org/sigcomm/2014/doc/slides/150.pdf)
 
-[5] IETF RMCAT presentation, comparison against Google Congestion Control (GCC) http://www.ietf.org/proceedings/90/slides/slides-90-rmcat-3.pdf
+[4] [https://tools.ietf.org/html/rfc9331](https://tools.ietf.org/html/rfc9331)
 
-[6] IETF RMCAT presentation (final for WGLC) : https://www.ietf.org/proceedings/96/slides/slides-96-rmcat-0.pdf
+[5] IETF RMCAT presentation, comparison against Google Congestion Control (GCC) [http://www.ietf.org/proceedings/90/slides/slides-90-rmcat-3.pdf](http://www.ietf.org/proceedings/90/slides/slides-90-rmcat-3.pdf)
 
-[7] IETF RMCAT presention , SCReAM for remote controlled vehicles over 4G/5G : https://datatracker.ietf.org/meeting/100/materials/slides-100-rmcat-scream-experiments
+[6] IETF RMCAT presentation (final for WGLC) : [https://www.ietf.org/proceedings/96/slides/slides-96-rmcat-0.pdf](https://www.ietf.org/proceedings/96/slides/slides-96-rmcat-0.pdf)
 
-[8] Adaptive Video with SCReAM over LTE for Remote-Operated Working Machines : https://www.hindawi.com/journals/wcmc/2018/3142496/
+[7] IETF RMCAT presention , SCReAM for remote controlled vehicles over 4G/5G : [https://datatracker.ietf.org/meeting/100/materials/slides-100-rmcat-scream-experiments](https://datatracker.ietf.org/meeting/100/materials/slides-100-rmcat-scream-experiments)
 
-[9] https://tools.ietf.org/html/rfc8888
+[8] Adaptive Video with SCReAM over LTE for Remote-Operated Working Machines : [https://www.hindawi.com/journals/wcmc/2018/3142496/](https://www.hindawi.com/journals/wcmc/2018/3142496/)
+
+[9] [https://tools.ietf.org/html/rfc8888](https://tools.ietf.org/html/rfc8888)

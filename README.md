@@ -201,6 +201,27 @@ python3 tests/plots_video_regimes.py \
 - Plot scripts parse specific log patterns; if log print formats change, some metrics may be skipped.
 - Some scripts filter invalid samples (for example negative IF values), so plotted sample counts can be lower than total run count.
 
+## Cite us
+
+Nawel Alioua, Ryan Zanone, Cheng Xi and Elizabeth Belding. 2026. Fake It No More: Evaluating L4S with SCReAM on Video Traffic. (2026). arXiv:2607.23767 [cs.NI]
+
+Bibtex:
+
+```bibtex
+@misc{fakenomorel4s-2026,
+title={Fake It No More: Evaluating L4S with SCReAM on Video Traffic}, 
+author={Nawel Alioua and Ryan Zanone and Cheng Xi and Elizabeth Belding},
+year={2026},
+eprint={2607.23767},
+archivePrefix={arXiv},
+primaryClass={cs.NI},
+url={https://arxiv.org/abs/2607.23767}, 
+}
+```
+
+Paper: [https://arxiv.org/abs/2607.23767](https://arxiv.org/abs/2607.23767)
+
+
 ---
 
 # SCReAM
